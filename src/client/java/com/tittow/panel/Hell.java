@@ -34,6 +34,10 @@ public final class Hell {
 
 	/** Jeden Tick prüfen, damit "Hell" auch nach Tod, Neustart oder Dimensionswechsel aktiv bleibt. */
 	public void tick(Minecraft mc) {
+		// Die alte Version hatte die Helligkeit über 100 % gestellt: einmal zurück auf "Hell" (100 %)
+		if (mc.options.gamma().get() > 1.0) {
+			mc.options.gamma().set(1.0);
+		}
 		LocalPlayer p = mc.player;
 		if (p == null) {
 			nachtsichtVonUns = false;
