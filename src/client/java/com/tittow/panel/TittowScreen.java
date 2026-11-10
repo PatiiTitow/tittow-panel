@@ -40,10 +40,15 @@ public final class TittowScreen extends Screen {
 		}).pos(mitte - 100, y).size(200, 20).build());
 
 		y += 32;
-		this.addRenderableWidget(Button.builder(Component.literal("Ecke 1 hier"), b -> setzen("ecke1"))
+		this.addRenderableWidget(Button.builder(Component.literal("+ Ecke hier"), b -> eckeHinzufuegen())
 				.pos(mitte - 100, y).size(98, 20).build());
-		this.addRenderableWidget(Button.builder(Component.literal("Ecke 2 hier"), b -> setzen("ecke2"))
-				.pos(mitte + 2, y).size(98, 20).build());
+		this.addRenderableWidget(Button.builder(Component.literal("Letzte Ecke weg"), b -> {
+			if (!bereich.ecken.isEmpty()) {
+				bereich.ecken.remove(bereich.ecken.size() - 1);
+				bereich.speichern();
+				meldung = "Letzte Ecke entfernt, noch " + bereich.ecken.size() + ".";
+			}
+		}).pos(mitte + 2, y).size(98, 20).build());
 		y += 24;
 		this.addRenderableWidget(Button.builder(Component.literal("Mob-Ecke 1 hier"), b -> setzen("mobs1"))
 				.pos(mitte - 100, y).size(98, 20).build());
@@ -51,6 +56,7 @@ public final class TittowScreen extends Screen {
 				.pos(mitte + 2, y).size(98, 20).build());
 		y += 24;
 		this.addRenderableWidget(Button.builder(Component.literal("Fläche löschen"), b -> {
+			bereich.ecken.clear();
 			bereich.ecke1 = bereich.ecke2 = bereich.mobs1 = bereich.mobs2 = null;
 			bereich.speichern();
 			meldung = "Fläche gelöscht.";
@@ -61,6 +67,17 @@ public final class TittowScreen extends Screen {
 
 	private Component botText() {
 		return Component.literal(bot.istAktiv() ? "Bot: AN  (klicken zum Ausschalten)" : "Bot: AUS  (klicken zum Einschalten)");
+	}
+
+	private void eckeHinzufuegen() {
+		LocalPlayer p = this.minecraft.player;
+		if (p == null) {
+			return;
+		}
+		bereich.ecken.add(new int[] {p.getBlockX(), p.getBlockY(), p.getBlockZ()});
+		bereich.ecke1 = bereich.ecke2 = null; // alte Rechteck-Fläche nicht mehr nutzen
+		bereich.speichern();
+		meldung = "Ecke " + bereich.ecken.size() + " gesetzt: " + p.getBlockX() + " " + p.getBlockY() + " " + p.getBlockZ();
 	}
 
 	private void setzen(String welche) {
@@ -98,7 +115,7 @@ public final class TittowScreen extends Screen {
 		if (!meldung.isEmpty()) {
 			graphics.centeredText(this.font, meldung, mitte, this.height / 2 + 74, GRUEN);
 		}
-		graphics.centeredText(this.font, "Stell dich auf ein Feld und drück den passenden Knopf. Nur für die eigene Welt!",
+		graphics.centeredText(this.font, "Ecken der Reihe nach außen herum setzen (L = 6 Ecken). Nur für die eigene Welt!",
 				mitte, this.height / 2 + 90, GRAU);
 	}
 

@@ -19,11 +19,19 @@ Diese Mod lässt **deine eigene Spielfigur** in deiner Mob-Farm laufen und Mobs 
 2. Schwert und Essen in die **Hotbar** legen (der Bot nimmt nur Sachen aus der Hotbar).
 3. **Numpad 8** drücken (NumLock an) → das Tittow Panel geht auf.
 4. Fläche einrichten (einmalig, wird gespeichert):
-   - Stell dich auf eine Ecke der **ganzen Fläche** → **„Ecke 1 hier“**
-   - Stell dich auf die gegenüberliegende Ecke → **„Ecke 2 hier“**
-   - Stell dich auf eine Ecke vom **Mob-Bereich** → **„Mob-Ecke 1 hier“**
-   - Gegenüberliegende Ecke vom Mob-Bereich → **„Mob-Ecke 2 hier“**
-   - Oben im Panel siehst du z. B. „Fläche 5x5, Mob-Bereich 3x3, 16 freie Felder“.
+   - Lauf **einmal außen um deine Lauf-Fläche herum** und stell dich nacheinander auf jede Ecke.
+     Auf jeder Ecke klickst du **„+ Ecke hier“**. Bei einem L sind das **6 Ecken**, egal wie es gedreht ist.
+   - Wichtig: Die Ecken **der Reihe nach** setzen, nicht kreuz und quer. Falsch gesetzt? **„Letzte Ecke weg“**.
+   - Optional zusätzlich den **Mob-Bereich** sperren: „Mob-Ecke 1 hier“ und „Mob-Ecke 2 hier“.
+     Brauchst du nicht, wenn das L die Mobs schon ausspart.
+   - Oben im Panel siehst du z. B. „Fläche 6 Ecken, 5x5, Mob-Bereich keiner, 16 freie Felder“.
+   ```
+   E . . . . E        E = Ecke (hier 6 Stück)
+   . . . . . .        . = Lauf-Fläche
+   E . . E M M        M = Mobs (da geht der Bot nie hin)
+         . M M
+         E M M   <- Beispiel, die Form darf beliebig gedreht sein
+   ```
 5. Stell dich auf die freie Fläche und klick **„Bot: AUS“** → der Bot geht an und das Fenster schließt sich.
 6. Zum Ausschalten wieder **Numpad 8** und auf **„Bot: AN“** klicken.
 

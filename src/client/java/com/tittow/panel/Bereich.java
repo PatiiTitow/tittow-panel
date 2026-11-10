@@ -17,8 +17,9 @@ import com.google.gson.GsonBuilder;
 import net.fabricmc.loader.api.FabricLoader;
 
 /**
- * Die Farm-Fläche: ein Rechteck (ecke1/ecke2), in dem der Bot laufen darf,
- * und ein Rechteck für den Mob-Bereich (mobs1/mobs2), den er nie betritt.
+ * Die Farm-Fläche: eine beliebige Form aus Ecken (z. B. 6 Ecken für ein L), in der der Bot laufen darf,
+ * und optional ein Rechteck für den Mob-Bereich (mobs1/mobs2), den er nie betritt.
+ * Die Ecken setzt man der Reihe nach, einmal außen herum.
  * Wird in config/tittowpanel.json gespeichert.
  */
 public final class Bereich {
@@ -30,7 +31,8 @@ public final class Bereich {
 	private static final Path DATEI = FabricLoader.getInstance().getConfigDir().resolve("tittowpanel.json");
 
 	// Gespeicherte Werte (null = noch nicht gesetzt)
-	public int[] ecke1;
+	public List<int[]> ecken = new ArrayList<>(); // Ecken der Lauf-Fläche, der Reihe nach
+	public int[] ecke1; // alte Version (Rechteck), wird nur genutzt, wenn keine Ecken gesetzt sind
 	public int[] ecke2;
 	public int[] mobs1;
 	public int[] mobs2;
@@ -41,6 +43,9 @@ public final class Bereich {
 				try (Reader r = Files.newBufferedReader(DATEI)) {
 					Bereich b = GSON.fromJson(r, Bereich.class);
 					if (b != null) {
+						if (b.ecken == null) {
+							b.ecken = new ArrayList<>();
+						}
 						return b;
 					}
 				}
@@ -63,7 +68,49 @@ public final class Bereich {
 	}
 
 	public boolean flaecheGesetzt() {
-		return ecke1 != null && ecke2 != null;
+		return ecken.size() >= 3 || (ecke1 != null && ecke2 != null);
+	}
+
+	private boolean mitEcken() {
+		return ecken.size() >= 3;
+	}
+
+	/** Liegt die Mitte des Feldes in der Form (Rand zählt mit)? */
+	private boolean inForm(int x, int z) {
+		double px = x + 0.5;
+		double pz = z + 0.5;
+		boolean drinnen = false;
+		int n = ecken.size();
+		for (int i = 0, j = n - 1; i < n; j = i++) {
+			double xi = ecken.get(i)[0] + 0.5, zi = ecken.get(i)[2] + 0.5;
+			double xj = ecken.get(j)[0] + 0.5, zj = ecken.get(j)[2] + 0.5;
+			// auf dem Rand?
+			double kreuz = (px - xi) * (zj - zi) - (pz - zi) * (xj - xi);
+			if (Math.abs(kreuz) < 1e-9 && px >= Math.min(xi, xj) - 1e-9 && px <= Math.max(xi, xj) + 1e-9
+					&& pz >= Math.min(zi, zj) - 1e-9 && pz <= Math.max(zi, zj) + 1e-9) {
+				return true;
+			}
+			if ((zi > pz) != (zj > pz) && px < (xj - xi) * (pz - zi) / (zj - zi) + xi) {
+				drinnen = !drinnen;
+			}
+		}
+		return drinnen;
+	}
+
+	/** {minX, maxX, minZ, maxZ} der Fläche */
+	private int[] grenzen() {
+		if (mitEcken()) {
+			int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
+			for (int[] e : ecken) {
+				minX = Math.min(minX, e[0]);
+				maxX = Math.max(maxX, e[0]);
+				minZ = Math.min(minZ, e[2]);
+				maxZ = Math.max(maxZ, e[2]);
+			}
+			return new int[] {minX, maxX, minZ, maxZ};
+		}
+		return new int[] {Math.min(ecke1[0], ecke2[0]), Math.max(ecke1[0], ecke2[0]),
+			Math.min(ecke1[2], ecke2[2]), Math.max(ecke1[2], ecke2[2])};
 	}
 
 	public boolean mobsGesetzt() {
@@ -78,7 +125,10 @@ public final class Bereich {
 
 	/** Darf der Bot auf diesem Feld stehen? */
 	public boolean erlaubt(int x, int z) {
-		if (!flaecheGesetzt() || !drin(ecke1, ecke2, x, z)) {
+		if (!flaecheGesetzt()) {
+			return false;
+		}
+		if (mitEcken() ? !inForm(x, z) : !drin(ecke1, ecke2, x, z)) {
 			return false;
 		}
 		return !drin(mobs1, mobs2, x, z);
@@ -93,8 +143,9 @@ public final class Bereich {
 		if (!flaecheGesetzt()) {
 			return felder;
 		}
-		for (int x = Math.min(ecke1[0], ecke2[0]); x <= Math.max(ecke1[0], ecke2[0]); x++) {
-			for (int z = Math.min(ecke1[2], ecke2[2]); z <= Math.max(ecke1[2], ecke2[2]); z++) {
+		int[] g = grenzen();
+		for (int x = g[0]; x <= g[1]; x++) {
+			for (int z = g[2]; z <= g[3]; z++) {
 				if (erlaubt(x, z)) {
 					felder.add(new Feld(x, z));
 				}
@@ -161,13 +212,15 @@ public final class Bereich {
 
 	public String beschreibung() {
 		if (!flaecheGesetzt()) {
-			return "Fläche: noch nicht eingerichtet";
+			return ecken.isEmpty() ? "Fläche: noch nicht eingerichtet"
+					: "Fläche: " + ecken.size() + " Ecke(n) gesetzt, mindestens 3 nötig";
 		}
-		int breit = Math.abs(ecke1[0] - ecke2[0]) + 1;
-		int lang = Math.abs(ecke1[2] - ecke2[2]) + 1;
+		int[] g = grenzen();
+		String form = mitEcken() ? ecken.size() + " Ecken, " : "";
 		String mobs = mobsGesetzt()
 				? (Math.abs(mobs1[0] - mobs2[0]) + 1) + "x" + (Math.abs(mobs1[2] - mobs2[2]) + 1)
-				: "fehlt";
-		return "Fläche " + breit + "x" + lang + ", Mob-Bereich " + mobs + ", " + freieFelder().size() + " freie Felder";
+				: "keiner";
+		return "Fläche " + form + (g[1] - g[0] + 1) + "x" + (g[3] - g[2] + 1) + ", Mob-Bereich " + mobs
+				+ ", " + freieFelder().size() + " freie Felder";
 	}
 }
