@@ -27,8 +27,8 @@ public final class TittowPanelClient implements ClientModInitializer {
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			while (oeffnen.consumeClick()) {
-				if (client.player != null && client.screen == null) {
-					client.setScreen(new TittowScreen(BOT, BEREICH));
+				if (client.player != null && client.gui.screen == null) {
+					client.gui.setScreen(new TittowScreen(BOT, BEREICH));
 				}
 			}
 			BOT.tick(client);
