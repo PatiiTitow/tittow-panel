@@ -3,15 +3,23 @@ package com.tittow.panel;
 import com.tittow.panel.mixin.OptionInstanceAccessor;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 
-/** "Hell": macht alles taghell, auch in Höhlen und nachts (Helligkeit weit über 100 %). */
+/**
+ * "Hell": Nacht wie Tag. Zwei Dinge zusammen:
+ * 1. Helligkeit weit über 100 %.
+ * 2. Nachtsicht nur bei dir auf dem Bildschirm (ohne Symbol), damit alles voll ausgeleuchtet ist.
+ */
 public final class Hell {
 	private static final double HELL_WERT = 16.0;
 	private static final double NORMAL_WERT = 0.5;
 
 	private final Bereich einstellungen;
 	private boolean angewendet = false;
+	private boolean nachtsichtVonUns = false;
 
 	public Hell(Bereich einstellungen) {
 		this.einstellungen = einstellungen;
@@ -46,5 +54,23 @@ public final class Hell {
 			((OptionInstanceAccessor) (Object) mc.options.gamma()).tittow_setValue(soll);
 		}
 		angewendet = einstellungen.hell;
+		nachtsicht(mc.player);
+	}
+
+	private void nachtsicht(LocalPlayer p) {
+		if (p == null) {
+			return;
+		}
+		if (einstellungen.hell) {
+			MobEffectInstance jetzt = p.getEffect(MobEffects.NIGHT_VISION);
+			// unendlich lang, ohne Partikel und ohne Symbol; bei echter Nachtsicht-Trank nichts ändern
+			if (jetzt == null) {
+				p.addEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, MobEffectInstance.INFINITE_DURATION, 0, false, false, false));
+				nachtsichtVonUns = true;
+			}
+		} else if (nachtsichtVonUns) {
+			p.removeEffect(MobEffects.NIGHT_VISION);
+			nachtsichtVonUns = false;
+		}
 	}
 }
