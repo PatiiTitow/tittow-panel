@@ -36,6 +36,7 @@ public final class Bereich {
 	public int[] ecke2;
 	public int[] mobs1;
 	public int[] mobs2;
+	public boolean hell = false; // "Hell" an oder aus
 
 	public static Bereich laden() {
 		try {

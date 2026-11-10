@@ -15,6 +15,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 public final class TittowPanelClient implements ClientModInitializer {
 	private static final Bereich BEREICH = Bereich.laden();
 	private static final BotLogik BOT = new BotLogik(BEREICH);
+	private static final Hell HELL = new Hell(BEREICH);
 
 	@Override
 	public void onInitializeClient() {
@@ -28,10 +29,11 @@ public final class TittowPanelClient implements ClientModInitializer {
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			while (oeffnen.consumeClick()) {
 				if (client.player != null && client.gui.screen() == null) {
-					client.gui.setScreen(new TittowScreen(BOT, BEREICH));
+					client.gui.setScreen(new TittowScreen(BOT, BEREICH, HELL));
 				}
 			}
 			BOT.tick(client);
+			HELL.tick(client);
 		});
 
 		// beim Verlassen der Welt den Bot ausschalten
