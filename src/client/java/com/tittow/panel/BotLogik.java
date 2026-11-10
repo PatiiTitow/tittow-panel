@@ -66,6 +66,9 @@ public final class BotLogik {
 	// Kamera (weiches Umschauen)
 	private float wunschYaw = Float.NaN;
 	private float wunschPitch = 15f;
+	private float letzterWunschYaw = Float.NaN;
+	private float ueberschuss = 0f;          // kleines "Überschießen" wie bei einer echten Maus
+	private int ueberschussTicks = 0;
 
 	// Kleinigkeiten
 	private int springenTicks = 0;
@@ -442,7 +445,22 @@ public final class BotLogik {
 			wunschYaw = p.getYRot();
 		}
 		float yaw = p.getYRot();
-		float diff = Mth.wrapDegrees(wunschYaw - yaw);
+		// Bei einer großen Drehung schießt die "Maus" manchmal ein paar Grad übers Ziel hinaus
+		// und korrigiert dann zurück, wie ein Mensch.
+		if (Float.isNaN(letzterWunschYaw) || winkelAbstand(letzterWunschYaw, wunschYaw) > 15) {
+			float weite = Math.abs(Mth.wrapDegrees(wunschYaw - yaw));
+			if (weite > 20 && zufall.nextDouble() < 0.35) {
+				ueberschuss = Math.signum(Mth.wrapDegrees(wunschYaw - yaw)) * (2f + zufall.nextFloat() * Math.min(8f, weite * 0.12f));
+				ueberschussTicks = 3 + zufall.nextInt(4);
+			}
+		}
+		letzterWunschYaw = wunschYaw;
+		float ziel = wunschYaw;
+		if (ueberschussTicks > 0) {
+			ziel += ueberschuss;
+			ueberschussTicks--;
+		}
+		float diff = Mth.wrapDegrees(ziel - yaw);
 		float tempo = 0.25f + zufall.nextFloat() * 0.2f;           // 25 bis 45 % pro Tick
 		float schritt = Mth.clamp(diff * tempo, -25f, 25f);
 		schritt += (zufall.nextFloat() - 0.5f) * 0.6f;              // leichtes Zittern wie mit der Maus
