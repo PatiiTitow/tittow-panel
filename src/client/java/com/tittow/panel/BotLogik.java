@@ -140,7 +140,7 @@ public final class BotLogik {
 			aus(mc, "AUS (gestorben)");
 			return;
 		}
-		if (mc.gui.screen != null) {
+		if (mc.gui.screen() != null) {
 			tastenLoslassen(mc.options); // Pause, solange ein Menü offen ist
 			return;
 		}
