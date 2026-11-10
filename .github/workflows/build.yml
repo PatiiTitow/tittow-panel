@@ -1,0 +1,39 @@
+# Baut die Mod bei jedem Push und stellt die fertige Datei als Release "neueste" bereit.
+# aktualisieren.bat lädt immer genau diese Datei herunter.
+name: build
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v6
+      - name: validate gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
+      - name: setup jdk
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'microsoft'
+      - name: make gradle wrapper executable
+        run: chmod +x ./gradlew
+      - name: build
+        run: ./gradlew build
+      - name: prepare jar
+        run: cp build/libs/tittowpanel-1.0.0.jar tittowpanel.jar
+      - name: publish as release "neueste"
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete neueste --yes --cleanup-tag || true
+          gh release create neueste tittowpanel.jar \
+            --title "Tittow Panel (neueste Version)" \
+            --notes "Automatisch gebaut aus ${GITHUB_SHA::7}. Mit aktualisieren.bat installieren." \
+            --target "$GITHUB_SHA"

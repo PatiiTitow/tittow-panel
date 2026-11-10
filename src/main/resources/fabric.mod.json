@@ -1,0 +1,23 @@
+{
+	"schemaVersion": 1,
+	"id": "tittowpanel",
+	"version": "${version}",
+	"name": "Tittow Panel",
+	"description": "AFK-Bot für Mob-Farmen: Numpad 8 öffnet das Tittow Panel, dort schaltest du den Bot an und aus. Nur für die eigene Welt oder den eigenen Server.",
+	"authors": ["Patii Titow"],
+	"license": "All-Rights-Reserved",
+	"icon": "assets/tittowpanel/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": ["com.tittow.panel.TittowPanelClient"]
+	},
+	"mixins": [
+		{ "config": "tittowpanel.client.mixins.json", "environment": "client" }
+	],
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
