@@ -115,8 +115,42 @@ public final class TittowScreen extends Screen {
 		if (!meldung.isEmpty()) {
 			graphics.centeredText(this.font, meldung, mitte, this.height / 2 + 74, GRUEN);
 		}
-		graphics.centeredText(this.font, "Ecken der Reihe nach außen herum setzen (L = 6 Ecken). Nur für die eigene Welt!",
+		graphics.centeredText(this.font, "Ecken in beliebiger Reihenfolge setzen (L = 6 Ecken). Nur für die eigene Welt!",
 				mitte, this.height / 2 + 90, GRAU);
+		karteZeichnen(graphics, mitte + 112, this.height / 2 - 50);
+	}
+
+	/** Kleine Karte zur Kontrolle: grün = Lauf-Fläche, rot = Mob-Bereich, gelb = du. */
+	private void karteZeichnen(GuiGraphicsExtractor graphics, int links, int oben) {
+		if (!bereich.flaecheGesetzt()) {
+			return;
+		}
+		int[] g = bereich.grenzen();
+		int breit = g[1] - g[0] + 1;
+		int lang = g[3] - g[2] + 1;
+		int feld = Math.max(2, Math.min(12, 96 / Math.max(breit, lang)));
+		graphics.text(this.font, "Karte (Norden oben)", links, oben - 12, GRAU, true);
+		graphics.fill(links - 1, oben - 1, links + breit * feld + 1, oben + lang * feld + 1, 0xFF000000);
+		LocalPlayer p = this.minecraft.player;
+		for (int x = g[0]; x <= g[1]; x++) {
+			for (int z = g[2]; z <= g[3]; z++) {
+				int farbe;
+				if (p != null && p.getBlockX() == x && p.getBlockZ() == z) {
+					farbe = 0xFFFFE04A;          // du
+				} else if (bereich.imMobBereich(x, z)) {
+					farbe = 0xFFD94040;          // Mob-Bereich
+				} else if (bereich.erlaubt(x, z)) {
+					farbe = 0xFF3FBF5F;          // Lauf-Fläche
+				} else {
+					farbe = 0xFF303338;          // gesperrt
+				}
+				int sx = links + (x - g[0]) * feld;
+				int sz = oben + (z - g[2]) * feld;
+				graphics.fill(sx, sz, sx + feld - 1, sz + feld - 1, farbe);
+			}
+		}
+		graphics.text(this.font, "grün = laufen", links, oben + lang * feld + 4, 0xFF3FBF5F, true);
+		graphics.text(this.font, "grau/rot = gesperrt", links, oben + lang * feld + 14, GRAU, true);
 	}
 
 	@Override

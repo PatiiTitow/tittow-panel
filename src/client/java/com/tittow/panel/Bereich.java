@@ -75,15 +75,66 @@ public final class Bereich {
 		return ecken.size() >= 3;
 	}
 
+	/**
+	 * Bringt die Ecken in die richtige Reihenfolge, egal in welcher Reihenfolge sie gesetzt wurden.
+	 * Klappt bei Formen mit nur geraden Kanten (Rechteck, L, U, ...), egal wie gedreht oder gespiegelt:
+	 * Jede Ecke hat genau einen Nachbarn in der gleichen Reihe und einen in der gleichen Spalte.
+	 * Wenn das nicht aufgeht, bleibt die gesetzte Reihenfolge.
+	 */
+	private List<int[]> geordneteEcken() {
+		int n = ecken.size();
+		if (n < 4 || n % 2 != 0) {
+			return ecken;
+		}
+		int[] waagrecht = new int[n];
+		int[] senkrecht = new int[n];
+		if (!paaren(waagrecht, true) || !paaren(senkrecht, false)) {
+			return ecken;
+		}
+		List<int[]> ordnung = new ArrayList<>();
+		boolean[] besucht = new boolean[n];
+		int i = 0;
+		boolean waag = true;
+		while (!besucht[i]) {
+			besucht[i] = true;
+			ordnung.add(ecken.get(i));
+			i = waag ? waagrecht[i] : senkrecht[i];
+			waag = !waag;
+		}
+		return ordnung.size() == n ? ordnung : ecken;
+	}
+
+	/** Paart Ecken mit gleicher z (waagrecht) bzw. gleicher x (senkrecht), jeweils nebeneinander sortiert. */
+	private boolean paaren(int[] partner, boolean waagrecht) {
+		Map<Integer, List<Integer>> gruppen = new HashMap<>();
+		for (int i = 0; i < ecken.size(); i++) {
+			int schluessel = waagrecht ? ecken.get(i)[2] : ecken.get(i)[0];
+			gruppen.computeIfAbsent(schluessel, k -> new ArrayList<>()).add(i);
+		}
+		for (List<Integer> g : gruppen.values()) {
+			if (g.size() % 2 != 0) {
+				return false;
+			}
+			g.sort((a, b) -> Integer.compare(waagrecht ? ecken.get(a)[0] : ecken.get(a)[2],
+					waagrecht ? ecken.get(b)[0] : ecken.get(b)[2]));
+			for (int k = 0; k < g.size(); k += 2) {
+				partner[g.get(k)] = g.get(k + 1);
+				partner[g.get(k + 1)] = g.get(k);
+			}
+		}
+		return true;
+	}
+
 	/** Liegt die Mitte des Feldes in der Form (Rand zählt mit)? */
 	private boolean inForm(int x, int z) {
 		double px = x + 0.5;
 		double pz = z + 0.5;
 		boolean drinnen = false;
-		int n = ecken.size();
+		List<int[]> form = geordneteEcken();
+		int n = form.size();
 		for (int i = 0, j = n - 1; i < n; j = i++) {
-			double xi = ecken.get(i)[0] + 0.5, zi = ecken.get(i)[2] + 0.5;
-			double xj = ecken.get(j)[0] + 0.5, zj = ecken.get(j)[2] + 0.5;
+			double xi = form.get(i)[0] + 0.5, zi = form.get(i)[2] + 0.5;
+			double xj = form.get(j)[0] + 0.5, zj = form.get(j)[2] + 0.5;
 			// auf dem Rand?
 			double kreuz = (px - xi) * (zj - zi) - (pz - zi) * (xj - xi);
 			if (Math.abs(kreuz) < 1e-9 && px >= Math.min(xi, xj) - 1e-9 && px <= Math.max(xi, xj) + 1e-9
@@ -98,7 +149,7 @@ public final class Bereich {
 	}
 
 	/** {minX, maxX, minZ, maxZ} der Fläche */
-	private int[] grenzen() {
+	public int[] grenzen() {
 		if (mitEcken()) {
 			int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE, minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
 			for (int[] e : ecken) {

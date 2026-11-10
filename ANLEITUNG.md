@@ -19,9 +19,11 @@ Diese Mod lässt **deine eigene Spielfigur** in deiner Mob-Farm laufen und Mobs 
 2. Schwert und Essen in die **Hotbar** legen (der Bot nimmt nur Sachen aus der Hotbar).
 3. **Numpad 8** drücken (NumLock an) → das Tittow Panel geht auf.
 4. Fläche einrichten (einmalig, wird gespeichert):
-   - Lauf **einmal außen um deine Lauf-Fläche herum** und stell dich nacheinander auf jede Ecke.
+   - Stell dich nacheinander auf jede Ecke deiner Lauf-Fläche.
      Auf jeder Ecke klickst du **„+ Ecke hier“**. Bei einem L sind das **6 Ecken**, egal wie es gedreht ist.
-   - Wichtig: Die Ecken **der Reihe nach** setzen, nicht kreuz und quer. Falsch gesetzt? **„Letzte Ecke weg“**.
+   - Die **Reihenfolge ist egal**, der Bot erkennt die Form von alleine, auch gespiegelt oder gedreht.
+     Falsch gesetzt? **„Letzte Ecke weg“**.
+   - Rechts im Panel siehst du eine **Karte zur Kontrolle**: grün = da läuft er, grau/rot = gesperrt, gelb = du.
    - Optional zusätzlich den **Mob-Bereich** sperren: „Mob-Ecke 1 hier“ und „Mob-Ecke 2 hier“.
      Brauchst du nicht, wenn das L die Mobs schon ausspart.
    - Oben im Panel siehst du z. B. „Fläche 6 Ecken, 5x5, Mob-Bereich keiner, 16 freie Felder“.
