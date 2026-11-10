@@ -35,6 +35,7 @@ public final class BotLogik {
 	private static final double NAH_AM_MOB_ANTEIL = 0.6;   // wie oft er Felder direkt am Mob-Bereich wählt
 	private static final int HUNGER_GRENZE = 14;           // ab hier wird gegessen
 	private static final String[] WAFFEN = {               // beste zuerst
+		"netherite_spear", "diamond_spear", "iron_spear", "copper_spear", "golden_spear", "stone_spear", "wooden_spear",
 		"netherite_sword", "diamond_sword", "iron_sword", "stone_sword", "golden_sword", "copper_sword", "wooden_sword",
 		"netherite_axe", "diamond_axe", "iron_axe", "stone_axe", "golden_axe", "copper_axe", "wooden_axe"
 	};
@@ -219,8 +220,8 @@ public final class BotLogik {
 		double w = zufall.nextDouble();
 		if (w < 0.07) {
 			// daneben schlagen: kurz woanders hin schauen und in die Luft hauen
-			wunschYaw += (zufall.nextBoolean() ? 1 : -1) * (8 + zufall.nextFloat() * 12);
-			wunschPitch -= 5 + zufall.nextFloat() * 8;
+			wunschYaw += (zufall.nextBoolean() ? 1 : -1) * (5 + zufall.nextFloat() * 6);
+			wunschPitch -= 2 + zufall.nextFloat() * 4;
 			klick(mc.options.keyAttack);
 		} else if (w > 0.04 + 0.07) {
 			klick(mc.options.keyAttack); // echter Linksklick
@@ -236,9 +237,9 @@ public final class BotLogik {
 	}
 
 	private void neuenZielpunkt() {
-		zielVersatzX = (zufall.nextDouble() - 0.5) * 0.4;
-		zielVersatzZ = (zufall.nextDouble() - 0.5) * 0.4;
-		zielVersatzY = 0.4 + zufall.nextDouble() * 0.55;
+		zielVersatzX = (zufall.nextDouble() - 0.5) * 0.25;
+		zielVersatzZ = (zufall.nextDouble() - 0.5) * 0.25;
+		zielVersatzY = 0.35 + zufall.nextDouble() * 0.3; // Körpermitte, nicht Kopf
 	}
 
 	private void killsZaehlen() {
@@ -251,7 +252,24 @@ public final class BotLogik {
 		});
 	}
 
+	private static boolean istWaffe(ItemStack stack) {
+		if (stack.isEmpty()) {
+			return false;
+		}
+		String name = BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath();
+		for (String w : WAFFEN) {
+			if (w.equals(name)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private void waffeNehmen(LocalPlayer p) {
+		// Hält er schon eine Waffe (z. B. deinen Speer)? Dann bleibt die in der Hand.
+		if (istWaffe(p.getInventory().getItem(p.getInventory().getSelectedSlot()))) {
+			return;
+		}
 		for (String name : WAFFEN) {
 			for (int slot = 0; slot < 9; slot++) {
 				ItemStack stack = p.getInventory().getItem(slot);
@@ -305,7 +323,7 @@ public final class BotLogik {
 			o.keyUp.setDown(false);
 			if (pauseTicks > 0) {
 				pauseTicks--;
-				if (zufall.nextDouble() < 0.04) {
+				if (zufall.nextDouble() < 0.012) { // seltener umschauen
 					umschauen(p);
 				}
 				return;
@@ -341,7 +359,7 @@ public final class BotLogik {
 
 		wunschYaw = yawZu(dx, dz);
 		if (zufall.nextDouble() < 0.02) {
-			wunschPitch = 5 + zufall.nextFloat() * 25;
+			wunschPitch = 10 + zufall.nextFloat() * 20;
 		}
 
 		// Sicherheit: würde der nächste Schritt auf ein verbotenes Feld führen? Dann sofort stehen bleiben.
@@ -407,7 +425,7 @@ public final class BotLogik {
 		// unterschiedlich lange Pause: meist 0,4 bis 2,5 s, manchmal 3 bis 7 s
 		pauseTicks = zufall.nextDouble() < 0.12 ? 60 + zufall.nextInt(80) : 8 + zufall.nextInt(42);
 		schlaegeBisLaufen = 3 + zufall.nextInt(6);
-		if (zufall.nextDouble() < 0.6) {
+		if (zufall.nextDouble() < 0.35) {
 			umschauen(Minecraft.getInstance().player);
 		}
 	}
@@ -423,10 +441,10 @@ public final class BotLogik {
 			double dx = mitte[0] + (zufall.nextDouble() - 0.5) * 2 - p.getX();
 			double dz = mitte[2] + (zufall.nextDouble() - 0.5) * 2 - p.getZ();
 			wunschYaw = yawZu(dx, dz);
-			wunschPitch = 10 + zufall.nextFloat() * 30;
+			wunschPitch = 12 + zufall.nextFloat() * 18;
 		} else {
-			wunschYaw = p.getYRot() + (zufall.nextFloat() - 0.5f) * 120;
-			wunschPitch = -10 + zufall.nextFloat() * 40;
+			wunschYaw = p.getYRot() + (zufall.nextFloat() - 0.5f) * 50; // nur ein Stück zur Seite
+			wunschPitch = 8 + zufall.nextFloat() * 20;                  // nicht an die Decke schauen
 		}
 	}
 
@@ -450,7 +468,7 @@ public final class BotLogik {
 		if (Float.isNaN(letzterWunschYaw) || winkelAbstand(letzterWunschYaw, wunschYaw) > 15) {
 			float weite = Math.abs(Mth.wrapDegrees(wunschYaw - yaw));
 			if (weite > 20 && zufall.nextDouble() < 0.35) {
-				ueberschuss = Math.signum(Mth.wrapDegrees(wunschYaw - yaw)) * (2f + zufall.nextFloat() * Math.min(8f, weite * 0.12f));
+				ueberschuss = Math.signum(Mth.wrapDegrees(wunschYaw - yaw)) * (1.5f + zufall.nextFloat() * Math.min(4f, weite * 0.08f));
 				ueberschussTicks = 3 + zufall.nextInt(4);
 			}
 		}
@@ -461,14 +479,14 @@ public final class BotLogik {
 			ueberschussTicks--;
 		}
 		float diff = Mth.wrapDegrees(ziel - yaw);
-		float tempo = 0.25f + zufall.nextFloat() * 0.2f;           // 25 bis 45 % pro Tick
-		float schritt = Mth.clamp(diff * tempo, -25f, 25f);
-		schritt += (zufall.nextFloat() - 0.5f) * 0.6f;              // leichtes Zittern wie mit der Maus
+		float tempo = 0.14f + zufall.nextFloat() * 0.12f;          // 14 bis 26 % pro Tick: ruhig und weich
+		float schritt = Mth.clamp(diff * tempo, -14f, 14f);
+		schritt += (zufall.nextFloat() - 0.5f) * 0.3f;              // ganz leichtes Zittern wie mit der Maus
 		p.setYRot(yaw + schritt);
 
 		float pitch = p.getXRot();
-		float pDiff = Mth.clamp(wunschPitch, -60f, 70f) - pitch;
-		p.setXRot(Mth.clamp(pitch + pDiff * tempo + (zufall.nextFloat() - 0.5f) * 0.4f, -90f, 90f));
+		float pDiff = Mth.clamp(wunschPitch, -25f, 60f) - pitch;   // nie steil nach oben
+		p.setXRot(Mth.clamp(pitch + pDiff * tempo + (zufall.nextFloat() - 0.5f) * 0.2f, -90f, 90f));
 	}
 
 	private static float yawZu(double dx, double dz) {
