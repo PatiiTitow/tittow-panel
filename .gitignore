@@ -38,3 +38,12 @@ hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
+
+# lokales Bauen (installieren.ps1 / bauen.bat)
+
+jdk/
+jdk.zip
+jdk-tmp/
+build-log.txt
+alte-versionen/
+/tittowpanel.jar

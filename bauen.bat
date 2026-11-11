@@ -48,8 +48,8 @@ if not exist "%MODS%" (
   pause
   exit /b 0
 )
-del /q "%MODS%\tittowpanel-*.jar" 2>nul
-copy /y "build\libs\tittowpanel-1.0.0.jar" "%MODS%\" >nul
+del /q "%MODS%\tittowpanel*.jar" 2>nul
+copy /y "build\libs\tittowpanel-1.0.0.jar" "%MODS%\tittowpanel.jar" >nul
 echo [3/3] Fertig! Die Mod liegt jetzt in: %MODS%
 
 dir /b "%MODS%\fabric-api*.jar" >nul 2>&1
