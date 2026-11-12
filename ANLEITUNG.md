@@ -49,7 +49,19 @@ Die Taste kannst du unter **Optionen → Steuerung → Tittow Panel** ändern.
   ab und zu daneben, unterschiedliche Pausen, umschauen, mal springen oder schleichen
 - Nimmt das beste Schwert (sonst Axt) aus der Hotbar und isst, wenn der Hunger unter 14 fällt
 
+## Kisten leuchten grün
+Im Panel schaltet **„Kisten leuchten grün: AN/AUS“** die Kisten-Anzeige (übernommen aus dem Patri-Autofarmer).
+- Ungeöffnete Kisten in der Umgebung (bis 16 Chunks, höchstens die Sichtweite) bekommen einen **grünen Rahmen, auch durch Wände**.
+  Höchstens 48, die nächsten zuerst. Kistenloren zählen mit.
+- Kisten, die du **schon geöffnet** hast, verschwinden aus der Anzeige (wird gespeichert).
+- **Lager von Spielern** (mehr als 4 Kisten beieinander oder Betten, Schilder, Türen, Fackeln … daneben) werden nicht gezeigt,
+  außer in Bauwerken, die kein Spieler baut (Netherfestung, Bastion, Festung, Antike Stadt).
+- Kisten, die rundum in Stein stecken, werden nicht gezeigt.
+- Die Rahmen zeichnet **Baritone**. Ohne Baritone in Pumpcraft gibt es keine Rahmen.
+
 ## Dateien
 - `src/client/java/com/tittow/panel/BotLogik.java` – Laufen, Schlagen, Essen
 - `src/client/java/com/tittow/panel/TittowScreen.java` – das Fenster
-- `src/client/java/com/tittow/panel/Bereich.java` – Fläche und Mob-Bereich (gespeichert in `config/tittowpanel.json`)
+- `src/client/java/com/tittow/panel/Bereich.java` – Fläche, Mob-Bereich und Einstellungen (gespeichert in `config/tittowpanel.json`)
+- `src/client/java/com/tittow/panel/Kisten.java` – Kisten-Anzeige: Suchen und geöffnete Kisten merken
+- `src/client/java/com/tittow/panel/BaritoneRahmen.java` – lässt Baritone die grünen Rahmen zeichnen

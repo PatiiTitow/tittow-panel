@@ -16,6 +16,7 @@ public final class TittowPanelClient implements ClientModInitializer {
 	private static final Bereich BEREICH = Bereich.laden();
 	private static final BotLogik BOT = new BotLogik(BEREICH);
 	private static final Hell HELL = new Hell(BEREICH);
+	private static final Kisten KISTEN = new Kisten(BEREICH);
 
 	@Override
 	public void onInitializeClient() {
@@ -29,18 +30,20 @@ public final class TittowPanelClient implements ClientModInitializer {
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			while (oeffnen.consumeClick()) {
 				if (client.player != null && client.gui.screen() == null) {
-					client.gui.setScreen(new TittowScreen(BOT, BEREICH, HELL));
+					client.gui.setScreen(new TittowScreen(BOT, BEREICH, HELL, KISTEN));
 				}
 			}
 			BOT.tick(client);
 			HELL.tick(client);
+			KISTEN.tick(client);
 		});
 
-		// beim Verlassen der Welt den Bot ausschalten
+		// beim Verlassen der Welt den Bot ausschalten und die Kisten-Rahmen entfernen
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
 			if (BOT.istAktiv()) {
 				BOT.aus(client, "AUS");
 			}
+			KISTEN.leeren();
 		});
 	}
 }

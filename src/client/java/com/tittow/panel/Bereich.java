@@ -37,6 +37,8 @@ public final class Bereich {
 	public int[] mobs1;
 	public int[] mobs2;
 	public boolean hell = false; // "Hell" an oder aus
+	public boolean kisten = false; // Kisten-Anzeige an oder aus
+	public List<String> geoeffneteKisten = new ArrayList<>(); // schon geöffnete Kisten ("Dimension x y z" bzw. "lore UUID")
 
 	public static Bereich laden() {
 		try {
@@ -46,6 +48,9 @@ public final class Bereich {
 					if (b != null) {
 						if (b.ecken == null) {
 							b.ecken = new ArrayList<>();
+						}
+						if (b.geoeffneteKisten == null) {
+							b.geoeffneteKisten = new ArrayList<>();
 						}
 						return b;
 					}

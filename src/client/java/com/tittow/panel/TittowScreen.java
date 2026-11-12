@@ -17,14 +17,16 @@ public final class TittowScreen extends Screen {
 	private final BotLogik bot;
 	private final Bereich bereich;
 	private final Hell hell;
+	private final Kisten kisten;
 	private Button botKnopf;
 	private String meldung = "";
 
-	public TittowScreen(BotLogik bot, Bereich bereich, Hell hell) {
+	public TittowScreen(BotLogik bot, Bereich bereich, Hell hell, Kisten kisten) {
 		super(Component.literal("Tittow Panel"));
 		this.bot = bot;
 		this.bereich = bereich;
 		this.hell = hell;
+		this.kisten = kisten;
 	}
 
 	@Override
@@ -68,12 +70,21 @@ public final class TittowScreen extends Screen {
 			b.setMessage(hellText());
 		}).pos(mitte + 2, y).size(98, 20).build());
 		y += 24;
+		this.addRenderableWidget(Button.builder(kistenText(), b -> {
+			kisten.umschalten(this.minecraft);
+			b.setMessage(kistenText());
+		}).pos(mitte - 100, y).size(200, 20).build());
+		y += 24;
 		this.addRenderableWidget(Button.builder(Component.literal("Schließen"), b -> this.onClose())
 				.pos(mitte - 100, y).size(200, 20).build());
 	}
 
 	private Component hellText() {
 		return Component.literal(hell.istAn() ? "Hell: AN" : "Hell: AUS");
+	}
+
+	private Component kistenText() {
+		return Component.literal(kisten.istAn() ? "Kisten leuchten grün: AN" : "Kisten leuchten grün: AUS");
 	}
 
 	private Component botText() {
@@ -123,10 +134,10 @@ public final class TittowScreen extends Screen {
 		graphics.centeredText(this.font, bereich.beschreibung(), mitte, y + 28, WEISS);
 		graphics.centeredText(this.font, "Kills: " + bot.kills(), mitte, y + 40, GRAU);
 		if (!meldung.isEmpty()) {
-			graphics.centeredText(this.font, meldung, mitte, this.height / 2 + 98, GRUEN);
+			graphics.centeredText(this.font, meldung, mitte, this.height / 2 + 104, GRUEN);
 		}
 		graphics.centeredText(this.font, "Ecken in beliebiger Reihenfolge setzen (L = 6 Ecken). Nur für die eigene Welt!",
-				mitte, this.height / 2 + 112, GRAU);
+				mitte, this.height / 2 + 118, GRAU);
 		karteZeichnen(graphics, mitte + 112, this.height / 2 - 50);
 	}
 
