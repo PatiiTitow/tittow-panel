@@ -221,6 +221,15 @@ public final class Kisten {
 		if (b.contains("reinforced_deepslate") || b.contains("sculk_shrieker") || b.contains("sculk_catalyst")) {
 			return "Antike Stadt";
 		}
+		// Endsiedlung und Endschiff: Purpur und Endsteinziegel (dort steht auch Buntglas, das sonst nach Spieler-Lager aussieht).
+		if (b.contains("purpur_block") || b.contains("purpur_pillar") || b.contains("purpur_stairs") || b.contains("purpur_slab")
+				|| b.contains("end_stone_bricks")) {
+			return "Endsiedlung";
+		}
+		if (b.contains("trial_spawner") || b.contains("vault") || b.contains("chiseled_tuff_bricks") || b.contains("tuff_bricks")
+				|| b.contains("waxed_copper_grate") || b.contains("waxed_oxidized_copper_grate")) {
+			return "Prüfungskammer";
+		}
 		if (obsidian) {
 			return "Ruinenportal";
 		}
@@ -232,7 +241,8 @@ public final class Kisten {
 
 	/** Bauwerke, die kein Spieler baut: Kisten dort sind Beute, auch mit Laterne oder Tür daneben. */
 	private static boolean sicheresBauwerk(String b) {
-		return b.equals("Netherfestung") || b.equals("Bastion") || b.equals("Festung") || b.equals("Antike Stadt");
+		return b.equals("Netherfestung") || b.equals("Bastion") || b.equals("Festung") || b.equals("Antike Stadt")
+				|| b.equals("Endsiedlung") || b.equals("Prüfungskammer");
 	}
 
 	/**

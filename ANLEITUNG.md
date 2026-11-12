@@ -55,7 +55,8 @@ Im Panel schaltet **„Kisten leuchten grün: AN/AUS“** die Kisten-Anzeige (ü
   Höchstens 48, die nächsten zuerst. Kistenloren zählen mit.
 - Kisten, die du **schon geöffnet** hast, verschwinden aus der Anzeige (wird gespeichert).
 - **Lager von Spielern** (mehr als 4 Kisten beieinander oder Betten, Schilder, Türen, Fackeln … daneben) werden nicht gezeigt,
-  außer in Bauwerken, die kein Spieler baut (Netherfestung, Bastion, Festung, Antike Stadt).
+  außer in Bauwerken, die kein Spieler baut (Netherfestung, Bastion, Festung, Antike Stadt, Endsiedlung, Prüfungskammer).
+- Funktioniert in jeder Welt: Oberwelt, Nether und End.
 - Kisten, die rundum in Stein stecken, werden nicht gezeigt.
 - Die Rahmen zeichnet **Baritone**. Ohne Baritone in Pumpcraft gibt es keine Rahmen.
 
