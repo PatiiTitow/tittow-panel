@@ -15,6 +15,7 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -25,6 +26,7 @@ import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.AttackRange;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -80,6 +82,7 @@ public final class BotLogik {
 	private int wurfPruefen = 0;
 	private int wurfWarten = -1;           // Ticks bis zum Losgehen, -1 = nichts geplant
 	private int wurfPhase = 0;             // 0 = nichts, 1 = zum Rand gehen, 2 = werfen
+	private Vec3 wurfPunkt = null;         // Mitte der Trichter (null = keine Trichter gefunden, dann zu den Mobs)
 	private int wurfTicks = 0;
 	private int wurfRuhig = 0;
 	private int wurfPause = 0;
@@ -563,6 +566,100 @@ public final class BotLogik {
 		return bestes;
 	}
 
+	/**
+	 * Sucht die Trichter unter den Mobs: Trichter bis 8 Blöcke um dich, über denen Platz ist
+	 * (Trichter unter einem Boden zählen nicht). Nimmt die zusammenhängende Gruppe um den nächsten Trichter,
+	 * z. B. deine 3x3 Trichter.
+	 */
+	private List<BlockPos> trichterSuchen(Minecraft mc, LocalPlayer p) {
+		BlockPos fuss = p.blockPosition();
+		List<BlockPos> alle = new ArrayList<>();
+		for (int dx = -8; dx <= 8; dx++) {
+			for (int dz = -8; dz <= 8; dz++) {
+				for (int dy = -3; dy <= 1; dy++) {
+					BlockPos pos = fuss.offset(dx, dy, dz);
+					if (mc.level.getBlockState(pos).is(Blocks.HOPPER) && !mc.level.getBlockState(pos.above()).canOcclude()) {
+						alle.add(pos);
+					}
+				}
+			}
+		}
+		if (alle.isEmpty()) {
+			return alle;
+		}
+		BlockPos start = alle.get(0);
+		for (BlockPos t : alle) {
+			if (t.distSqr(fuss) < start.distSqr(fuss)) {
+				start = t;
+			}
+		}
+		// alle Trichter, die mit dem nächsten zusammenhängen
+		List<BlockPos> gruppe = new ArrayList<>();
+		gruppe.add(start);
+		for (int i = 0; i < gruppe.size(); i++) {
+			BlockPos g = gruppe.get(i);
+			for (BlockPos t : alle) {
+				if (!gruppe.contains(t) && Math.abs(t.getX() - g.getX()) <= 1
+						&& Math.abs(t.getZ() - g.getZ()) <= 1 && Math.abs(t.getY() - g.getY()) <= 1) {
+					gruppe.add(t);
+				}
+			}
+		}
+		return gruppe;
+	}
+
+	/**
+	 * Freies Feld direkt neben den Trichtern (ein Feld außen herum), das am nächsten bei dir ist.
+	 * Felder an einer Seite sind besser als die schrägen Ecken. Null, wenn keins frei ist.
+	 */
+	private Bereich.Feld feldAmTrichter(List<BlockPos> trichter, LocalPlayer p) {
+		Bereich.Feld bestes = null;
+		double beste = Double.MAX_VALUE;
+		for (Bereich.Feld f : bereich.freieFelder()) {
+			boolean seite = false;
+			boolean ecke = false;
+			for (BlockPos t : trichter) {
+				int ax = Math.abs(t.getX() - f.x());
+				int az = Math.abs(t.getZ() - f.z());
+				if (ax == 0 && az == 0) {
+					seite = ecke = false;
+					break; // auf dem Trichter selbst steht er nicht
+				}
+				if (ax + az == 1) {
+					seite = true;
+				} else if (ax == 1 && az == 1) {
+					ecke = true;
+				}
+			}
+			if (!seite && !ecke) {
+				continue;
+			}
+			double dx = f.x() + 0.5 - p.getX();
+			double dz = f.z() + 0.5 - p.getZ();
+			double d = dx * dx + dz * dz + (seite ? 0 : 100); // Ecken nur, wenn keine Seite frei ist
+			if (d < beste) {
+				bestes = f;
+				beste = d;
+			}
+		}
+		return bestes;
+	}
+
+	/** Wohin er zielt: auf die Mitte der Trichter, etwas über der Oberkante, damit es flach hineinfliegt. */
+	private static Vec3 trichterMitte(List<BlockPos> trichter, Bereich.Feld stand) {
+		double sx = 0, sz = 0;
+		int oben = Integer.MIN_VALUE;
+		for (BlockPos t : trichter) {
+			sx += t.getX() + 0.5;
+			sz += t.getZ() + 0.5;
+			oben = Math.max(oben, t.getY() + 1);
+		}
+		double mx = sx / trichter.size();
+		double mz = sz / trichter.size();
+		double weite = Math.sqrt(Math.pow(mx - (stand.x() + 0.5), 2) + Math.pow(mz - (stand.z() + 0.5), 2));
+		return new Vec3(mx, oben + Mth.clamp(weite * 0.4, 0.2, 1.0), mz);
+	}
+
 	private void wurfBeenden() {
 		wurfPhase = 0;
 		pauseTicks = 10 + zufall.nextInt(20);
@@ -595,8 +692,20 @@ public final class BotLogik {
 				return false;
 			}
 			wurfWarten = -1;
-			Vec3 mobs = mobStelle(mc, p);
-			Bereich.Feld rand = mobs == null ? null : randFeld(mobs);
+			// Am liebsten direkt neben die Trichter stellen; ohne Trichter an den Rand zu den Mobs.
+			Bereich.Feld rand = null;
+			wurfPunkt = null;
+			List<BlockPos> trichter = trichterSuchen(mc, p);
+			if (!trichter.isEmpty()) {
+				rand = feldAmTrichter(trichter, p);
+				if (rand != null) {
+					wurfPunkt = trichterMitte(trichter, rand);
+				}
+			}
+			if (rand == null) {
+				Vec3 mobs = mobStelle(mc, p);
+				rand = mobs == null ? null : randFeld(mobs);
+			}
 			if (rand == null) {
 				return false; // weiß nicht, wo die Mobs sind: gleich nochmal versuchen
 			}
@@ -632,15 +741,19 @@ public final class BotLogik {
 			return true;
 		}
 
-		// Phase 2: in die Mob-Stelle werfen
-		Vec3 mobs = mobStelle(mc, p);
+		// Phase 2: in die Trichter (oder die Mob-Stelle) werfen
+		Vec3 punkt = wurfPunkt;
+		if (punkt == null) {
+			Vec3 mobs = mobStelle(mc, p);
+			punkt = mobs == null ? null : new Vec3(mobs.x, mobs.y + 1.0, mobs.z);
+		}
 		Map<String, Integer> mehr = ueberschuss(p);
-		if (mobs == null || mehr.isEmpty() || wurfTicks > 400) {
+		if (punkt == null || mehr.isEmpty() || wurfTicks > 400) {
 			wurfBeenden();
 			return false;
 		}
 		o.keyUp.setDown(false);
-		schauAuf(p, new Vec3(mobs.x + zielVersatzX, mobs.y + 1.0, mobs.z + zielVersatzZ));
+		schauAuf(p, new Vec3(punkt.x + zielVersatzX, punkt.y, punkt.z + zielVersatzZ));
 		boolean ruhig = winkelAbstand(p.getYRot(), wunschYaw) < 5
 				&& Math.abs(p.getXRot() - Mth.clamp(wunschPitch, -25f, 60f)) < 5;
 		wurfRuhig = ruhig ? wurfRuhig + 1 : 0;

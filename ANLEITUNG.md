@@ -56,12 +56,14 @@ Die Taste kannst du unter **Optionen → Steuerung → Tittow Panel** ändern.
 ## Beute werfen
 Im Panel schaltet **„Beute werfen: AN/AUS“** das Werfen (am Anfang AN).
 - Geworfen werden **Power Orbs**, **Scrolls** (alles mit „Scroll“ im Namen) und **Enderperlen**.
-- Er wirft erst, wenn das **Inventar voll** ist. Dann geht er an den **Rand zu den Mobs** (das freie Feld, das am
-  nächsten dran ist), schaut hinein und wirft die Sachen dort hin. So sammelt der Trichter unter den Mobs sie ein.
-  Danach farmt er normal weiter.
+- Er wirft erst, wenn das **Inventar voll** ist. Dann sucht er die **Trichter** unter den Mobs (z. B. deine 3x3 Trichter)
+  und stellt sich auf ein freies Feld **direkt daneben** (ein Feld außen herum, am liebsten an eine Seite, sonst an eine Ecke).
+  Von dort zielt er auf die Mitte der Trichter und wirft die Sachen hinein. Danach farmt er normal weiter.
+- Trichter, über denen ein Boden ist (z. B. eine Trichter-Kette unter der Erde), zählen nicht.
+- Findet er keine Trichter, geht er an den Rand zu den Mobs und wirft dort hinein.
 - Er wirft nur, was **beim Farmen dazugekommen** ist. Was du beim Einschalten schon dabei hattest, bleibt bei dir.
 - Waffen, Rüstung und Essen wirft er nie.
-- Wo die Mobs sind, erkennt er selbst (die Gruppe um das nächste Monster). Ist ein Mob-Bereich gesetzt, nimmt er den.
+- Ohne Trichter erkennt er selbst, wo die Mobs sind (die Gruppe um das nächste Monster). Ist ein Mob-Bereich gesetzt, nimmt er den.
 
 ## Kisten leuchten grün
 Im Panel schaltet **„Kisten grün: AN/AUS“** die Kisten-Anzeige (übernommen aus dem Patri-Autofarmer).
