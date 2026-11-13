@@ -74,11 +74,12 @@ public final class BotLogik {
 	private Entity zuNah = null;
 	private int rueckTicks = 0;
 
-	// Beute (Enderperlen, Schriftrollen, Augen) zu den Mobs werfen
+	// Beute (Power Orbs, Scrolls, Enderperlen) bei vollem Inventar zu den Mobs werfen
 	private final Map<String, Integer> startMenge = new HashMap<>();
+	private Vec3 letzteMobStelle = null;   // wo er zuletzt gekämpft hat
 	private int wurfPruefen = 0;
-	private int wurfWarten = -1;
-	private boolean wirft = false;
+	private int wurfWarten = -1;           // Ticks bis zum Losgehen, -1 = nichts geplant
+	private int wurfPhase = 0;             // 0 = nichts, 1 = zum Rand gehen, 2 = werfen
 	private int wurfTicks = 0;
 	private int wurfRuhig = 0;
 	private int wurfPause = 0;
@@ -137,8 +138,9 @@ public final class BotLogik {
 		essTicks = -1;
 		rueckTicks = 0;
 		ohneKampfTicks = 0;
-		wirft = false;
+		wurfPhase = 0;
 		wurfWarten = -1;
+		letzteMobStelle = null;
 		startMenge.clear();
 		startMenge.putAll(wurfsachenZaehlen(p)); // was du schon dabei hast, bleibt bei dir
 		wunschYaw = p.getYRot();
@@ -274,6 +276,7 @@ public final class BotLogik {
 	private void kaempfen(Minecraft mc, LocalPlayer p, Entity feind) {
 		if (feind != ziel) {
 			ziel = feind;
+			letzteMobStelle = feind.position(); // merken, wo die Mobs stehen (zum Werfen)
 			reaktionTicks = 3 + zufall.nextInt(7); // 150 bis 450 ms Reaktionszeit
 			neuenZielpunkt();
 		}
@@ -455,17 +458,26 @@ public final class BotLogik {
 
 	// ---- Beute zu den Mobs werfen ------------------------------------------
 
-	/** Enderperlen, Enderaugen und alles mit "Perle", "Schriftrolle" oder "Auge" im Namen. Nie Waffen, Rüstung oder Essen. */
+	/** Power Orbs, Scrolls (z. B. "Scroll of ...") und Enderperlen. Nie Waffen, Rüstung oder Essen. */
 	private static boolean istWurfsache(ItemStack s) {
 		if (s.isEmpty() || s.isDamageableItem() || s.has(DataComponents.FOOD)) {
 			return false;
 		}
-		String id = BuiltInRegistries.ITEM.getKey(s.getItem()).getPath();
-		if (id.equals("ender_pearl") || id.equals("ender_eye")) {
+		if (BuiltInRegistries.ITEM.getKey(s.getItem()).getPath().equals("ender_pearl")) {
 			return true;
 		}
 		String name = s.getHoverName().getString().toLowerCase(Locale.ROOT);
-		return name.contains("perle") || name.contains("schriftrolle") || name.contains("auge");
+		return name.contains("power orb") || name.contains("scroll")
+				|| name.contains("enderperle") || name.contains("ender pearl");
+	}
+
+	private static boolean inventarVoll(LocalPlayer p) {
+		for (int i = 0; i < 36; i++) {
+			if (p.getInventory().getItem(i).isEmpty()) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private static String schluessel(ItemStack s) {
@@ -497,39 +509,84 @@ public final class BotLogik {
 		return mehr;
 	}
 
-	/** Wohin geworfen wird: in den Mob-Bereich, sonst dahin, wo die Monster stehen. */
-	private Vec3 wurfZiel(Minecraft mc, LocalPlayer p) {
+	/**
+	 * Wo die Mobs stehen (Fußhöhe): Mitte vom Mob-Bereich, sonst die Gruppe um das nächste Monster,
+	 * sonst die Stelle, an der er zuletzt gekämpft hat.
+	 */
+	private Vec3 mobStelle(Minecraft mc, LocalPlayer p) {
 		double[] mitte = bereich.mobMitte();
 		if (mitte != null) {
-			return new Vec3(mitte[0], mitte[1] + 1.0, mitte[2]);
+			return new Vec3(mitte[0], mitte[1], mitte[2]);
 		}
+		List<Entity> monster = mc.level.getEntities(p, p.getBoundingBox().inflate(12),
+				e -> e instanceof LivingEntity && e.isAlive() && e.getType().getCategory() == MobCategory.MONSTER);
 		Entity naechstes = null;
 		double beste = Double.MAX_VALUE;
-		for (Entity e : mc.level.getEntities(p, p.getBoundingBox().inflate(10), e -> e instanceof LivingEntity)) {
-			if (e.isAlive() && e.getType().getCategory() == MobCategory.MONSTER && e.distanceToSqr(p) < beste) {
+		for (Entity e : monster) {
+			if (e.distanceToSqr(p) < beste) {
 				naechstes = e;
 				beste = e.distanceToSqr(p);
 			}
 		}
-		return naechstes == null ? null : zielPunkt(p, naechstes);
+		if (naechstes == null) {
+			return letzteMobStelle;
+		}
+		double sx = 0, sy = 0, sz = 0;
+		int n = 0;
+		for (Entity e : monster) {
+			if (e.distanceToSqr(naechstes) < 9) { // alle bis 3 Blöcke um das nächste Monster
+				sx += e.getX();
+				sy += e.getY();
+				sz += e.getZ();
+				n++;
+			}
+		}
+		return new Vec3(sx / n, sy / n, sz / n);
+	}
+
+	/** Das freie Feld am Rand, das am nächsten an den Mobs liegt. */
+	private Bereich.Feld randFeld(Vec3 mobs) {
+		List<Bereich.Feld> kandidaten = bereich.felderAmMob();
+		if (kandidaten.isEmpty()) {
+			kandidaten = bereich.freieFelder();
+		}
+		Bereich.Feld bestes = null;
+		double beste = Double.MAX_VALUE;
+		for (Bereich.Feld f : kandidaten) {
+			double dx = f.x() + 0.5 - mobs.x;
+			double dz = f.z() + 0.5 - mobs.z;
+			if (dx * dx + dz * dz < beste) {
+				bestes = f;
+				beste = dx * dx + dz * dz;
+			}
+		}
+		return bestes;
+	}
+
+	private void wurfBeenden() {
+		wurfPhase = 0;
+		pauseTicks = 10 + zufall.nextInt(20);
+		schlaegeBisLaufen = 3 + zufall.nextInt(6);
 	}
 
 	/**
-	 * Hat er beim Farmen Enderperlen, Schriftrollen oder Augen aufgesammelt, schaut er nach ein paar Sekunden
-	 * zu den Mobs und wirft sie dort hin, damit der Trichter sie einsammelt. Gibt true zurück, solange er wirft.
+	 * Ist das Inventar voll und hat er beim Farmen Power Orbs, Scrolls oder Enderperlen aufgesammelt,
+	 * geht er an den Rand zu den Mobs und wirft sie dort hinein, damit der Trichter sie einsammelt.
+	 * Gibt true zurück, solange er damit beschäftigt ist.
 	 */
 	private boolean werfen(Minecraft mc, LocalPlayer p) {
 		if (!bereich.werfen || mc.gameMode == null) {
-			wirft = false;
+			wurfPhase = 0;
 			wurfWarten = -1;
 			return false;
 		}
-		if (!wirft) {
+		Options o = mc.options;
+		if (wurfPhase == 0) {
 			if (wurfWarten < 0) {
 				if (++wurfPruefen >= 20) { // einmal pro Sekunde nachsehen
 					wurfPruefen = 0;
-					if (!ueberschuss(p).isEmpty()) {
-						wurfWarten = 40 + zufall.nextInt(100); // nicht sofort, sondern nach 2 bis 7 Sekunden
+					if (inventarVoll(p) && !ueberschuss(p).isEmpty()) {
+						wurfWarten = 20 + zufall.nextInt(60); // nicht sofort, sondern nach 1 bis 4 Sekunden
 					}
 				}
 				return false;
@@ -538,22 +595,52 @@ public final class BotLogik {
 				return false;
 			}
 			wurfWarten = -1;
-			wirft = true;
+			Vec3 mobs = mobStelle(mc, p);
+			Bereich.Feld rand = mobs == null ? null : randFeld(mobs);
+			if (rand == null) {
+				return false; // weiß nicht, wo die Mobs sind: gleich nochmal versuchen
+			}
+			// Weg zum Rand planen
+			rueckTicks = 0;
+			o.keyDown.setDown(false);
+			o.keyLeft.setDown(false);
+			o.keyRight.setDown(false);
+			weg.clear();
+			Bereich.Feld hier = new Bereich.Feld(Mth.floor(p.getX()), Mth.floor(p.getZ()));
+			if (!hier.equals(rand)) {
+				List<Bereich.Feld> w = bereich.weg(hier, rand);
+				if (w != null) {
+					weg = new ArrayList<>(w);
+				}
+			}
+			wurfPhase = 1;
 			wurfTicks = 0;
 			wurfRuhig = 0;
 			wurfPause = 0;
 			neuenZielpunkt();
 		}
 
-		Vec3 punkt = wurfZiel(mc, p);
+		wurfTicks++;
+		if (wurfPhase == 1) {
+			// zum Rand gehen (höchstens 10 Sekunden, dann wirft er von da, wo er steht)
+			if (weg.isEmpty() || wurfTicks > 200 || schritt(o, p) != 0) {
+				o.keyUp.setDown(false);
+				weg.clear();
+				wurfPhase = 2;
+				wurfTicks = 0;
+			}
+			return true;
+		}
+
+		// Phase 2: in die Mob-Stelle werfen
+		Vec3 mobs = mobStelle(mc, p);
 		Map<String, Integer> mehr = ueberschuss(p);
-		if (punkt == null || mehr.isEmpty() || ++wurfTicks > 200) {
-			wirft = false; // nichts mehr zu werfen oder keine Mobs zu sehen
+		if (mobs == null || mehr.isEmpty() || wurfTicks > 400) {
+			wurfBeenden();
 			return false;
 		}
-		mc.options.keyUp.setDown(false); // zum Werfen stehen bleiben
-		weg.clear();
-		schauAuf(p, punkt);
+		o.keyUp.setDown(false);
+		schauAuf(p, new Vec3(mobs.x + zielVersatzX, mobs.y + 1.0, mobs.z + zielVersatzZ));
 		boolean ruhig = winkelAbstand(p.getYRot(), wunschYaw) < 5
 				&& Math.abs(p.getXRot() - Mth.clamp(wunschPitch, -25f, 60f)) < 5;
 		wurfRuhig = ruhig ? wurfRuhig + 1 : 0;
@@ -576,10 +663,10 @@ public final class BotLogik {
 			boolean ganzerStapel = s.getCount() <= zuviel;
 			int menueSlot = i < 9 ? 36 + i : i; // Hotbar liegt im Inventar-Menü auf 36 bis 44
 			mc.gameMode.handleContainerInput(p.inventoryMenu.containerId, menueSlot, ganzerStapel ? 1 : 0, ContainerInput.THROW, p);
-			wurfPause = 5 + zufall.nextInt(10);
+			wurfPause = ganzerStapel ? 6 + zufall.nextInt(10) : 3 + zufall.nextInt(4);
 			return true;
 		}
-		wirft = false;
+		wurfBeenden();
 		return false;
 	}
 
@@ -611,20 +698,29 @@ public final class BotLogik {
 			return;
 		}
 
-		Bereich.Feld naechstes = weg.get(0);
-		double zx = naechstes.x() + 0.5;
-		double zz = naechstes.z() + 0.5;
-		double dx = zx - p.getX();
-		double dz = zz - p.getZ();
-		double abstand = Math.sqrt(dx * dx + dz * dz);
+		int s = schritt(o, p);
+		if (s == 1) {
+			ankommen();
+		} else if (s == 2) {
+			pauseTicks = 5;
+		} else if (laufTicks > 120) { // hängt fest
+			o.keyUp.setDown(false);
+			weg.clear();
+		}
+	}
 
-		if (abstand < 0.3) {
+	/** Ein Tick auf dem geplanten Weg. 0 = unterwegs, 1 = angekommen, 2 = abgebrochen (nächster Schritt wäre verboten). */
+	private int schritt(Options o, LocalPlayer p) {
+		Bereich.Feld naechstes = weg.get(0);
+		double dx = naechstes.x() + 0.5 - p.getX();
+		double dz = naechstes.z() + 0.5 - p.getZ();
+		if (Math.sqrt(dx * dx + dz * dz) < 0.3) {
 			weg.remove(0);
 			if (weg.isEmpty()) {
 				o.keyUp.setDown(false);
-				ankommen();
+				return 1;
 			}
-			return;
+			return 0;
 		}
 
 		wunschYaw = yawZu(dx, dz);
@@ -634,22 +730,15 @@ public final class BotLogik {
 
 		// Sicherheit: würde der nächste Schritt auf ein verbotenes Feld führen? Dann sofort stehen bleiben.
 		Vec3 v = p.getDeltaMovement();
-		int vorX = Mth.floor(p.getX() + v.x * 3);
-		int vorZ = Mth.floor(p.getZ() + v.z * 3);
-		if (!bereich.erlaubt(vorX, vorZ)) {
+		if (!bereich.erlaubt(Mth.floor(p.getX() + v.x * 3), Mth.floor(p.getZ() + v.z * 3))) {
 			o.keyUp.setDown(false);
 			weg.clear();
-			pauseTicks = 5;
-			return;
+			return 2;
 		}
 
 		// erst losgehen, wenn er ungefähr in die richtige Richtung schaut
 		o.keyUp.setDown(winkelAbstand(p.getYRot(), wunschYaw) < 30);
-
-		if (laufTicks > 120) { // hängt fest
-			o.keyUp.setDown(false);
-			weg.clear();
-		}
+		return 0;
 	}
 
 	private void neuenWegPlanen(Bereich.Feld hier) {

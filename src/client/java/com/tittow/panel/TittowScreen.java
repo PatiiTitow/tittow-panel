@@ -78,7 +78,7 @@ public final class TittowScreen extends Screen {
 			bereich.werfen = !bereich.werfen;
 			bereich.speichern();
 			b.setMessage(werfenText());
-			meldung = bereich.werfen ? "Wirft Enderperlen, Schriftrollen und Augen zu den Mobs." : "Wirft nichts mehr.";
+			meldung = bereich.werfen ? "Inventar voll: wirft Power Orbs, Scrolls und Enderperlen zu den Mobs." : "Wirft nichts mehr.";
 		}).pos(mitte + 2, y).size(98, 20).build());
 		y += 24;
 		this.addRenderableWidget(Button.builder(Component.literal("Schließen"), b -> this.onClose())

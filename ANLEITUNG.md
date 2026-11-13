@@ -55,11 +55,13 @@ Die Taste kannst du unter **Optionen → Steuerung → Tittow Panel** ändern.
 
 ## Beute werfen
 Im Panel schaltet **„Beute werfen: AN/AUS“** das Werfen (am Anfang AN).
-- Sammelt der Bot beim Farmen **Enderperlen, Enderaugen, Schriftrollen oder Augen** auf, wartet er 2 bis 7 Sekunden,
-  schaut dann zu den Mobs und wirft sie dort hin. So sammelt der Trichter unter den Mobs sie ein.
+- Geworfen werden **Power Orbs**, **Scrolls** (alles mit „Scroll“ im Namen) und **Enderperlen**.
+- Er wirft erst, wenn das **Inventar voll** ist. Dann geht er an den **Rand zu den Mobs** (das freie Feld, das am
+  nächsten dran ist), schaut hinein und wirft die Sachen dort hin. So sammelt der Trichter unter den Mobs sie ein.
+  Danach farmt er normal weiter.
 - Er wirft nur, was **beim Farmen dazugekommen** ist. Was du beim Einschalten schon dabei hattest, bleibt bei dir.
 - Waffen, Rüstung und Essen wirft er nie.
-- Ziel ist der Mob-Bereich, wenn einer gesetzt ist, sonst das nächste Monster.
+- Wo die Mobs sind, erkennt er selbst (die Gruppe um das nächste Monster). Ist ein Mob-Bereich gesetzt, nimmt er den.
 
 ## Kisten leuchten grün
 Im Panel schaltet **„Kisten grün: AN/AUS“** die Kisten-Anzeige (übernommen aus dem Patri-Autofarmer).
