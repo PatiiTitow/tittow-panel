@@ -38,6 +38,7 @@ public final class Bereich {
 	public int[] mobs2;
 	public boolean hell = false; // "Hell" an oder aus
 	public boolean kisten = false; // Kisten-Anzeige an oder aus
+	public boolean werfen = true; // Enderperlen, Schriftrollen und Augen zu den Mobs werfen
 	public List<String> geoeffneteKisten = new ArrayList<>(); // schon geöffnete Kisten ("Dimension x y z" bzw. "lore UUID")
 
 	public static Bereich laden() {

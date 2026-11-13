@@ -44,13 +44,25 @@ Die Taste kannst du unter **Optionen → Steuerung → Tittow Panel** ändern.
 ## Was der Bot macht
 - Läuft zufällig über die ganze freie Fläche, oft direkt an den Mob-Bereich, und betritt den Mob-Bereich nie
 - Bleibt zum Schlagen stehen, schlägt ein paar Mal, läuft dann weiter
+- Schaut beim Schlagen auf den **Körper** (etwa auf Augenhöhe), nicht hoch auf den Kopf
+- Richtet sich nach der **Reichweite der Waffe**: Schwert bis 3 Blöcke, **Speer 2 bis 4,5 Blöcke**.
+  Der Speer trifft nichts, was näher als 2 Blöcke steht. Dann geht der Bot einen kleinen Schritt zurück,
+  wenn die Fläche dort weitergeht. Mit dem Speer schlägt er erst, wenn der Speer **ganz aufgeladen** ist.
 - Schlägt nur **Monster**, niemals Spieler, Tiere, Dorfbewohner oder Golems
 - **Menschlich:** weiche Kamera mit leichtem Zittern, Reaktionszeit, unregelmäßiger Schlagtakt,
   ab und zu daneben, unterschiedliche Pausen, umschauen, mal springen oder schleichen
 - Nimmt das beste Schwert (sonst Axt) aus der Hotbar und isst, wenn der Hunger unter 14 fällt
 
+## Beute werfen
+Im Panel schaltet **„Beute werfen: AN/AUS“** das Werfen (am Anfang AN).
+- Sammelt der Bot beim Farmen **Enderperlen, Enderaugen, Schriftrollen oder Augen** auf, wartet er 2 bis 7 Sekunden,
+  schaut dann zu den Mobs und wirft sie dort hin. So sammelt der Trichter unter den Mobs sie ein.
+- Er wirft nur, was **beim Farmen dazugekommen** ist. Was du beim Einschalten schon dabei hattest, bleibt bei dir.
+- Waffen, Rüstung und Essen wirft er nie.
+- Ziel ist der Mob-Bereich, wenn einer gesetzt ist, sonst das nächste Monster.
+
 ## Kisten leuchten grün
-Im Panel schaltet **„Kisten leuchten grün: AN/AUS“** die Kisten-Anzeige (übernommen aus dem Patri-Autofarmer).
+Im Panel schaltet **„Kisten grün: AN/AUS“** die Kisten-Anzeige (übernommen aus dem Patri-Autofarmer).
 - Ungeöffnete Kisten in der Umgebung (bis 16 Chunks, höchstens die Sichtweite) bekommen einen **grünen Rahmen, auch durch Wände**.
   Höchstens 48, die nächsten zuerst. Kistenloren zählen mit.
 - Kisten, die du **schon geöffnet** hast, verschwinden aus der Anzeige (wird gespeichert).

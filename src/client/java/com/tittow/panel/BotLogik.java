@@ -1,8 +1,11 @@
 package com.tittow.panel;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
@@ -19,7 +22,9 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.AttackRange;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
@@ -31,7 +36,7 @@ import net.minecraft.world.phys.Vec3;
  */
 public final class BotLogik {
 	// ---- Einstellungen ----
-	private static final double REICHWEITE = 3.5;          // Schlagreichweite in Blöcken
+	// Die Schlagreichweite kommt von der Waffe in der Hand (Schwert bis 3 Blöcke, Speer 2 bis 4,5 Blöcke).
 	private static final double NAH_AM_MOB_ANTEIL = 0.6;   // wie oft er Felder direkt am Mob-Bereich wählt
 	private static final int HUNGER_GRENZE = 14;           // ab hier wird gegessen
 	private static final String[] WAFFEN = {               // beste zuerst
@@ -60,9 +65,23 @@ public final class BotLogik {
 	private int schlagPause = 0;
 	private int schlaegeBisLaufen = 4;
 	private double zielVersatzX = 0;
-	private double zielVersatzY = 0.7;
+	private double zielVersatzY = -0.2; // Höhe des Zielpunkts relativ zur eigenen Augenhöhe
 	private double zielVersatzZ = 0;
 	private final Set<Entity> geschlagen = new HashSet<>();
+	private int ohneKampfTicks = 0;      // Schutz, falls er nach dem Laufen nicht wieder ins Schlagen kommt
+
+	// Speer: Mob zu nah -> einen Schritt zurück
+	private Entity zuNah = null;
+	private int rueckTicks = 0;
+
+	// Beute (Enderperlen, Schriftrollen, Augen) zu den Mobs werfen
+	private final Map<String, Integer> startMenge = new HashMap<>();
+	private int wurfPruefen = 0;
+	private int wurfWarten = -1;
+	private boolean wirft = false;
+	private int wurfTicks = 0;
+	private int wurfRuhig = 0;
+	private int wurfPause = 0;
 
 	// Kamera (weiches Umschauen)
 	private float wunschYaw = Float.NaN;
@@ -116,6 +135,12 @@ public final class BotLogik {
 		pauseTicks = 10;
 		ziel = null;
 		essTicks = -1;
+		rueckTicks = 0;
+		ohneKampfTicks = 0;
+		wirft = false;
+		wurfWarten = -1;
+		startMenge.clear();
+		startMenge.putAll(wurfsachenZaehlen(p)); // was du schon dabei hast, bleibt bei dir
 		wunschYaw = p.getYRot();
 		waffeNehmen(p);
 		p.sendOverlayMessage(Component.literal("Tittow Bot: AN"));
@@ -160,6 +185,23 @@ public final class BotLogik {
 
 		kleinigkeiten(mc.options);
 
+		if (werfen(mc, p)) {
+			return;
+		}
+		if (zurueckweichen(p, mc.options)) {
+			return;
+		}
+
+		// Kommt er nach dem Laufen nicht an (blockiert, festgehangen), schlägt er nach 5 s trotzdem wieder zu.
+		if (schlaegeBisLaufen <= 0) {
+			if (++ohneKampfTicks > 100) {
+				schlaegeBisLaufen = 2 + zufall.nextInt(4);
+				ohneKampfTicks = 0;
+			}
+		} else {
+			ohneKampfTicks = 0;
+		}
+
 		Entity feind = naechsterFeind(mc, p);
 		if (feind != null && schlaegeBisLaufen > 0) {
 			mc.options.keyUp.setDown(false); // zum Schlagen stehen bleiben
@@ -167,28 +209,66 @@ public final class BotLogik {
 			kaempfen(mc, p, feind);
 			return;
 		}
+		if (feind == null && zuNah != null && schlaegeBisLaufen > 0 && zurueckStarten(p, mc.options, zuNah)) {
+			return; // Speer: Mob zu nah, erst einen Schritt Abstand nehmen
+		}
 		ziel = null;
 		laufen(mc, p);
 	}
 
 	// ---- Schlagen ----------------------------------------------------------
 
+	/** Reichweite der Waffe in der Hand (Speer: 2 bis 4,5 Blöcke, sonst 0 bis 3). */
+	private static AttackRange reichweite(LocalPlayer p) {
+		AttackRange r = p.getMainHandItem().get(DataComponents.ATTACK_RANGE);
+		return r != null ? r : AttackRange.defaultFor(p);
+	}
+
+	/**
+	 * Nächstes Monster, das die Waffe auch wirklich trifft.
+	 * Gemessen wird wie im Spiel: vom Auge bis zur nächsten Stelle am Mob.
+	 * Steht ein Mob für den Speer zu nah, merkt er sich den in {@link #zuNah}.
+	 */
 	private Entity naechsterFeind(Minecraft mc, LocalPlayer p) {
+		AttackRange r = reichweite(p);
+		double nah = r.effectiveMinRange(p);
+		double weit = r.effectiveMaxRange(p);
 		Vec3 auge = p.getEyePosition();
-		AABB box = p.getBoundingBox().inflate(REICHWEITE + 1);
+		AABB box = p.getBoundingBox().inflate(weit + 1);
 		Entity bester = null;
 		double besteDistanz = Double.MAX_VALUE;
+		zuNah = null;
+		double zuNahDistanz = Double.MAX_VALUE;
 		for (Entity e : mc.level.getEntities(p, box, e -> e instanceof LivingEntity)) {
 			if (!e.isAlive() || e.getType().getCategory() != MobCategory.MONSTER) {
 				continue; // nur Monster: niemals Spieler, Tiere, Dorfbewohner oder Golems
 			}
-			double d = auge.distanceTo(e.position().add(0, e.getBbHeight() * 0.5, 0));
-			if (d <= REICHWEITE && d < besteDistanz) {
+			double d = Math.sqrt(e.getBoundingBox().distanceToSqr(auge));
+			if (nah > 0 && d < nah + 0.2) {
+				if (d < zuNahDistanz) { // zu nah für den Speer
+					zuNah = e;
+					zuNahDistanz = d;
+				}
+				continue;
+			}
+			if (d <= weit - 0.25 && d < besteDistanz) {
 				bester = e;
 				besteDistanz = d;
 			}
 		}
 		return bester;
+	}
+
+	/**
+	 * Wohin er beim Schlagen schaut: auf den Körper, ungefähr auf Augenhöhe,
+	 * aber nie höher als 60 % vom Mob (also nie auf den Kopf) und nie tiefer als 25 %.
+	 */
+	private Vec3 zielPunkt(LocalPlayer p, Entity e) {
+		AABB b = e.getBoundingBox();
+		double h = b.maxY - b.minY;
+		double y = Mth.clamp(p.getEyeY() + zielVersatzY, b.minY + h * 0.25, b.minY + h * 0.6);
+		Vec3 m = b.getCenter();
+		return new Vec3(m.x + zielVersatzX, y, m.z + zielVersatzZ);
 	}
 
 	private void kaempfen(Minecraft mc, LocalPlayer p, Entity feind) {
@@ -198,8 +278,7 @@ public final class BotLogik {
 			neuenZielpunkt();
 		}
 		// auf den Mob schauen (nicht immer genau dieselbe Stelle)
-		Vec3 punkt = feind.position().add(zielVersatzX, feind.getBbHeight() * zielVersatzY, zielVersatzZ);
-		schauAuf(p, punkt);
+		schauAuf(p, zielPunkt(p, feind));
 
 		if (reaktionTicks > 0) {
 			reaktionTicks--;
@@ -209,8 +288,10 @@ public final class BotLogik {
 			schlagPause--;
 			return;
 		}
-		if (p.getAttackStrengthScale(0.0f) < 0.9f) {
-			return; // Schwert lädt noch auf
+		// Der Speer schlägt nur ganz aufgeladen zu (sonst passiert beim Klick gar nichts), das Schwert ab 90 %.
+		float mindestLadung = p.getMainHandItem().getOrDefault(DataComponents.MINIMUM_ATTACK_CHARGE, 0f);
+		if (p.getAttackStrengthScale(0.0f) < (mindestLadung > 0f ? 1.0f : 0.9f)) {
+			return; // Waffe lädt noch auf
 		}
 		boolean zielt = mc.hitResult instanceof EntityHitResult treffer && treffer.getEntity() == feind;
 		if (!zielt && !Float.isNaN(wunschYaw) && winkelAbstand(p.getYRot(), wunschYaw) > 6) {
@@ -239,7 +320,66 @@ public final class BotLogik {
 	private void neuenZielpunkt() {
 		zielVersatzX = (zufall.nextDouble() - 0.5) * 0.25;
 		zielVersatzZ = (zufall.nextDouble() - 0.5) * 0.25;
-		zielVersatzY = 0.35 + zufall.nextDouble() * 0.3; // Körpermitte, nicht Kopf
+		zielVersatzY = -0.45 + zufall.nextDouble() * 0.4; // etwas unter Augenhöhe, nicht nach oben
+	}
+
+	// ---- Speer: Abstand halten ----------------------------------------------
+
+	/**
+	 * Ein Mob steht zu nah für den Speer: kurz rückwärts (oder schräg/seitlich) gehen,
+	 * aber nur, wenn die Fläche dort weitergeht. Gibt true zurück, wenn er ausweicht.
+	 */
+	private boolean zurueckStarten(LocalPlayer p, Options o, Entity naher) {
+		schauAuf(p, zielPunkt(p, naher));
+		double rad = Math.toRadians(p.getYRot());
+		double vorX = -Math.sin(rad), vorZ = Math.cos(rad);
+		double linksX = Math.cos(rad), linksZ = Math.sin(rad);
+		double wegX = p.getX() - naher.getX(), wegZ = p.getZ() - naher.getZ(); // vom Mob weg
+		// {zurück, links, rechts}; die schrägen und seitlichen Richtungen in zufälliger Reihenfolge
+		boolean l = zufall.nextBoolean();
+		int[][] tasten = {{1, 0, 0}, {1, l ? 1 : 0, l ? 0 : 1}, {1, l ? 0 : 1, l ? 1 : 0}, {0, l ? 1 : 0, l ? 0 : 1}, {0, l ? 0 : 1, l ? 1 : 0}};
+		for (int[] t : tasten) {
+			double dx = -vorX * t[0] + linksX * (t[1] - t[2]);
+			double dz = -vorZ * t[0] + linksZ * (t[1] - t[2]);
+			double len = Math.sqrt(dx * dx + dz * dz);
+			dx /= len;
+			dz /= len;
+			if (dx * wegX + dz * wegZ <= 0) {
+				continue; // würde nicht weiter weg führen
+			}
+			if (bereich.erlaubt(Mth.floor(p.getX() + dx * 0.5), Mth.floor(p.getZ() + dz * 0.5))
+					&& bereich.erlaubt(Mth.floor(p.getX() + dx * 1.0), Mth.floor(p.getZ() + dz * 1.0))) {
+				o.keyUp.setDown(false);
+				weg.clear();
+				o.keyDown.setDown(t[0] == 1);
+				o.keyLeft.setDown(t[1] == 1);
+				o.keyRight.setDown(t[2] == 1);
+				rueckTicks = 4 + zufall.nextInt(5);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** Läuft gerade ein Rückwärtsschritt? Dann weitermachen, bis er fertig ist oder die Fläche endet. */
+	private boolean zurueckweichen(LocalPlayer p, Options o) {
+		if (rueckTicks <= 0) {
+			return false;
+		}
+		rueckTicks--;
+		Vec3 v = p.getDeltaMovement();
+		boolean sicher = bereich.erlaubt(Mth.floor(p.getX() + v.x * 3), Mth.floor(p.getZ() + v.z * 3));
+		if (rueckTicks == 0 || !sicher) {
+			rueckTicks = 0;
+			o.keyDown.setDown(false);
+			o.keyLeft.setDown(false);
+			o.keyRight.setDown(false);
+			return false;
+		}
+		if (zuNah != null && zuNah.isAlive()) {
+			schauAuf(p, zielPunkt(p, zuNah)); // dabei weiter auf den Mob schauen
+		}
+		return true;
 	}
 
 	private void killsZaehlen() {
@@ -310,6 +450,136 @@ public final class BotLogik {
 				return true;
 			}
 		}
+		return false;
+	}
+
+	// ---- Beute zu den Mobs werfen ------------------------------------------
+
+	/** Enderperlen, Enderaugen und alles mit "Perle", "Schriftrolle" oder "Auge" im Namen. Nie Waffen, Rüstung oder Essen. */
+	private static boolean istWurfsache(ItemStack s) {
+		if (s.isEmpty() || s.isDamageableItem() || s.has(DataComponents.FOOD)) {
+			return false;
+		}
+		String id = BuiltInRegistries.ITEM.getKey(s.getItem()).getPath();
+		if (id.equals("ender_pearl") || id.equals("ender_eye")) {
+			return true;
+		}
+		String name = s.getHoverName().getString().toLowerCase(Locale.ROOT);
+		return name.contains("perle") || name.contains("schriftrolle") || name.contains("auge");
+	}
+
+	private static String schluessel(ItemStack s) {
+		return BuiltInRegistries.ITEM.getKey(s.getItem()) + "|" + s.getHoverName().getString();
+	}
+
+	private static Map<String, Integer> wurfsachenZaehlen(LocalPlayer p) {
+		Map<String, Integer> menge = new HashMap<>();
+		for (int i = 0; i < 36; i++) {
+			ItemStack s = p.getInventory().getItem(i);
+			if (istWurfsache(s)) {
+				menge.merge(schluessel(s), s.getCount(), Integer::sum);
+			}
+		}
+		return menge;
+	}
+
+	/** Was seit dem Einschalten dazugekommen ist (nur das wird geworfen). */
+	private Map<String, Integer> ueberschuss(LocalPlayer p) {
+		Map<String, Integer> jetzt = wurfsachenZaehlen(p);
+		startMenge.replaceAll((k, v) -> Math.min(v, jetzt.getOrDefault(k, 0)));
+		Map<String, Integer> mehr = new HashMap<>();
+		for (Map.Entry<String, Integer> e : jetzt.entrySet()) {
+			int zuviel = e.getValue() - startMenge.getOrDefault(e.getKey(), 0);
+			if (zuviel > 0) {
+				mehr.put(e.getKey(), zuviel);
+			}
+		}
+		return mehr;
+	}
+
+	/** Wohin geworfen wird: in den Mob-Bereich, sonst dahin, wo die Monster stehen. */
+	private Vec3 wurfZiel(Minecraft mc, LocalPlayer p) {
+		double[] mitte = bereich.mobMitte();
+		if (mitte != null) {
+			return new Vec3(mitte[0], mitte[1] + 1.0, mitte[2]);
+		}
+		Entity naechstes = null;
+		double beste = Double.MAX_VALUE;
+		for (Entity e : mc.level.getEntities(p, p.getBoundingBox().inflate(10), e -> e instanceof LivingEntity)) {
+			if (e.isAlive() && e.getType().getCategory() == MobCategory.MONSTER && e.distanceToSqr(p) < beste) {
+				naechstes = e;
+				beste = e.distanceToSqr(p);
+			}
+		}
+		return naechstes == null ? null : zielPunkt(p, naechstes);
+	}
+
+	/**
+	 * Hat er beim Farmen Enderperlen, Schriftrollen oder Augen aufgesammelt, schaut er nach ein paar Sekunden
+	 * zu den Mobs und wirft sie dort hin, damit der Trichter sie einsammelt. Gibt true zurück, solange er wirft.
+	 */
+	private boolean werfen(Minecraft mc, LocalPlayer p) {
+		if (!bereich.werfen || mc.gameMode == null) {
+			wirft = false;
+			wurfWarten = -1;
+			return false;
+		}
+		if (!wirft) {
+			if (wurfWarten < 0) {
+				if (++wurfPruefen >= 20) { // einmal pro Sekunde nachsehen
+					wurfPruefen = 0;
+					if (!ueberschuss(p).isEmpty()) {
+						wurfWarten = 40 + zufall.nextInt(100); // nicht sofort, sondern nach 2 bis 7 Sekunden
+					}
+				}
+				return false;
+			}
+			if (--wurfWarten > 0) {
+				return false;
+			}
+			wurfWarten = -1;
+			wirft = true;
+			wurfTicks = 0;
+			wurfRuhig = 0;
+			wurfPause = 0;
+			neuenZielpunkt();
+		}
+
+		Vec3 punkt = wurfZiel(mc, p);
+		Map<String, Integer> mehr = ueberschuss(p);
+		if (punkt == null || mehr.isEmpty() || ++wurfTicks > 200) {
+			wirft = false; // nichts mehr zu werfen oder keine Mobs zu sehen
+			return false;
+		}
+		mc.options.keyUp.setDown(false); // zum Werfen stehen bleiben
+		weg.clear();
+		schauAuf(p, punkt);
+		boolean ruhig = winkelAbstand(p.getYRot(), wunschYaw) < 5
+				&& Math.abs(p.getXRot() - Mth.clamp(wunschPitch, -25f, 60f)) < 5;
+		wurfRuhig = ruhig ? wurfRuhig + 1 : 0;
+		if (wurfPause > 0) {
+			wurfPause--;
+			return true;
+		}
+		if (wurfRuhig < 3) {
+			return true; // erst richtig hinschauen
+		}
+		for (int i = 0; i < 36; i++) {
+			ItemStack s = p.getInventory().getItem(i);
+			if (!istWurfsache(s)) {
+				continue;
+			}
+			int zuviel = mehr.getOrDefault(schluessel(s), 0);
+			if (zuviel <= 0) {
+				continue;
+			}
+			boolean ganzerStapel = s.getCount() <= zuviel;
+			int menueSlot = i < 9 ? 36 + i : i; // Hotbar liegt im Inventar-Menü auf 36 bis 44
+			mc.gameMode.handleContainerInput(p.inventoryMenu.containerId, menueSlot, ganzerStapel ? 1 : 0, ContainerInput.THROW, p);
+			wurfPause = 5 + zufall.nextInt(10);
+			return true;
+		}
+		wirft = false;
 		return false;
 	}
 

@@ -73,7 +73,13 @@ public final class TittowScreen extends Screen {
 		this.addRenderableWidget(Button.builder(kistenText(), b -> {
 			kisten.umschalten(this.minecraft);
 			b.setMessage(kistenText());
-		}).pos(mitte - 100, y).size(200, 20).build());
+		}).pos(mitte - 100, y).size(98, 20).build());
+		this.addRenderableWidget(Button.builder(werfenText(), b -> {
+			bereich.werfen = !bereich.werfen;
+			bereich.speichern();
+			b.setMessage(werfenText());
+			meldung = bereich.werfen ? "Wirft Enderperlen, Schriftrollen und Augen zu den Mobs." : "Wirft nichts mehr.";
+		}).pos(mitte + 2, y).size(98, 20).build());
 		y += 24;
 		this.addRenderableWidget(Button.builder(Component.literal("Schließen"), b -> this.onClose())
 				.pos(mitte - 100, y).size(200, 20).build());
@@ -84,7 +90,11 @@ public final class TittowScreen extends Screen {
 	}
 
 	private Component kistenText() {
-		return Component.literal(kisten.istAn() ? "Kisten leuchten grün: AN" : "Kisten leuchten grün: AUS");
+		return Component.literal(kisten.istAn() ? "Kisten grün: AN" : "Kisten grün: AUS");
+	}
+
+	private Component werfenText() {
+		return Component.literal(bereich.werfen ? "Beute werfen: AN" : "Beute werfen: AUS");
 	}
 
 	private Component botText() {
