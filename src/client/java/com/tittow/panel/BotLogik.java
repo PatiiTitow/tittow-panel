@@ -26,9 +26,11 @@ import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.AttackRange;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -250,18 +252,47 @@ public final class BotLogik {
 			}
 			double d = Math.sqrt(e.getBoundingBox().distanceToSqr(auge));
 			if (nah > 0 && d < nah + 0.2) {
-				if (d < zuNahDistanz) { // zu nah für den Speer
+				if (d < zuNahDistanz && sichtbarerPunkt(mc, p, e) != null) { // zu nah für den Speer
 					zuNah = e;
 					zuNahDistanz = d;
 				}
 				continue;
 			}
-			if (d <= weit - 0.25 && d < besteDistanz) {
+			// nur Mobs, die er wirklich sieht: nicht durch die Decke, den Boden oder eine Wand
+			if (d <= weit - 0.25 && d < besteDistanz && sichtbarerPunkt(mc, p, e) != null) {
 				bester = e;
 				besteDistanz = d;
 			}
 		}
 		return bester;
+	}
+
+	/**
+	 * Eine Stelle am Körper des Mobs, die er wirklich sieht (kein Block dazwischen).
+	 * Erst der normale Zielpunkt, sonst etwas höher oder tiefer am Körper. Null, wenn er den Mob nicht sieht.
+	 */
+	private Vec3 sichtbarerPunkt(Minecraft mc, LocalPlayer p, Entity e) {
+		Vec3 auge = p.getEyePosition();
+		Vec3 wunsch = zielPunkt(p, e);
+		if (frei(mc, p, auge, wunsch)) {
+			return wunsch;
+		}
+		AABB b = e.getBoundingBox();
+		double h = b.maxY - b.minY;
+		Vec3 m = b.getCenter();
+		for (double anteil : new double[] {0.3, 0.45, 0.6}) {
+			Vec3 v = new Vec3(m.x, b.minY + h * anteil, m.z);
+			if (frei(mc, p, auge, v)) {
+				return v;
+			}
+		}
+		return null;
+	}
+
+	/** Kein Block zwischen den beiden Punkten (so wie das Fadenkreuz im Spiel Blöcke trifft)? */
+	private static boolean frei(Minecraft mc, LocalPlayer p, Vec3 von, Vec3 bis) {
+		return mc.level.clip(new ClipContext(von, bis, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, p))
+				.getType() == HitResult.Type.MISS;
 	}
 
 	/**
@@ -283,8 +314,9 @@ public final class BotLogik {
 			reaktionTicks = 3 + zufall.nextInt(7); // 150 bis 450 ms Reaktionszeit
 			neuenZielpunkt();
 		}
-		// auf den Mob schauen (nicht immer genau dieselbe Stelle)
-		schauAuf(p, zielPunkt(p, feind));
+		// auf den Mob schauen (nicht immer genau dieselbe Stelle), und zwar auf eine Stelle, die er sieht
+		Vec3 sichtbar = sichtbarerPunkt(mc, p, feind);
+		schauAuf(p, sichtbar != null ? sichtbar : zielPunkt(p, feind));
 
 		if (reaktionTicks > 0) {
 			reaktionTicks--;
@@ -522,7 +554,8 @@ public final class BotLogik {
 			return new Vec3(mitte[0], mitte[1], mitte[2]);
 		}
 		List<Entity> monster = mc.level.getEntities(p, p.getBoundingBox().inflate(12),
-				e -> e instanceof LivingEntity && e.isAlive() && e.getType().getCategory() == MobCategory.MONSTER);
+				e -> e instanceof LivingEntity && e.isAlive() && e.getType().getCategory() == MobCategory.MONSTER
+						&& sichtbarerPunkt(mc, p, e) != null); // keine Mobs hinter der Decke
 		Entity naechstes = null;
 		double beste = Double.MAX_VALUE;
 		for (Entity e : monster) {
@@ -567,8 +600,8 @@ public final class BotLogik {
 	}
 
 	/**
-	 * Sucht die Trichter unter den Mobs: Trichter bis 8 Blöcke um dich, über denen Platz ist
-	 * (Trichter unter einem Boden zählen nicht). Nimmt die zusammenhängende Gruppe um den nächsten Trichter,
+	 * Sucht die Trichter unter den Mobs: Trichter bis 8 Blöcke um dich, über denen kein ganzer Block ist
+	 * (Teppich darauf ist in Ordnung, Trichter unter einem Boden zählen nicht). Nimmt die zusammenhängende Gruppe um den nächsten Trichter,
 	 * z. B. deine 3x3 Trichter.
 	 */
 	private List<BlockPos> trichterSuchen(Minecraft mc, LocalPlayer p) {
@@ -578,7 +611,9 @@ public final class BotLogik {
 			for (int dz = -8; dz <= 8; dz++) {
 				for (int dy = -3; dy <= 1; dy++) {
 					BlockPos pos = fuss.offset(dx, dy, dz);
-					if (mc.level.getBlockState(pos).is(Blocks.HOPPER) && !mc.level.getBlockState(pos.above()).canOcclude()) {
+					// wie im Spiel: der Trichter holt Sachen von oben, solange darüber kein ganzer Block ist (Teppich ist ok)
+					if (mc.level.getBlockState(pos).is(Blocks.HOPPER)
+							&& !mc.level.getBlockState(pos.above()).isCollisionShapeFullBlock(mc.level, pos.above())) {
 						alle.add(pos);
 					}
 				}

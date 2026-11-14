@@ -45,6 +45,7 @@ Die Taste kannst du unter **Optionen → Steuerung → Tittow Panel** ändern.
 - Läuft zufällig über die ganze freie Fläche, oft direkt an den Mob-Bereich, und betritt den Mob-Bereich nie
 - Bleibt zum Schlagen stehen, schlägt ein paar Mal, läuft dann weiter
 - Schaut beim Schlagen auf den **Körper** (etwa auf Augenhöhe), nicht hoch auf den Kopf
+- Greift nur Mobs an, die er **wirklich sieht**. Mobs hinter der Decke, unter dem Boden oder hinter einer Wand lässt er in Ruhe.
 - Richtet sich nach der **Reichweite der Waffe**: Schwert bis 3 Blöcke, **Speer 2 bis 4,5 Blöcke**.
   Der Speer trifft nichts, was näher als 2 Blöcke steht. Dann geht der Bot einen kleinen Schritt zurück,
   wenn die Fläche dort weitergeht. Mit dem Speer schlägt er erst, wenn der Speer **ganz aufgeladen** ist.
@@ -59,7 +60,8 @@ Im Panel schaltet **„Beute werfen: AN/AUS“** das Werfen (am Anfang AN).
 - Er wirft erst, wenn das **Inventar voll** ist. Dann sucht er die **Trichter** unter den Mobs (z. B. deine 3x3 Trichter)
   und stellt sich auf ein freies Feld **direkt daneben** (ein Feld außen herum, am liebsten an eine Seite, sonst an eine Ecke).
   Von dort zielt er auf die Mitte der Trichter und wirft die Sachen hinein. Danach farmt er normal weiter.
-- Trichter, über denen ein Boden ist (z. B. eine Trichter-Kette unter der Erde), zählen nicht.
+- **Teppich auf den Trichtern ist in Ordnung**, die Trichter holen die Sachen trotzdem. Trichter, über denen ein ganzer Block ist
+  (z. B. eine Trichter-Kette unter dem Boden), zählen nicht.
 - Findet er keine Trichter, geht er an den Rand zu den Mobs und wirft dort hinein.
 - Er wirft nur, was **beim Farmen dazugekommen** ist. Was du beim Einschalten schon dabei hattest, bleibt bei dir.
 - Waffen, Rüstung und Essen wirft er nie.
