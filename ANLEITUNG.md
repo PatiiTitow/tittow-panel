@@ -85,8 +85,11 @@ Im Panel schaltet **„Beute werfen: AN/AUS“** das Werfen (am Anfang AN).
 
 ## Kisten leuchten grün
 Im Panel schaltet **„Kisten grün: AN/AUS“** die Kisten-Anzeige (übernommen aus dem Patri-Autofarmer).
-- Ungeöffnete Kisten in der Umgebung (bis 16 Chunks, höchstens die Sichtweite) bekommen einen **grünen Rahmen, auch durch Wände**.
-  Höchstens 48, die nächsten zuerst. Kistenloren zählen mit.
+- Ungeöffnete Kisten in der Umgebung bekommen einen **grünen Rahmen, auch durch Wände**.
+  Höchstens 96, die nächsten zuerst. Kistenloren zählen mit.
+- **„Kisten-Weite“** im Panel stellt ein, wie weit gesucht wird: 8, 16, 24 oder 32 Chunks (jeder Klick eins weiter, am Anfang 16).
+  Weiter als die **Sichtweite** geht nicht, weil das Spiel weiter weg gar keine Blöcke lädt. Für mehr Weite also auch die
+  Sichtweite hochstellen (Optionen → Grafik). Auf deinem Server zählt außerdem `view-distance` in `server.properties`.
 - Kisten, die du **schon geöffnet** hast, verschwinden aus der Anzeige (wird gespeichert).
 - **Lager von Spielern** (mehr als 4 Kisten beieinander oder Betten, Schilder, Türen, Fackeln … daneben) werden nicht gezeigt,
   außer in Bauwerken, die kein Spieler baut (Netherfestung, Bastion, Festung, Antike Stadt, Endsiedlung, Prüfungskammer).

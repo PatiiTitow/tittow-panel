@@ -35,9 +35,9 @@ import net.minecraft.world.phys.HitResult;
  * Anti-Xray-Schutzes (rundum im Stein eingeschlossen). Kistenloren zählen mit.
  */
 public final class Kisten {
-	/** Wie weit gesucht wird (in Chunks, höchstens die Sichtweite) und wie viele Kisten höchstens leuchten. */
-	private static final int REICHWEITE_CHUNKS = 16;
-	private static final int MAX_KISTEN = 48;
+	/** Wählbare Such-Weiten (in Chunks, höchstens die Sichtweite) und wie viele Kisten höchstens leuchten. */
+	private static final int[] WEITEN = {8, 16, 24, 32};
+	private static final int MAX_KISTEN = 96;
 	/** Was Spieler um ihre Lager bauen. Steht so etwas (offen sichtbar) bei der Kiste, ist es kein Beute-Fund. */
 	private static final List<String> SPIELER_BAU = List.of("_bed", "_sign", "_door", "trapdoor", "torch", "lantern", "hopper",
 			"furnace", "smoker", "crafting_table", "barrel", "glass", "glass_pane", "_rail", "shulker_box", "enchanting_table", "anvil");
@@ -103,6 +103,38 @@ public final class Kisten {
 		BaritoneRahmen.zeigen(boxen);
 	}
 
+	/** Gewählte Such-Weite in Chunks. */
+	public int weite() {
+		int w = einstellungen.kistenWeite;
+		return w < WEITEN[0] ? 16 : Math.min(w, WEITEN[WEITEN.length - 1]);
+	}
+
+	/** Nächste Weite (8 → 16 → 24 → 32 → 8) und Hinweis, falls die Sichtweite weniger erlaubt. */
+	public String weiteUmschalten(Minecraft mc) {
+		int jetzt = weite();
+		int neu = WEITEN[0];
+		for (int w : WEITEN) {
+			if (w > jetzt) {
+				neu = w;
+				break;
+			}
+		}
+		einstellungen.kistenWeite = neu;
+		einstellungen.speichern();
+		naechsteSuche = 0;
+		int sicht = mc.options.getEffectiveRenderDistance();
+		if (sicht < neu) {
+			return "Kisten-Weite " + neu + " Chunks, aber die Sichtweite ist nur " + sicht
+					+ ". Weiter als die Sichtweite geht nicht.";
+		}
+		return "Kisten-Weite: " + neu + " Chunks (" + neu * 16 + " Blöcke).";
+	}
+
+	/** Wirklich durchsuchte Weite: die gewählte, aber höchstens die Sichtweite. */
+	private int suchWeite(Minecraft mc) {
+		return Math.min(weite(), mc.options.getEffectiveRenderDistance());
+	}
+
 	// ---- Suchen --------------------------------------------------------------
 
 	private void suchen(Minecraft mc) {
@@ -112,7 +144,7 @@ public final class Kisten {
 			umgebung.clear();
 		}
 		BlockPos hier = mc.player.blockPosition();
-		int r = Math.min(REICHWEITE_CHUNKS, mc.options.getEffectiveRenderDistance());
+		int r = suchWeite(mc);
 		int pcx = hier.getX() >> 4, pcz = hier.getZ() >> 4;
 		List<BlockPos> kisten = new ArrayList<>();
 		for (int cx = pcx - r; cx <= pcx + r; cx++) {
@@ -128,7 +160,7 @@ public final class Kisten {
 				}
 			}
 		}
-		if (umgebung.size() > 5000) {
+		if (umgebung.size() > 20000) {
 			umgebung.clear();
 		}
 		boxen = naechsteKisten(mc, kisten, hier);
@@ -169,7 +201,7 @@ public final class Kisten {
 			}
 		}
 		for (MinecartChest lore : mc.level.getEntitiesOfClass(MinecartChest.class,
-				mc.player.getBoundingBox().inflate(REICHWEITE_CHUNKS * 16), m -> m.isAlive())) {
+				mc.player.getBoundingBox().inflate(suchWeite(mc) * 16), m -> m.isAlive())) {
 			if (!istGeoeffnet("lore " + lore.getUUID())) {
 				ergebnis.add(new BlockPos[] {lore.blockPosition(), lore.blockPosition()});
 			}

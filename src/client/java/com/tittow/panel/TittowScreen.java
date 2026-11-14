@@ -84,7 +84,11 @@ public final class TittowScreen extends Screen {
 		}).pos(mitte + 2, y).size(98, 20).build());
 		y += 24;
 		this.addRenderableWidget(Button.builder(Component.literal("Schließen"), b -> this.onClose())
-				.pos(mitte - 100, y).size(200, 20).build());
+				.pos(mitte - 100, y).size(98, 20).build());
+		this.addRenderableWidget(Button.builder(weiteText(), b -> {
+			meldung = kisten.weiteUmschalten(this.minecraft);
+			b.setMessage(weiteText());
+		}).pos(mitte + 2, y).size(98, 20).build());
 	}
 
 	private Component hellText() {
@@ -93,6 +97,10 @@ public final class TittowScreen extends Screen {
 
 	private Component kistenText() {
 		return Component.literal(kisten.istAn() ? "Kisten grün: AN" : "Kisten grün: AUS");
+	}
+
+	private Component weiteText() {
+		return Component.literal("Kisten-Weite: " + kisten.weite());
 	}
 
 	private Component werfenText() {
