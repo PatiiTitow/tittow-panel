@@ -20,6 +20,7 @@ public final class TittowScreen extends Screen {
 	private final Kisten kisten;
 	private Button botKnopf;
 	private String meldung = "";
+	private String stelle = "";
 
 	public TittowScreen(BotLogik bot, Bereich bereich, Hell hell, Kisten kisten) {
 		super(Component.literal("Tittow Panel"));
@@ -33,6 +34,7 @@ public final class TittowScreen extends Screen {
 	protected void init() {
 		int mitte = this.width / 2;
 		int y = this.height / 2 - 50;
+		stelle = bot.stelleText(this.minecraft); // einmal beim Öffnen nachsehen (Trichter suchen)
 
 		this.botKnopf = this.addRenderableWidget(Button.builder(botText(), b -> {
 			bot.umschalten(this.minecraft);
@@ -142,7 +144,7 @@ public final class TittowScreen extends Screen {
 		graphics.centeredText(this.font, "Tittow Panel", mitte, y, LILA);
 		graphics.centeredText(this.font, bot.istAktiv() ? "Status: AN" : "Status: AUS", mitte, y + 14, bot.istAktiv() ? GRUEN : ROT);
 		graphics.centeredText(this.font, bereich.beschreibung(), mitte, y + 28, WEISS);
-		graphics.centeredText(this.font, "Kills: " + bot.kills(), mitte, y + 40, GRAU);
+		graphics.centeredText(this.font, "Kills: " + bot.kills() + "   |   " + stelle, mitte, y + 40, GRAU);
 		if (!meldung.isEmpty()) {
 			graphics.centeredText(this.font, meldung, mitte, this.height / 2 + 104, GRUEN);
 		}

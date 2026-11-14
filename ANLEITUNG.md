@@ -42,6 +42,22 @@ Wenn du stirbst oder die Welt verlässt, geht er automatisch aus.
 Die Taste kannst du unter **Optionen → Steuerung → Tittow Panel** ändern.
 
 ## Was der Bot macht
+
+### Normal: am Rand stehen und einfach zuschlagen
+Weiß der Bot, wo die Mobs spawnen, stellt er sich auf ein Feld **direkt am Rand** (ein Feld außen herum) und schlägt
+**einfach immer wieder hinein**. Er wartet nicht, bis er einen Mob erkennt, denn dort spawnen sowieso immer welche.
+- Die Schlag-Stelle findet er so (der Reihe nach):
+  1. der **Mob-Bereich**, wenn du einen gesetzt hast,
+  2. die **Trichter** in der Nähe, z. B. deine 3x3 Trichter mit Teppich
+     (Trichter unter einem ganzen Block, einer Kiste oder einem Fass zählen nicht),
+  3. die **grauen Felder in der Karte**, die an deine Fläche grenzen (z. B. die Ecke im L).
+- Im Panel steht neben den Kills, was er gefunden hat, z. B. „Schlag-Stelle: 9 Trichter“.
+- **Menschlich:** Er schlägt im Takt der Waffe, mal sofort, mal etwas später. Er zielt in Körperhöhe, meistens auf
+  einen Enderman, den er sieht, sonst irgendwo über die Trichter. Die Maus wandert dabei ein bisschen.
+  Ab und zu macht er eine Pause (1 bis 4 Sekunden, selten 6 bis 12), schaut kurz zur Seite oder geht ein Feld weiter.
+- Er klickt nie auf Spieler, Tiere, Dorfbewohner oder Rahmen und nie auf Blöcke, die davon kaputtgehen (z. B. Fackeln).
+
+### Ohne Schlag-Stelle (z. B. einfache rechteckige Fläche ohne Trichter)
 - Läuft zufällig über die ganze freie Fläche, oft direkt an den Mob-Bereich, und betritt den Mob-Bereich nie
 - Bleibt zum Schlagen stehen, schlägt ein paar Mal, läuft dann weiter
 - Schaut beim Schlagen auf den **Körper** (etwa auf Augenhöhe), nicht hoch auf den Kopf

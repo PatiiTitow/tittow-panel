@@ -29,6 +29,7 @@ import net.minecraft.world.item.component.AttackRange;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -77,6 +78,17 @@ public final class BotLogik {
 	// Speer: Mob zu nah -> einen Schritt zurück
 	private Entity zuNah = null;
 	private int rueckTicks = 0;
+
+	// Farm-Modus: am Rand der Mob-Stelle stehen und einfach zuschlagen
+	private final List<int[]> mobSaeulen = new ArrayList<>(); // x/z der Mob-Stelle (Trichter, Mob-Bereich oder gesperrte Ecke)
+	private double mobBoden = 0;            // Höhe, auf der die Mobs stehen
+	private String stelleArt = "keine";
+	private int stelleSuchenTicks = 0;
+	private Vec3 farmZiel = null;           // wohin er gerade schlägt
+	private Entity farmMob = null;          // Mob, dem er gerade mit der Maus folgt
+	private int farmSchlaege = 8;           // Schläge bis zur nächsten kleinen Entscheidung
+	private int farmPause = 0;              // kurze Pause, in der er nicht schlägt
+	private float ladungNoetig = 0.95f;
 
 	// Beute (Power Orbs, Scrolls, Enderperlen) bei vollem Inventar zu den Mobs werfen
 	private final Map<String, Integer> startMenge = new HashMap<>();
@@ -146,6 +158,11 @@ public final class BotLogik {
 		wurfPhase = 0;
 		wurfWarten = -1;
 		letzteMobStelle = null;
+		stelleSuchenTicks = 0;
+		farmZiel = null;
+		farmMob = null;
+		farmPause = 0;
+		farmSchlaege = 6 + zufall.nextInt(10);
 		startMenge.clear();
 		startMenge.putAll(wurfsachenZaehlen(p)); // was du schon dabei hast, bleibt bei dir
 		wunschYaw = p.getYRot();
@@ -195,6 +212,18 @@ public final class BotLogik {
 		if (werfen(mc, p)) {
 			return;
 		}
+
+		// Weiß er, wo die Mobs spawnen (Trichter, Mob-Bereich oder gesperrte Ecke)? Dann einfach dort zuschlagen.
+		if (--stelleSuchenTicks <= 0) {
+			stelleSuchenTicks = 600; // alle 30 Sekunden neu nachsehen
+			mobStelleBestimmen(mc, p);
+		}
+		if (!mobSaeulen.isEmpty()) {
+			farmen(mc, p);
+			return;
+		}
+
+		// Sonst wie früher: herumlaufen und Monster in der Nähe suchen
 		if (zurueckweichen(p, mc.options)) {
 			return;
 		}
@@ -491,6 +520,278 @@ public final class BotLogik {
 		return false;
 	}
 
+	// ---- Farm-Modus: am Rand stehen und einfach zuschlagen -----------------
+
+	/**
+	 * Wo die Mobs spawnen: 1. der Mob-Bereich, wenn gesetzt, 2. die Trichter (z. B. 3x3 mit Teppich),
+	 * 3. die gesperrten Felder in der Karte, die an die Lauf-Fläche grenzen (z. B. die Ecke im L).
+	 */
+	private void mobStelleBestimmen(Minecraft mc, LocalPlayer p) {
+		mobSaeulen.clear();
+		stelleArt = "keine";
+		if (bereich.mobsGesetzt()) {
+			for (int x = Math.min(bereich.mobs1[0], bereich.mobs2[0]); x <= Math.max(bereich.mobs1[0], bereich.mobs2[0]); x++) {
+				for (int z = Math.min(bereich.mobs1[2], bereich.mobs2[2]); z <= Math.max(bereich.mobs1[2], bereich.mobs2[2]); z++) {
+					mobSaeulen.add(new int[] {x, z});
+				}
+			}
+			mobBoden = Math.min(bereich.mobs1[1], bereich.mobs2[1]);
+			stelleArt = "Mob-Bereich";
+			return;
+		}
+		List<BlockPos> trichter = trichterSuchen(mc, p);
+		if (!trichter.isEmpty()) {
+			int oben = Integer.MIN_VALUE;
+			for (BlockPos t : trichter) {
+				if (mobSaeulen.stream().noneMatch(s -> s[0] == t.getX() && s[1] == t.getZ())) {
+					mobSaeulen.add(new int[] {t.getX(), t.getZ()});
+				}
+				oben = Math.max(oben, t.getY() + 1);
+			}
+			mobBoden = oben;
+			stelleArt = trichter.size() + " Trichter";
+			return;
+		}
+		if (bereich.flaecheGesetzt()) {
+			int[] g = bereich.grenzen();
+			for (int x = g[0]; x <= g[1]; x++) {
+				for (int z = g[2]; z <= g[3]; z++) {
+					if (!bereich.erlaubt(x, z) && (bereich.erlaubt(x + 1, z) || bereich.erlaubt(x - 1, z)
+							|| bereich.erlaubt(x, z + 1) || bereich.erlaubt(x, z - 1))) {
+						mobSaeulen.add(new int[] {x, z});
+					}
+				}
+			}
+			if (!mobSaeulen.isEmpty()) {
+				mobBoden = p.getBlockY();
+				stelleArt = "gesperrte Ecke";
+			}
+		}
+	}
+
+	/** Für das Panel: wo er hinschlägt. */
+	public String stelleText(Minecraft mc) {
+		if (mc.player != null && mc.level != null) {
+			mobStelleBestimmen(mc, mc.player);
+		}
+		return mobSaeulen.isEmpty() ? "Schlag-Stelle: keine, sucht Mobs" : "Schlag-Stelle: " + stelleArt;
+	}
+
+	/** Freie Felder direkt am Rand der Mob-Stelle (ein Feld außen herum). Mit Ecken oder nur die Seiten. */
+	private List<Bereich.Feld> ringFelder(boolean mitEcken) {
+		List<Bereich.Feld> ring = new ArrayList<>();
+		for (Bereich.Feld f : bereich.freieFelder()) {
+			boolean seite = false;
+			boolean ecke = false;
+			boolean drauf = false;
+			for (int[] s : mobSaeulen) {
+				int ax = Math.abs(s[0] - f.x());
+				int az = Math.abs(s[1] - f.z());
+				if (ax == 0 && az == 0) {
+					drauf = true;
+					break;
+				}
+				if (ax + az == 1) {
+					seite = true;
+				} else if (ax == 1 && az == 1) {
+					ecke = true;
+				}
+			}
+			if (!drauf && (seite || (mitEcken && ecke))) {
+				ring.add(f);
+			}
+		}
+		return ring;
+	}
+
+	private static Bereich.Feld naechstes(List<Bereich.Feld> felder, LocalPlayer p) {
+		Bereich.Feld bestes = null;
+		double beste = Double.MAX_VALUE;
+		for (Bereich.Feld f : felder) {
+			double d = Math.pow(f.x() + 0.5 - p.getX(), 2) + Math.pow(f.z() + 0.5 - p.getZ(), 2);
+			if (d < beste) {
+				bestes = f;
+				beste = d;
+			}
+		}
+		return bestes;
+	}
+
+	/**
+	 * Steht am Rand der Mob-Stelle und schlägt einfach immer wieder hinein, wie ein Mensch:
+	 * schaut hin, wartet, bis die Waffe geladen ist, klickt mit leicht unregelmäßigem Takt,
+	 * bewegt die Maus ein bisschen, macht ab und zu Pausen, schaut kurz weg oder geht ein Feld weiter.
+	 */
+	private void farmen(Minecraft mc, LocalPlayer p) {
+		Options o = mc.options;
+		Bereich.Feld hier = new Bereich.Feld(Mth.floor(p.getX()), Mth.floor(p.getZ()));
+
+		// unterwegs zu einem anderen Feld am Rand
+		if (!weg.isEmpty()) {
+			laufTicks++;
+			int s = schritt(o, p);
+			if (s != 0 || laufTicks > 120) {
+				o.keyUp.setDown(false);
+				weg.clear();
+				farmPause = 4 + zufall.nextInt(10); // kurz ankommen
+			}
+			return;
+		}
+
+		// nicht am Rand? Dann zum nächsten Feld am Rand gehen (am liebsten an eine Seite)
+		List<Bereich.Feld> ring = ringFelder(true);
+		if (!ring.isEmpty() && !ring.contains(hier)) {
+			List<Bereich.Feld> seiten = ringFelder(false);
+			Bereich.Feld ziel = naechstes(seiten.isEmpty() ? ring : seiten, p);
+			List<Bereich.Feld> w = bereich.weg(hier, ziel);
+			if (w != null && !w.isEmpty()) {
+				weg = new ArrayList<>(w);
+				laufTicks = 0;
+				return;
+			}
+			// nicht erreichbar: dann eben von hier aus schlagen
+		}
+
+		// Pause: nicht schlagen, nur ein bisschen schauen
+		if (farmPause > 0) {
+			farmPause--;
+			return;
+		}
+
+		// zielen (folgt einem Mob, wenn er gerade einem folgt, sonst eine Stelle über den Trichtern)
+		if (farmZiel == null || (farmMob != null && !farmMob.isAlive())) {
+			neuesFarmZiel(mc, p);
+		}
+		Vec3 punkt = farmZiel;
+		if (farmMob != null) {
+			Vec3 sp = sichtbarerPunkt(mc, p, farmMob);
+			if (sp == null) {
+				neuesFarmZiel(mc, p);
+				punkt = farmZiel;
+			} else {
+				punkt = sp;
+			}
+		}
+		schauAuf(p, punkt);
+
+		// schlagen
+		if (schlagPause > 0) {
+			schlagPause--;
+			return;
+		}
+		float mindestLadung = p.getMainHandItem().getOrDefault(DataComponents.MINIMUM_ATTACK_CHARGE, 0f);
+		if (p.getAttackStrengthScale(0.0f) < (mindestLadung > 0f ? 1.0f : ladungNoetig)) {
+			return; // Waffe lädt noch
+		}
+		if (winkelAbstand(p.getYRot(), wunschYaw) > 8 || Math.abs(p.getXRot() - Mth.clamp(wunschPitch, -25f, 60f)) > 8) {
+			return; // Maus ist noch unterwegs
+		}
+		if (!darfKlicken(mc, p)) {
+			neuesFarmZiel(mc, p); // da ist etwas, das er nicht schlagen soll: woanders hinzielen
+			schlagPause = 2 + zufall.nextInt(4);
+			return;
+		}
+		klick(o.keyAttack);
+		if (mc.hitResult instanceof EntityHitResult treffer) {
+			geschlagen.add(treffer.getEntity());
+		}
+
+		// menschlicher Takt nach dem Tempo der Waffe: meist kurz nach dem Aufladen, manchmal etwas später
+		int takt = Math.round(p.getCurrentItemAttackStrengthDelay() * 0.85f);
+		schlagPause = takt + (zufall.nextDouble() < 0.08 ? 8 + zufall.nextInt(18) : zufall.nextInt(5));
+		ladungNoetig = 0.9f + zufall.nextFloat() * 0.1f;
+		neuenZielpunkt();
+		if (zufall.nextDouble() < 0.3) {
+			neuesFarmZiel(mc, p); // Maus wandert ein bisschen
+		}
+		if (--farmSchlaege <= 0) {
+			farmEntscheiden(p, hier);
+		}
+	}
+
+	/** Nach ein paar Schlägen: weiterschlagen, kurze Pause, längere Pause, wegschauen oder ein Feld weiter gehen. */
+	private void farmEntscheiden(LocalPlayer p, Bereich.Feld hier) {
+		farmSchlaege = 6 + zufall.nextInt(16);
+		double w = zufall.nextDouble();
+		if (w < 0.05) {
+			farmPause = 120 + zufall.nextInt(120); // selten 6 bis 12 Sekunden Pause
+		} else if (w < 0.22) {
+			farmPause = 20 + zufall.nextInt(60);   // kurze Pause, 1 bis 4 Sekunden
+		} else if (w < 0.40) {
+			// ein anderes Feld am Rand, nicht zu weit weg
+			List<Bereich.Feld> nah = new ArrayList<>();
+			for (Bereich.Feld f : ringFelder(true)) {
+				if (!f.equals(hier) && Math.abs(f.x() - hier.x()) <= 2 && Math.abs(f.z() - hier.z()) <= 2) {
+					nah.add(f);
+				}
+			}
+			if (!nah.isEmpty()) {
+				List<Bereich.Feld> w2 = bereich.weg(hier, nah.get(zufall.nextInt(nah.size())));
+				if (w2 != null && !w2.isEmpty()) {
+					weg = new ArrayList<>(w2);
+					laufTicks = 0;
+				}
+			}
+		}
+		if (farmPause > 0 && zufall.nextDouble() < 0.5) {
+			// in der Pause kurz zur Seite schauen
+			wunschYaw = p.getYRot() + (zufall.nextBoolean() ? 1 : -1) * (20 + zufall.nextFloat() * 40);
+			wunschPitch = 5 + zufall.nextFloat() * 20;
+			farmZiel = null; // danach neu hinschauen
+		}
+	}
+
+	/**
+	 * Neuer Punkt zum Hinschlagen: meistens ein Mob, den er gut sieht (wie ein Mensch, der auf einen Enderman zielt),
+	 * sonst irgendeine Stelle über der Mob-Stelle, die mit der Waffe erreichbar ist, in Körperhöhe.
+	 */
+	private void neuesFarmZiel(Minecraft mc, LocalPlayer p) {
+		farmMob = null;
+		if (zufall.nextDouble() < 0.7) {
+			Entity m = naechsterFeind(mc, p);
+			if (m != null) {
+				farmMob = m;
+				farmZiel = m.position();
+				return;
+			}
+		}
+		AttackRange r = reichweite(p);
+		double nah = r.effectiveMinRange(p);
+		double weit = r.effectiveMaxRange(p);
+		List<int[]> passend = new ArrayList<>();
+		int[] naechste = null;
+		double naechsteD = Double.MAX_VALUE;
+		for (int[] s : mobSaeulen) {
+			double d = Math.sqrt(Math.pow(s[0] + 0.5 - p.getX(), 2) + Math.pow(s[1] + 0.5 - p.getZ(), 2));
+			if (d >= nah + 0.3 && d <= weit - 0.3) {
+				passend.add(s);
+			}
+			if (d < naechsteD) {
+				naechste = s;
+				naechsteD = d;
+			}
+		}
+		int[] s = passend.isEmpty() ? naechste : passend.get(zufall.nextInt(passend.size()));
+		farmZiel = new Vec3(s[0] + 0.25 + zufall.nextDouble() * 0.5,
+				mobBoden + 0.9 + zufall.nextDouble() * 0.7,
+				s[1] + 0.25 + zufall.nextDouble() * 0.5);
+	}
+
+	/**
+	 * Darf er jetzt klicken? Nie auf Spieler, Tiere, Dorfbewohner, Rahmen usw., nur auf Monster.
+	 * In die Luft ist ok. Auf einen Block nur, wenn der davon nicht kaputtgeht (z. B. keine Fackel).
+	 */
+	private static boolean darfKlicken(Minecraft mc, LocalPlayer p) {
+		HitResult h = mc.hitResult;
+		if (h instanceof EntityHitResult t) {
+			return t.getEntity().getType().getCategory() == MobCategory.MONSTER;
+		}
+		if (h instanceof BlockHitResult b && h.getType() == HitResult.Type.BLOCK) {
+			return mc.level.getBlockState(b.getBlockPos()).getDestroyProgress(p, mc.level, b.getBlockPos()) < 0.5f;
+		}
+		return true;
+	}
+
 	// ---- Beute zu den Mobs werfen ------------------------------------------
 
 	/** Power Orbs, Scrolls (z. B. "Scroll of ...") und Enderperlen. Nie Waffen, Rüstung oder Essen. */
@@ -612,8 +913,10 @@ public final class BotLogik {
 				for (int dy = -3; dy <= 1; dy++) {
 					BlockPos pos = fuss.offset(dx, dy, dz);
 					// wie im Spiel: der Trichter holt Sachen von oben, solange darüber kein ganzer Block ist (Teppich ist ok)
+					// Trichter unter einer Kiste, einem Fass oder einem anderen Trichter zählen nicht
 					if (mc.level.getBlockState(pos).is(Blocks.HOPPER)
-							&& !mc.level.getBlockState(pos.above()).isCollisionShapeFullBlock(mc.level, pos.above())) {
+							&& !mc.level.getBlockState(pos.above()).isCollisionShapeFullBlock(mc.level, pos.above())
+							&& !mc.level.getBlockState(pos.above()).hasBlockEntity()) {
 						alle.add(pos);
 					}
 				}
