@@ -35,7 +35,7 @@ public final class TittowScreen extends Screen {
 	@Override
 	protected void init() {
 		int mitte = this.width / 2;
-		int y = this.height / 2 - 50;
+		int y = this.height / 2 - 60;
 		stelle = bot.stelleText(this.minecraft); // einmal beim Öffnen nachsehen (Trichter suchen)
 
 		this.botKnopf = this.addRenderableWidget(Button.builder(botText(), b -> {
@@ -94,10 +94,22 @@ public final class TittowScreen extends Screen {
 			meldung = kisten.weiteUmschalten(this.minecraft);
 			b.setMessage(weiteText());
 		}).pos(mitte + 2, y).size(98, 20).build());
+		y += 24;
+		this.addRenderableWidget(Button.builder(ebnenText(), b -> {
+			meldung = burg.ebnenUmschalten(this.minecraft);
+			b.setMessage(ebnenText());
+			if (burg.ebnetGerade()) {
+				this.onClose(); // Fenster zu, damit Baritone sofort loslegt
+			}
+		}).pos(mitte - 100, y).size(200, 20).build());
 	}
 
 	private Component burgText() {
 		return Component.literal(burg.istAn() ? "Burg: AN (weg)" : "Burg hier zeigen");
+	}
+
+	private Component ebnenText() {
+		return Component.literal(burg.ebnetGerade() ? "Ebnen läuft  (klicken = Stopp)" : "Burg-Platz ebnen (graben + stopfen)");
 	}
 
 	private Component hellText() {
@@ -157,17 +169,19 @@ public final class TittowScreen extends Screen {
 		super.extractRenderState(graphics, mouseX, mouseY, delta);
 
 		int mitte = this.width / 2;
-		int y = this.height / 2 - 100;
+		int y = this.height / 2 - 110;
 		graphics.centeredText(this.font, "Tittow Panel", mitte, y, LILA);
 		graphics.centeredText(this.font, bot.istAktiv() ? "Status: AN" : "Status: AUS", mitte, y + 14, bot.istAktiv() ? GRUEN : ROT);
 		graphics.centeredText(this.font, bereich.beschreibung(), mitte, y + 28, WEISS);
 		graphics.centeredText(this.font, "Kills: " + bot.kills() + "   |   " + stelle, mitte, y + 40, GRAU);
+		// unten eine Zeile: die letzte Meldung, sonst der Hinweis
 		if (!meldung.isEmpty()) {
-			graphics.centeredText(this.font, meldung, mitte, this.height / 2 + 104, GRUEN);
+			graphics.centeredText(this.font, meldung, mitte, this.height / 2 + 116, GRUEN);
+		} else {
+			graphics.centeredText(this.font, "Ecken in beliebiger Reihenfolge setzen (L = 6 Ecken). Schließen mit Esc. Nur für die eigene Welt!",
+					mitte, this.height / 2 + 116, GRAU);
 		}
-		graphics.centeredText(this.font, "Ecken in beliebiger Reihenfolge setzen (L = 6 Ecken). Schließen mit Esc. Nur für die eigene Welt!",
-				mitte, this.height / 2 + 118, GRAU);
-		karteZeichnen(graphics, mitte + 112, this.height / 2 - 50);
+		karteZeichnen(graphics, mitte + 112, this.height / 2 - 60);
 	}
 
 	/** Kleine Karte zur Kontrolle: grün = Lauf-Fläche, rot = Mob-Bereich, gelb = du. */

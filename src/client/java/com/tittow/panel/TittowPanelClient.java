@@ -37,6 +37,7 @@ public final class TittowPanelClient implements ClientModInitializer {
 			BOT.tick(client);
 			HELL.tick(client);
 			KISTEN.tick(client);
+			BURG.tick(client);
 		});
 
 		// beim Verlassen der Welt den Bot ausschalten und die Kisten- und Burg-Rahmen entfernen

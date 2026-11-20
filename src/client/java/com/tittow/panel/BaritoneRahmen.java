@@ -116,6 +116,42 @@ final class BaritoneRahmen {
 		}
 	}
 
+	/** Führt einen Baritone-Befehl aus, wie im Chat mit # davor (z. B. "sel cleararea"). */
+	static boolean befehl(String text) {
+		if (!vorhanden()) {
+			return false;
+		}
+		try {
+			Object baritone = getPrimaryBaritone.invoke(getProvider.invoke(null));
+			Object manager = baritone.getClass().getMethod("getCommandManager").invoke(baritone);
+			Object ok = Class.forName("baritone.api.command.manager.ICommandManager").getMethod("execute", String.class)
+					.invoke(manager, text);
+			return Boolean.TRUE.equals(ok);
+		} catch (ReflectiveOperationException | RuntimeException e) {
+			System.err.println("[Tittow Panel] Baritone-Befehl \"" + text + "\" ging nicht: " + e);
+			return false;
+		}
+	}
+
+	/** Baut oder räumt Baritone gerade (auch wenn es pausiert, weil Blöcke fehlen)? */
+	static boolean bautGerade() {
+		if (!vorhanden()) {
+			return false;
+		}
+		try {
+			Object baritone = getPrimaryBaritone.invoke(getProvider.invoke(null));
+			Object builder = Class.forName("baritone.api.IBaritone").getMethod("getBuilderProcess").invoke(baritone);
+			return Boolean.TRUE.equals(Class.forName("baritone.api.process.IBaritoneProcess").getMethod("isActive").invoke(builder));
+		} catch (ReflectiveOperationException | RuntimeException e) {
+			return false;
+		}
+	}
+
+	/** Nach "sel clear" sind alle Baritone-Rahmen weg: vergessen, damit Kisten und Burg sie neu setzen. */
+	static void vergessen() {
+		rahmen.clear();
+	}
+
 	private static String schluessel(BlockPos[] b) {
 		return b[0].getX() + " " + b[0].getY() + " " + b[0].getZ() + " " + b[1].getX() + " " + b[1].getY() + " " + b[1].getZ();
 	}
