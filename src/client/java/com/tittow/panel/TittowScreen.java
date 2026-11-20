@@ -18,16 +18,18 @@ public final class TittowScreen extends Screen {
 	private final Bereich bereich;
 	private final Hell hell;
 	private final Kisten kisten;
+	private final Burgvorschau burg;
 	private Button botKnopf;
 	private String meldung = "";
 	private String stelle = "";
 
-	public TittowScreen(BotLogik bot, Bereich bereich, Hell hell, Kisten kisten) {
+	public TittowScreen(BotLogik bot, Bereich bereich, Hell hell, Kisten kisten, Burgvorschau burg) {
 		super(Component.literal("Tittow Panel"));
 		this.bot = bot;
 		this.bereich = bereich;
 		this.hell = hell;
 		this.kisten = kisten;
+		this.burg = burg;
 	}
 
 	@Override
@@ -83,12 +85,19 @@ public final class TittowScreen extends Screen {
 			meldung = bereich.werfen ? "Inventar voll: wirft Power Orbs, Scrolls und Enderperlen zu den Mobs." : "Wirft nichts mehr.";
 		}).pos(mitte + 2, y).size(98, 20).build());
 		y += 24;
-		this.addRenderableWidget(Button.builder(Component.literal("Schließen"), b -> this.onClose())
-				.pos(mitte - 100, y).size(98, 20).build());
+		// (Schließen geht mit Esc, der Platz gehört der Burg-Vorschau)
+		this.addRenderableWidget(Button.builder(burgText(), b -> {
+			meldung = burg.umschalten(this.minecraft);
+			b.setMessage(burgText());
+		}).pos(mitte - 100, y).size(98, 20).build());
 		this.addRenderableWidget(Button.builder(weiteText(), b -> {
 			meldung = kisten.weiteUmschalten(this.minecraft);
 			b.setMessage(weiteText());
 		}).pos(mitte + 2, y).size(98, 20).build());
+	}
+
+	private Component burgText() {
+		return Component.literal(burg.istAn() ? "Burg: AN (weg)" : "Burg hier zeigen");
 	}
 
 	private Component hellText() {
@@ -156,7 +165,7 @@ public final class TittowScreen extends Screen {
 		if (!meldung.isEmpty()) {
 			graphics.centeredText(this.font, meldung, mitte, this.height / 2 + 104, GRUEN);
 		}
-		graphics.centeredText(this.font, "Ecken in beliebiger Reihenfolge setzen (L = 6 Ecken). Nur für die eigene Welt!",
+		graphics.centeredText(this.font, "Ecken in beliebiger Reihenfolge setzen (L = 6 Ecken). Schließen mit Esc. Nur für die eigene Welt!",
 				mitte, this.height / 2 + 118, GRAU);
 		karteZeichnen(graphics, mitte + 112, this.height / 2 - 50);
 	}

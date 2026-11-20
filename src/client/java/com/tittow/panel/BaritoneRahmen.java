@@ -23,7 +23,10 @@ final class BaritoneRahmen {
 	private static Method getProvider, getPrimaryBaritone, getSelectionManager, addSelection, removeSelection, getSettings;
 	private static Constructor<?> neuerPunkt;
 
-	/** Unsere Rahmen, nach ihren Ecken ("x y z x y z"), damit die Rahmen des Spielers selbst bleiben. */
+	/**
+	 * Unsere Rahmen, nach Gruppe und Ecken ("kisten x y z x y z"), damit die Rahmen des Spielers selbst bleiben
+	 * und Kisten-Anzeige und Burg-Vorschau sich nicht gegenseitig löschen.
+	 */
 	private static final Map<String, Object> rahmen = new HashMap<>();
 
 	static boolean vorhanden() {
@@ -47,8 +50,11 @@ final class BaritoneRahmen {
 		return vorhanden;
 	}
 
-	/** Zeigt genau diese Rahmen (je Ecke min und max): neue kommen dazu, nicht mehr gewollte verschwinden. */
-	static void zeigen(List<BlockPos[]> gewollt) {
+	/**
+	 * Zeigt für eine Gruppe ("kisten", "burg") genau diese Rahmen (je Ecke min und max):
+	 * neue kommen dazu, nicht mehr gewollte der Gruppe verschwinden.
+	 */
+	static void zeigen(String gruppe, List<BlockPos[]> gewollt) {
 		if (!vorhanden()) {
 			return;
 		}
@@ -57,12 +63,12 @@ final class BaritoneRahmen {
 			Object manager = getSelectionManager.invoke(getPrimaryBaritone.invoke(getProvider.invoke(null)));
 			Map<String, BlockPos[]> neu = new HashMap<>();
 			for (BlockPos[] b : gewollt) {
-				neu.put(schluessel(b), b);
+				neu.put(gruppe + " " + schluessel(b), b);
 			}
 			var it = rahmen.entrySet().iterator();
 			while (it.hasNext()) {
 				var e = it.next();
-				if (!neu.containsKey(e.getKey())) {
+				if (e.getKey().startsWith(gruppe + " ") && !neu.containsKey(e.getKey())) {
 					removeSelection.invoke(manager, e.getValue());
 					it.remove();
 				}

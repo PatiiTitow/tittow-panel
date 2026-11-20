@@ -97,9 +97,23 @@ Im Panel schaltet **„Kisten grün: AN/AUS“** die Kisten-Anzeige (übernommen
 - Kisten, die rundum in Stein stecken, werden nicht gezeigt.
 - Die Rahmen zeichnet **Baritone**. Ohne Baritone in Pumpcraft gibt es keine Rahmen.
 
+## Burg-Vorschau (Blutfeste)
+Im Panel zeigt **„Burg hier zeigen“** die Umrisse der geplanten Burg als **grüne Rahmen** in der Welt, auch durch Wände.
+Es wird **nichts gebaut**, du kannst alles ablaufen und anschauen, ob die Burg dort hinpasst.
+- **Wo du stehst, ist die Mitte der Eingangsmauer** (das Tor). Die Burg geht in die Richtung, **in die du schaust**
+  (gerundet auf Norden, Osten, Süden oder Westen). Der Sockel fängt auf Höhe deiner Füße an.
+- Gezeigt werden: der Sockel (122 x 122, 4 hoch), die vier Mauern, alle Türme, die Hallen, die Kathedrale mit
+  Fassade und der große Mittelturm (124 hoch).
+- Im **Chat** steht danach eine **Gelände-Prüfung**: wie hoch der Boden unter der Fläche ist, und wie viel davon
+  Hügel (müssten weg), Löcher (müssten aufgefüllt werden), Wasser und Bäume sind.
+- Nochmal klicken (**„Burg: AN (weg)“**) nimmt die Rahmen wieder weg. Zum Verschieben: weg, an die neue Stelle gehen, neu zeigen.
+- Beim Verlassen der Welt verschwindet die Vorschau. Die Rahmen zeichnet **Baritone**, wie bei den Kisten.
+- Geschlossen wird das Panel jetzt mit **Esc** (der Knopf „Schließen“ hat dem Burg-Knopf Platz gemacht).
+
 ## Dateien
 - `src/client/java/com/tittow/panel/BotLogik.java` – Laufen, Schlagen, Essen
 - `src/client/java/com/tittow/panel/TittowScreen.java` – das Fenster
 - `src/client/java/com/tittow/panel/Bereich.java` – Fläche, Mob-Bereich und Einstellungen (gespeichert in `config/tittowpanel.json`)
 - `src/client/java/com/tittow/panel/Kisten.java` – Kisten-Anzeige: Suchen und geöffnete Kisten merken
 - `src/client/java/com/tittow/panel/BaritoneRahmen.java` – lässt Baritone die grünen Rahmen zeichnen
+- `src/client/java/com/tittow/panel/Burgvorschau.java` – Burg-Vorschau: Umrisse der Blutfeste und Gelände-Prüfung

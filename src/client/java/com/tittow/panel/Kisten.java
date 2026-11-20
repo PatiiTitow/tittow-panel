@@ -100,7 +100,7 @@ public final class Kisten {
 	/** Beim Verlassen der Welt: Rahmen weg. */
 	public void leeren() {
 		boxen = List.of();
-		BaritoneRahmen.zeigen(boxen);
+		BaritoneRahmen.zeigen("kisten", boxen);
 	}
 
 	/** Gewählte Such-Weite in Chunks. */
@@ -164,7 +164,7 @@ public final class Kisten {
 			umgebung.clear();
 		}
 		boxen = naechsteKisten(mc, kisten, hier);
-		BaritoneRahmen.zeigen(boxen);
+		BaritoneRahmen.zeigen("kisten", boxen);
 	}
 
 	/** Die nächsten lohnenden Kisten als Rahmen: eine Doppelkiste in einem, dazu Kistenloren. */
