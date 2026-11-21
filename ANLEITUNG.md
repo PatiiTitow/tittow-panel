@@ -185,6 +185,11 @@ Darunter steht, was **auch nach dem Herstellen und Brennen** noch fehlt, also we
 (z. B. fehlt polierter Andesit, aber genug Andesit ist da: dann ist alles gut). Steht dort „Mit Herstellen und Brennen reicht alles!“,
 kann „Sockel bauen“ los.
 
+**Danach stellt der Bot gleich alles für den Sockel her und brennt es** (siehe „Herstellen“ unten). Der Knopf heißt solange
+**„Herstellen: Stopp“**. Am Ende steht „Fertig mit Herstellen für den Sockel. Jetzt kannst du „Sockel bauen“ drücken.“
+Dann muss „Sockel bauen“ nichts mehr herstellen und legt sofort los. Am besten bei den Strom-Öfen neben dem Tor starten.
+Gezählt wird nur, was am Sockel **noch fehlt** (steht schon etwas, zählt es nicht mehr).
+
 Die Mengen kommen aus dem Bauplan der Blutfeste (Tiefenschiefer, Hauptturm aus Schwarzstein, Netherziegel statt Rot, Leuchtstein als Licht).
 Zeigt das Lager nur einen Stapel und schreibt die echte Menge in die Beschreibung (z. B. „Menge: 1.600“), wird diese Zahl genommen.
 Geht nicht, während der Bot ebnet.
@@ -209,7 +214,7 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
   steht, und baut nur den Rest. Auch beim Herstellen macht er nur noch, was für den Rest fehlt. Steh dafür in der Nähe der Burg,
   damit die ganze Fläche geladen ist.
 
-### Herstellen (Werkbank und Öfen) – passiert beim Bauen automatisch
+### Herstellen (Werkbank und Öfen) – passiert nach „Material prüfen“ und beim Bauen automatisch
 1. Der Bot zählt das Funk-Terminal durch und schreibt einen **Plan** in den Chat: was er in der Werkbank macht,
    was in die Öfen kommt und welche Rohstoffe im Lager **fehlen** (die musst du selbst besorgen).
 2. **Werkbank** (Virtuelle Werkbank, Slot 7): holt die Zutaten aus dem Funk-Terminal, legt sie ins Feld und nimmt

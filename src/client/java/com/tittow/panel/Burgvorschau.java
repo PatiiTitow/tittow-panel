@@ -2,6 +2,7 @@ package com.tittow.panel;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -146,7 +147,8 @@ public final class Burgvorschau {
 
 	/**
 	 * Material prüfen: zählt alles im Funk-Terminal (alle Seiten) und im Inventar und schreibt in den Chat,
-	 * wie viel von jedem Block für den Sockel und für die ganze Burg da ist und wie viel noch fehlt.
+	 * wie viel von jedem Sockel-Block da ist und was fehlt. Danach stellt der Bot gleich alles für den Sockel her
+	 * und brennt es, damit "Sockel bauen" sofort loslegen kann.
 	 */
 	public String materialPruefen(Minecraft mc) {
 		if (mc.player == null) {
@@ -161,10 +163,18 @@ public final class Burgvorschau {
 		if (bautGerade() || herstellen.laeuft()) {
 			return "Geht nicht, während der Bot baut oder herstellt.";
 		}
+		// was am Sockel noch gebaut werden muss (steht schon etwas, zählt das nicht mehr)
+		Bauplan plan = Bauplan.laden();
+		pruefNoch = plan != null && an && tor != null
+				? BurgBau.nochZuBauen(mc, plan, tor, vorne, 0, plan.sockel - 1)
+				: Material.liste().getOrDefault("sockel", Map.of());
 		pruefen = true;
 		terminal.zaehlen(mc);
 		return "Prüfe Material im Funk-Terminal …";
 	}
+
+	/** Was am Sockel noch fehlt (beim letzten "Material prüfen" ausgerechnet). */
+	private Map<String, Long> pruefNoch = Map.of();
 
 	/** Hier wird die platzierte Burg gespeichert, damit sie nach dem Neu-Joinen wieder da ist. */
 	private final Bereich einstellungen;
@@ -620,7 +630,11 @@ public final class Burgvorschau {
 			if (meldung != null) {
 				pruefen = false;
 				if (meldung.startsWith("OK")) {
-					Material.bericht(mc.player, terminal.bestand());
+					Material.bericht(mc.player, terminal.bestand(), pruefNoch);
+					if (!pruefNoch.isEmpty()) { // gleich alles für den Sockel herstellen und brennen
+						chat(mc.player, "Jetzt stellt der Bot alles für den Sockel her und brennt es (Plan folgt) …");
+						herstellen.starten(mc, pruefNoch, "den Sockel", " Jetzt kannst du „Sockel bauen“ drücken.");
+					}
 				} else {
 					chat(mc.player, meldung);
 				}

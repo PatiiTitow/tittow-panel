@@ -51,7 +51,8 @@ final class Material {
 	}
 
 	/** Schreibt in den Chat: für Sockel und ganze Burg je Block "da / nötig" und was fehlt. */
-	static void bericht(LocalPlayer p, Map<String, Long> lager) {
+	/** sockel = was am Sockel noch gebaut werden muss (Block-Id -> Anzahl). */
+	static void bericht(LocalPlayer p, Map<String, Long> lager, Map<String, Long> sockel) {
 		Map<String, Long> da = new HashMap<>(lager);
 		for (int i = 0; i < 36; i++) { // was du selbst dabei hast, zählt mit
 			ItemStack s = p.getInventory().getItem(i);
@@ -59,7 +60,12 @@ final class Material {
 				da.merge(BuiltInRegistries.ITEM.getKey(s.getItem()).toString(), (long) s.getCount(), Long::sum);
 			}
 		}
-		Map<String, Map<String, Long>> l = liste();
+		Map<String, Map<String, Long>> l = new LinkedHashMap<>();
+		l.put("sockel", sockel);
+		if (sockel.isEmpty()) {
+			zeile(p, Component.literal("§d[Burg]§r §aAm Sockel fehlt nichts mehr – er steht schon.§r"));
+			return;
+		}
 		if (l.isEmpty()) {
 			zeile(p, Component.literal("§cMaterialliste fehlt in der Mod."));
 			return;

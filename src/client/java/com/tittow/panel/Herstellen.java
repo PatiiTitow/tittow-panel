@@ -138,6 +138,7 @@ final class Herstellen {
 	/** Rohstoffe, die im Lager fehlen (nach dem Planen). */
 	private final Map<String, Long> fehltRoh = new LinkedHashMap<>();
 	private boolean fertigGemeldet;
+	private String schlussHinweis = "";
 	private int reinFehler;
 	private int platzFehler;
 	private Werkbank werkbank;
@@ -159,6 +160,12 @@ final class Herstellen {
 
 	String starten(Minecraft mc) {
 		return starten(mc, Material.liste().getOrDefault("sockel", Map.of()), "den Sockel");
+	}
+
+	/** Wie starten, am Ende kommt noch "hinweis" in die Fertig-Meldung. */
+	String starten(Minecraft mc, Map<String, Long> ziel, String titel, String hinweis) {
+		schlussHinweis = hinweis;
+		return starten(mc, ziel, titel);
 	}
 
 	/** Lief das letzte Herstellen bis zum Ende durch (nicht abgebrochen)? */
@@ -267,7 +274,8 @@ final class Herstellen {
 			case OFEN_LEEREN -> ofenLeeren(mc, p);
 			case FERTIG -> {
 				stoppen(mc, null);
-				chat(p, "§aFertig mit Herstellen§r für " + titel + ".");
+				chat(p, "§aFertig mit Herstellen§r für " + titel + "." + schlussHinweis);
+				schlussHinweis = "";
 				fertigGemeldet = true;
 			}
 			default -> {

@@ -108,7 +108,12 @@ public final class TittowScreen extends Screen {
 			}
 		}).pos(mitte + 2, y).size(98, 20).build());
 		y += 22;
-		this.addRenderableWidget(Button.builder(Component.literal("Material prüfen"), b -> {
+		this.addRenderableWidget(Button.builder(materialText(), b -> {
+			if (burg.herstelltGerade()) {
+				meldung = burg.herstellenUmschalten(this.minecraft); // stoppt das Herstellen
+				b.setMessage(materialText());
+				return;
+			}
 			meldung = burg.materialPruefen(this.minecraft);
 			if (meldung.startsWith("Prüfe")) {
 				this.onClose(); // Fenster zu, damit sich das Funk-Terminal öffnen kann
@@ -121,6 +126,10 @@ public final class TittowScreen extends Screen {
 				this.onClose(); // Fenster zu, damit Terminal, Werkbank und Kisten aufgehen können
 			}
 		}).pos(mitte + 2, y).size(98, 20).build());
+	}
+
+	private Component materialText() {
+		return Component.literal(burg.herstelltGerade() ? "Herstellen: Stopp" : "Material prüfen");
 	}
 
 	private Component bauenText() {

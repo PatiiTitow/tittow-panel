@@ -374,6 +374,11 @@ final class BurgBau {
 
 	/** Was im aktuellen Abschnitt noch gebaut werden muss (Block-Id -> Anzahl), schaut in der Welt nach. */
 	private Map<String, Long> nochZuBauen(Minecraft mc) {
+		return nochZuBauen(mc, plan, tor, vorne, von, bis);
+	}
+
+	/** Was in den Höhen von..bis noch gebaut werden muss (Block-Id -> Anzahl), schaut in der Welt nach. */
+	static Map<String, Long> nochZuBauen(Minecraft mc, Bauplan plan, BlockPos tor, Direction vorne, int von, int bis) {
 		long[] n = new long[plan.ids.length];
 		for (int yy = von; yy <= bis; yy++) {
 			for (int z = 0; z < plan.l; z++) {
