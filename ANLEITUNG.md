@@ -202,7 +202,9 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
 2. **Prüfen:** Er zählt das Funk-Terminal durch. Fehlt noch etwas, hält er an und schreibt in den Chat, **was fehlt**.
    Dann das Material (oder die Rohstoffe dafür) besorgen und **„Sockel weiter bauen“** klicken.
 3. **Bauen:** Schicht für Schicht von unten nach oben, in jeder Schicht **eine Blocksorte nach der anderen**.
-   Die Sorte holt er aus dem Funk-Terminal und legt sie in **Slot 6**. Baritone baut nur diese Sorte, dann kommt die nächste.
+   Die Sorte holt er **jedes Mal frisch aus dem Funk-Terminal** und legt sie in **Slot 6**. Baritone baut nur diese Sorte.
+   Ist die Sorte fertig, legt er den **Rest zurück ins Funk-Terminal**, dann kommt die nächste.
+   (Alles Hergestellte und Gebrannte liegt vorher schon im Funk-Terminal, das legt „Herstellen“ dort ab.)
    - Baritone baut dabei **nichts ab** (damit nichts Fertiges kaputtgeht) und nimmt keine eigenen Blöcke zum Hochbauen.
    - Kommt Baritone 2 Minuten nicht weiter, stößt er es neu an. Nach 3 Versuchen sagt er im Chat, wie viele Blöcke
      in welcher Höhe übrig sind (selbst setzen) und macht weiter.

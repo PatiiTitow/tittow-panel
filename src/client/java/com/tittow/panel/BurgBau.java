@@ -283,6 +283,11 @@ final class BurgBau {
 				geholt = false;
 			}
 			warte = 10;
+			if (versuch == 0 && FunkTerminal.anzahl(p, item) > 0) {
+				// Sorte fertig: was übrig ist, zurück ins Funk-Terminal (die nächste Sorte holt er sich frisch heraus)
+				zweck = Zweck.ABLEGEN;
+				terminal.ablegen(mc, start);
+			}
 			return;
 		}
 		// nächste Sorte bzw. nächste Schicht
