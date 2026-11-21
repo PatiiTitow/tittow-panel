@@ -363,7 +363,7 @@ final class Herstellen {
 	}
 
 	/** Verbraucht "n" von "id" aus dem Lager; fehlt etwas, wird es (wenn es ein Rezept gibt) aus den Zutaten hergestellt. */
-	private static void aufloesen(String id, long n, Map<String, Long> lager, Map<String, Long> craft, Map<String, Long> ofen,
+	static void aufloesen(String id, long n, Map<String, Long> lager, Map<String, Long> craft, Map<String, Long> ofen,
 			Map<String, Long> fehlt) {
 		long nimm = Math.min(lager.getOrDefault(id, 0L), n);
 		if (nimm > 0) {

@@ -64,9 +64,12 @@ final class Material {
 			zeile(p, Component.literal("§cMaterialliste fehlt in der Mod."));
 			return;
 		}
-		zeile(p, Component.literal("§d[Burg]§r Material-Check (Funk-Terminal + dein Inventar):"));
+		zeile(p, Component.literal("§d[Burg]§r Material-Check für den Sockel (Funk-Terminal + dein Inventar):"));
 		for (Map.Entry<String, Map<String, Long>> teil : l.entrySet()) {
-			String name = teil.getKey().equals("sockel") ? "Sockel" : "Ganze Burg (mit Sockel)";
+			if (!teil.getKey().equals("sockel")) {
+				continue; // nur der Sockel
+			}
+			String name = "Sockel";
 			int reicht = 0;
 			long fehltSumme = 0;
 			for (Map.Entry<String, Long> e : teil.getValue().entrySet()) {
@@ -79,9 +82,6 @@ final class Material {
 			}
 			zeile(p, Component.literal("§e§l" + name + ":§r§e " + reicht + " von " + teil.getValue().size() + " Sorten reichen"
 					+ (fehltSumme > 0 ? ", es fehlen zusammen " + zahl(fehltSumme) + " Blöcke" : " – alles da!")));
-			if (!teil.getKey().equals("sockel")) {
-				continue; // erst mal nur der Sockel im Einzelnen, von der ganzen Burg nur die Übersicht
-			}
 			for (Map.Entry<String, Long> e : teil.getValue().entrySet()) {
 				long noetig = e.getValue();
 				long hab = da.getOrDefault(e.getKey(), 0L);
@@ -91,6 +91,20 @@ final class Material {
 				} else {
 					zeile(p, Component.literal(" §c✘ ").append(block).append(Component.literal("§7: " + zahl(hab) + " da, " + zahl(noetig)
 							+ " nötig – §cfehlen " + zahl(noetig - hab))));
+				}
+			}
+			// was nach dem Herstellen und Brennen (aus den Rohstoffen im Lager) wirklich noch fehlt
+			Map<String, Long> rechnung = new HashMap<>(da);
+			Map<String, Long> fehltRoh = new LinkedHashMap<>();
+			for (Map.Entry<String, Long> e : teil.getValue().entrySet()) {
+				Herstellen.aufloesen(e.getKey(), e.getValue(), rechnung, new HashMap<>(), new HashMap<>(), fehltRoh);
+			}
+			if (fehltRoh.isEmpty()) {
+				zeile(p, Component.literal("§a§lMit Herstellen und Brennen reicht alles!§r §a„Sockel bauen“ kann los."));
+			} else {
+				zeile(p, Component.literal("§e§lAuch wenn der Bot alles herstellt und brennt, fehlen noch diese Rohstoffe:"));
+				for (Map.Entry<String, Long> e : fehltRoh.entrySet()) {
+					zeile(p, Component.literal(" §c✘ ").append(blockName(e.getKey())).append(Component.literal("§c: " + zahl(e.getValue()))));
 				}
 			}
 		}

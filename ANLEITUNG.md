@@ -176,12 +176,14 @@ Baritone selbst darf beim Ebnen nichts im Inventar umräumen (Einstellung `allow
 ### Material prüfen
 Knopf **„Material prüfen (Funk-Terminal)“** (ganz unten im Panel). Das Panel geht zu, der Bot öffnet das Funk-Terminal
 (Slot 8), blättert **alle Seiten** durch und zählt, was im Lager ist. Was du im Inventar hast, zählt mit.
-Danach steht im Chat für den **Sockel** jeder Block einzeln:
+Geprüft wird **nur der Sockel**. Danach steht im Chat jeder Block einzeln:
 - ✔ grün: davon ist genug da (z. B. „Erde: 14.200 da, 13.924 nötig“),
 - ✘ rot: zu wenig, mit „fehlen …“,
 - oben drüber: wie viele Sorten schon reichen und wie viele Blöcke zusammen noch fehlen.
 
-Für die **ganze Burg** steht nur eine Zeile Übersicht darunter (wie viele Sorten reichen, wie viel zusammen fehlt).
+Darunter steht, was **auch nach dem Herstellen und Brennen** noch fehlt, also welche Rohstoffe du noch besorgen musst
+(z. B. fehlt polierter Andesit, aber genug Andesit ist da: dann ist alles gut). Steht dort „Mit Herstellen und Brennen reicht alles!“,
+kann „Sockel bauen“ los.
 
 Die Mengen kommen aus dem Bauplan der Blutfeste (Tiefenschiefer, Hauptturm aus Schwarzstein, Netherziegel statt Rot, Leuchtstein als Licht).
 Zeigt das Lager nur einen Stapel und schreibt die echte Menge in die Beschreibung (z. B. „Menge: 1.600“), wird diese Zahl genommen.
