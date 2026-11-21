@@ -37,7 +37,7 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * Sockel-Material herstellen: schaut nach, was für den Sockel fehlt, und macht es aus dem, was im Funk-Terminal liegt.
- * - Werkbank-Sachen (polierter Tiefenschiefer, Ziegel, Fliesen, polierter Andesit, Magmablock, Netherziegel-Block)
+ * - Werkbank-Sachen (polierter Tiefenschiefer, Ziegel, Fliesen, polierter Andesit, Magmablock, Netherziegel-Block, Leuchtstein)
  *   stellt er in der Virtuellen Werkbank (Hotbar-Slot 7) her.
  * - Ofen-Sachen (Stein, rissige Tiefenschiefer-Ziegel, Netherziegel) bringt er zu deinen Strom-Öfen: oben in die Kisten
  *   mit dem Schild „reinlegen“, unten aus den Kisten mit „rausnehmen“ holt er das Gebrannte wieder ab.
@@ -74,6 +74,7 @@ final class Herstellen {
 		werkbank("polished_andesite", 4, "andesite", "andesite", "andesite", "andesite");
 		werkbank("magma_block", 1, "magma_cream", "magma_cream", "magma_cream", "magma_cream");
 		werkbank("nether_bricks", 1, "nether_brick", "nether_brick", "nether_brick", "nether_brick"); // Netherziegel-Block
+		werkbank("glowstone", 1, "glowstone_dust", "glowstone_dust", "glowstone_dust", "glowstone_dust"); // Leuchtstein
 		ofen("stone", "cobblestone");
 		ofen("cracked_deepslate_bricks", "deepslate_bricks");
 		ofen("nether_brick", "netherrack");
