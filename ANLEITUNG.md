@@ -133,14 +133,14 @@ geebnet wird **nur innerhalb des äußeren grünen Rahmens**. Das Panel geht zu 
 | 1 | Schwert bzw. Glefe | bleibt liegen |
 | 2 | Essen (Goldene Karotten) | isst, sobald der Hunger unter 18 fällt, bis du wieder satt bist |
 | 3, 4, 5 | Schaufel, Spitzhacke, Axt | Baritone nimmt jeweils das passende Werkzeug |
-| 6 | Erde | die Mod legt Erde von oben aus dem Inventar hierher nach, Baritone verbaut sie |
+| 6 | Erde | die Mod legt Erde von oben aus dem Inventar hierher nach. Baritone baut sich damit hoch (an hohe Bäume und Hügel) und stopft Löcher. Fehlt Erde, holt der Bot welche aus dem Funk-Terminal (beim Freigraben unter 16, beim Stopfen unter 32) |
 | 7 | Virtuelle Werkbank (Rechtsklick in die Luft öffnet die Werkbank, wird nicht aufgestellt) | bleibt liegen (fürs Ebnen nicht nötig) |
 | 8 | Funk-Terminal | zum Erde holen und Sachen ablegen |
 | 9 | (deins) | wird **nie** angefasst |
 
 Baritone selbst darf beim Ebnen nichts im Inventar umräumen (Einstellung `allowInventory` aus), damit Slot 1 und 9 bleiben, wie sie sind.
 
-- **Erde aus dem Funk-Terminal:** Hast du weniger als 32 Erde, hält der Bot kurz an, nimmt das **Funk-Terminal aus
+- **Erde aus dem Funk-Terminal:** Hast du zu wenig Erde (beim Freigraben unter 16, beim Stopfen unter 32), hält der Bot kurz an, nimmt das **Funk-Terminal aus
   Slot 8** der Hotbar, öffnet es (Rechtsklick), nimmt so viel Erde, wie ins Inventar passt (blättert auch weiter, wenn
   es einen „Weiter“-Knopf gibt), macht es zu und baut weiter. Liegt das Terminal woanders im Inventar, legt er es
   wieder auf Slot 8. Findet er keine Erde, steht das im Chat und er versucht es nach einer Minute nochmal.

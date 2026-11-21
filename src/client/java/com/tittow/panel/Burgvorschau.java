@@ -279,9 +279,8 @@ public final class Burgvorschau {
 		if (versorgung.essen(mc, mc.player)) { // Hunger: erst Goldene Karotten aus Slot 2 essen
 			return;
 		}
-		if (phase == 2) {
-			versorgung.erdeNachlegen(mc, mc.player); // Erde in Slot 6, damit Baritone sie verbauen kann
-		}
+		// Erde in Slot 6: beim Freigraben zum Hochbauen (an hohe Bäume und Hügel), beim Stopfen zum Auffüllen
+		versorgung.erdeNachlegen(mc, mc.player);
 		if (terminalPause > 0) {
 			terminalPause--;
 		}
@@ -294,7 +293,7 @@ public final class Burgvorschau {
 			terminal.ablegen(mc, einstellungen.burgStartInventar);
 			return;
 		}
-		if (phase == 2 && terminalPause == 0 && FunkTerminal.erde(mc.player) < 32 && BaritoneRahmen.bautGerade()) {
+		if (terminalPause == 0 && FunkTerminal.erde(mc.player) < (phase == 2 ? 32 : 16) && BaritoneRahmen.bautGerade()) {
 			chat(mc.player, "Erde wird knapp: hole Erde aus dem Funk-Terminal (Slot 8).");
 			terminal.erdeHolen(mc);
 			return;
