@@ -110,13 +110,14 @@ Es wird **nichts gebaut**, du kannst alles ablaufen und anschauen, ob die Burg d
 - Beim Verlassen der Welt verschwindet die Vorschau. Die Rahmen zeichnet **Baritone**, wie bei den Kisten.
 - Geschlossen wird das Panel jetzt mit **Esc** (der Knopf „Schließen“ hat dem Burg-Knopf Platz gemacht).
 
-### Burg-Platz freigraben
-**„Burg-Platz freigraben“** räumt die Sockel-Fläche (122 x 122) frei. Vorher muss die Vorschau an sein,
-gegraben wird genau dort. Das Panel geht zu und **Baritone** gräbt alles ab deiner Fußhöhe weg –
-Hügel, Bäume, Gras (bis 64 Blöcke hoch).
-- **Löcher stopfst du selbst**, am schnellsten mit dem **Baustab** von Pumpcraft (bis zu 25 Blöcke pro Klick).
-  Wo noch Löcher sind, zeigt die Gelände-Prüfung, wenn du die Vorschau neu zeigst.
-- Am Ende steht „fertig freigegraben“ im Chat. Nochmal klicken (**„Graben läuft (klicken = Stopp)“**) hält an.
+### Burg-Platz ebnen
+**„Burg-Platz ebnen (graben + stopfen)“** macht die Sockel-Fläche (122 x 122) eben. Vorher muss die Vorschau an sein,
+geebnet wird genau dort. Das Panel geht zu und **Baritone** legt los:
+1. **Freigraben:** alles ab deiner Fußhöhe kommt weg – Hügel, Bäume, Gras (bis 64 Blöcke hoch).
+2. **Löcher stopfen:** Löcher, Wasser und Lava unter der Fläche werden mit **Erde** aufgefüllt, höchstens 8 Blöcke tief.
+   Dafür braucht Baritone **Erde im Inventar** (die vom Graben zählt mit). Fehlt Erde, wartet Baritone;
+   Erde holen und im Chat `#resume` schreiben.
+- Am Ende steht „fertig geebnet“ im Chat. Nochmal klicken (**„Ebnen läuft (klicken = Stopp)“**) hält alles an.
 - Werkzeug (Schaufel, Spitzhacke, Axt) in die Hotbar legen, das nimmt Baritone selbst. Bei viel Graben wird das
   Inventar voll – zwischendurch ausleeren.
 - Kisten-Rahmen und eigene Baritone-Auswahlen (`#sel`) werden beim Start kurz gelöscht, die Kisten kommen von selbst wieder.
@@ -127,4 +128,4 @@ Hügel, Bäume, Gras (bis 64 Blöcke hoch).
 - `src/client/java/com/tittow/panel/Bereich.java` – Fläche, Mob-Bereich und Einstellungen (gespeichert in `config/tittowpanel.json`)
 - `src/client/java/com/tittow/panel/Kisten.java` – Kisten-Anzeige: Suchen und geöffnete Kisten merken
 - `src/client/java/com/tittow/panel/BaritoneRahmen.java` – lässt Baritone die grünen Rahmen zeichnen
-- `src/client/java/com/tittow/panel/Burgvorschau.java` – Burg-Vorschau: Umrisse der Blutfeste, Gelände-Prüfung und Platz freigraben
+- `src/client/java/com/tittow/panel/Burgvorschau.java` – Burg-Vorschau: Umrisse der Blutfeste, Gelände-Prüfung und Platz ebnen
