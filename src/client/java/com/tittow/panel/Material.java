@@ -79,6 +79,9 @@ final class Material {
 			}
 			zeile(p, Component.literal("§e§l" + name + ":§r§e " + reicht + " von " + teil.getValue().size() + " Sorten reichen"
 					+ (fehltSumme > 0 ? ", es fehlen zusammen " + zahl(fehltSumme) + " Blöcke" : " – alles da!")));
+			if (!teil.getKey().equals("sockel")) {
+				continue; // erst mal nur der Sockel im Einzelnen, von der ganzen Burg nur die Übersicht
+			}
 			for (Map.Entry<String, Long> e : teil.getValue().entrySet()) {
 				long noetig = e.getValue();
 				long hab = da.getOrDefault(e.getKey(), 0L);
