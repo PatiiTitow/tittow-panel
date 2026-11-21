@@ -110,6 +110,15 @@ Es wird **nichts gebaut**, du kannst alles ablaufen und anschauen, ob die Burg d
 - Beim Verlassen der Welt verschwindet die Vorschau. Die Rahmen zeichnet **Baritone**, wie bei den Kisten.
 - Geschlossen wird das Panel jetzt mit **Esc** (der Knopf „Schließen“ hat dem Burg-Knopf Platz gemacht).
 
+### Merkt sich die Burg
+- Die platzierte Burg wird gespeichert (in `config/tittowpanel.json`). Verlässt du den Server und joinst neu,
+  ist die **Vorschau nach ein paar Sekunden von selbst wieder da**, an derselben Stelle. Im Chat steht „Burg-Vorschau wieder da“.
+- Das gilt nur für denselben Server (bzw. dieselbe Einzelspieler-Welt) und dieselbe Dimension. Bist du im Nether,
+  kommt die Vorschau wieder, sobald du zurück in der Oberwelt bist.
+- War das **Ebnen** noch nicht fertig, heißt der Knopf **„Burg-Platz ebnen (weitermachen)“**. Ein Klick, und der Bot
+  schaut sich die Fläche neu an und macht nur noch, was fehlt.
+- Erst wenn du die Vorschau selbst ausschaltest („Burg: AN (weg)“), wird sie vergessen.
+
 ### Burg-Platz ebnen
 **„Burg-Platz ebnen (graben + stopfen)“** macht die Sockel-Fläche (122 x 122) eben. Vorher muss die Vorschau an sein,
 geebnet wird **nur innerhalb des äußeren grünen Rahmens**. Das Panel geht zu und **Baritone** legt los:

@@ -73,6 +73,20 @@ public final class Burgvorschau {
 	/** Nach einem Fehlschlag beim Erde-Holen eine Weile nicht nochmal versuchen. */
 	private int erdePause;
 
+	/** Hier wird die platzierte Burg gespeichert, damit sie nach dem Neu-Joinen wieder da ist. */
+	private final Bereich einstellungen;
+	/** Nach dem Joinen kurz warten, bis Welt und Baritone bereit sind. */
+	private int wiederWarte = 60;
+
+	public Burgvorschau(Bereich einstellungen) {
+		this.einstellungen = einstellungen;
+	}
+
+	/** Ebnen war gestartet und ist noch nicht fertig (z. B. weil du den Server verlassen hast)? */
+	public boolean ebnenOffen() {
+		return einstellungen.burgEbnen;
+	}
+
 	/** Ergebnis der Gelände-Prüfung. oben/unten = Integer.MIN_VALUE, wenn nichts zu tun ist. */
 	private record Gelaende(String text, int oben, int unten) {
 	}
@@ -93,6 +107,9 @@ public final class Burgvorschau {
 				return "Erst das Ebnen stoppen.";
 			}
 			aus();
+			einstellungen.burgTor = null; // selbst ausgeschaltet: auch nicht mehr merken
+			einstellungen.burgEbnen = false;
+			einstellungen.speichern();
 			return "Burg-Vorschau aus.";
 		}
 		if (p == null || mc.level == null) {
@@ -106,6 +123,11 @@ public final class Burgvorschau {
 		boxen = rahmenBerechnen(tor, vorne);
 		an = true;
 		BaritoneRahmen.zeigen("burg", boxen);
+		einstellungen.burgTor = new int[] {tor.getX(), tor.getY(), tor.getZ()};
+		einstellungen.burgRichtung = vorne.name();
+		einstellungen.burgWelt = weltName(mc);
+		einstellungen.burgEbnen = false;
+		einstellungen.speichern();
 		Gelaende g = gelaendePruefen(mc);
 		p.sendOverlayMessage(Component.literal("Burg-Vorschau: AN, Tor hier, Burg Richtung " + richtung(vorne)));
 		chat(p, "Tor bei " + tor.getX() + " " + tor.getY() + " " + tor.getZ() + ", Burg geht nach " + richtung(vorne) + ", "
@@ -114,7 +136,10 @@ public final class Burgvorschau {
 		return "Burg Richtung " + richtung(vorne) + " – Gelände-Prüfung steht im Chat.";
 	}
 
-	/** Rahmen weg (auch beim Verlassen der Welt). Ein laufendes Ebnen wird gestoppt. */
+	/**
+	 * Rahmen weg (auch beim Verlassen der Welt). Ein laufendes Ebnen wird gestoppt. Gespeichert bleibt alles:
+	 * nach dem Neu-Joinen kommt die Vorschau wieder, und das Ebnen kann weitermachen.
+	 */
 	public void aus() {
 		if (phase != 0) {
 			BaritoneRahmen.befehl("stop");
@@ -124,6 +149,57 @@ public final class Burgvorschau {
 		an = false;
 		boxen = List.of();
 		BaritoneRahmen.zeigen("burg", boxen);
+		wiederWarte = 60;
+	}
+
+	/** Nach dem Joinen: war hier eine Burg platziert, kommt die Vorschau von selbst wieder. */
+	private void wiederherstellen(Minecraft mc) {
+		int[] t = einstellungen.burgTor;
+		if (t == null || t.length < 3 || einstellungen.burgRichtung == null || !BaritoneRahmen.vorhanden()) {
+			return;
+		}
+		if (wiederWarte > 0) {
+			wiederWarte--;
+			return;
+		}
+		if (!weltName(mc).equals(einstellungen.burgWelt)) {
+			return; // andere Welt oder Dimension: erst, wenn du wieder dort bist
+		}
+		try {
+			vorne = Direction.valueOf(einstellungen.burgRichtung);
+		} catch (IllegalArgumentException e) {
+			return;
+		}
+		tor = new BlockPos(t[0], t[1], t[2]);
+		boxen = rahmenBerechnen(tor, vorne);
+		an = true;
+		BaritoneRahmen.zeigen("burg", boxen);
+		chat(mc.player, "Burg-Vorschau wieder da: Tor bei " + tor.getX() + " " + tor.getY() + " " + tor.getZ()
+				+ ", Burg geht nach " + richtung(vorne) + ".");
+		if (einstellungen.burgEbnen) {
+			chat(mc.player, "Das Ebnen war noch nicht fertig. Numpad 8 → „Burg-Platz ebnen (weitermachen)“, "
+					+ "dann macht der Bot da weiter, wo er aufgehört hat.");
+		}
+	}
+
+	/** Server-Adresse (bzw. Name der Einzelspieler-Welt) und Dimension, damit die Burg nur dort wieder auftaucht. */
+	private static String weltName(Minecraft mc) {
+		String ort;
+		if (mc.getCurrentServer() != null) {
+			ort = mc.getCurrentServer().ip;
+		} else if (mc.getSingleplayerServer() != null) {
+			ort = "einzel:" + mc.getSingleplayerServer().getWorldData().getLevelName();
+		} else {
+			ort = "?";
+		}
+		return ort + " " + mc.level.dimension();
+	}
+
+	private void ebnenMerken(boolean offen) {
+		if (einstellungen.burgEbnen != offen) {
+			einstellungen.burgEbnen = offen;
+			einstellungen.speichern();
+		}
 	}
 
 	// ---- Platz ebnen -------------------------------------------------------------
@@ -138,6 +214,7 @@ public final class Burgvorschau {
 			BaritoneRahmen.befehl("stop");
 			erdeHolen.abbrechen();
 			phase = 0;
+			ebnenMerken(false);
 			return "Ebnen gestoppt.";
 		}
 		if (p == null || mc.level == null) {
@@ -158,18 +235,26 @@ public final class Burgvorschau {
 			}
 			phase = 1;
 			wartet = 40;
+			ebnenMerken(true);
 			chat(p, "Schritt 1: Baritone gräbt frei, von Y " + tor.getY() + " bis Y " + g.oben() + ". Danach werden Löcher gestopft.");
 			return "Ebnen läuft: erst freigraben, dann Löcher stopfen.";
 		}
 		if (g.unten() != Integer.MIN_VALUE) {
 			return fuellenStarten(p, g) ? "Nichts zum Freigraben, Löcher werden gestopft." : "Baritone hat den Befehl nicht angenommen.";
 		}
+		ebnenMerken(false);
 		return "Die Fläche ist schon eben, nichts zu tun.";
 	}
 
 	/** Jeden Tick: ist das Freigraben fertig, kommt das Löcherstopfen, danach ist Schluss. */
 	public void tick(Minecraft mc) {
-		if (phase == 0 || mc.player == null || mc.level == null) {
+		if (mc.player == null || mc.level == null) {
+			return;
+		}
+		if (!an) {
+			wiederherstellen(mc);
+		}
+		if (phase == 0) {
 			return;
 		}
 		if (erdeHolen.laeuft()) {
@@ -205,6 +290,7 @@ public final class Burgvorschau {
 			}
 		}
 		phase = 0;
+		ebnenMerken(false);
 		chat(mc.player, "Fertig: Die Fläche ist eben. Zum Kontrollieren die Vorschau nochmal neu zeigen.");
 		mc.player.sendOverlayMessage(Component.literal("Burg-Platz: fertig geebnet"));
 	}
@@ -217,6 +303,7 @@ public final class Burgvorschau {
 		phase = 2;
 		wartet = 40;
 		erdePause = 0;
+		ebnenMerken(true);
 		chat(p, "Schritt 2: Baritone stopft Löcher und Wasser mit Erde, von Y " + g.unten() + " bis Y " + (tor.getY() - 1)
 				+ " (nur 1 Block tief). Geht die Erde aus, holt der Bot neue aus dem Funk-Terminal in Slot 8.");
 		return true;

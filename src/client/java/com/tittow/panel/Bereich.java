@@ -41,6 +41,11 @@ public final class Bereich {
 	public int kistenWeite = 16; // wie weit die Kisten-Anzeige sucht (Chunks)
 	public boolean werfen = true; // Enderperlen, Schriftrollen und Augen zu den Mobs werfen
 	public List<String> geoeffneteKisten = new ArrayList<>(); // schon geöffnete Kisten ("Dimension x y z" bzw. "lore UUID")
+	// Burg-Vorschau, damit sie nach dem Neu-Joinen wieder da ist
+	public int[] burgTor;          // Tor-Mitte x y z, null = keine Burg platziert
+	public String burgRichtung;    // "north", "south", "east", "west"
+	public String burgWelt;        // Server-Adresse bzw. Einzelspieler-Welt + Dimension
+	public boolean burgEbnen;      // Ebnen war gestartet und ist noch nicht fertig
 
 	public static Bereich laden() {
 		try {

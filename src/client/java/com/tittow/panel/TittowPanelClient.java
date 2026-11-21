@@ -17,7 +17,7 @@ public final class TittowPanelClient implements ClientModInitializer {
 	private static final BotLogik BOT = new BotLogik(BEREICH);
 	private static final Hell HELL = new Hell(BEREICH);
 	private static final Kisten KISTEN = new Kisten(BEREICH);
-	private static final Burgvorschau BURG = new Burgvorschau();
+	private static final Burgvorschau BURG = new Burgvorschau(BEREICH);
 
 	@Override
 	public void onInitializeClient() {
