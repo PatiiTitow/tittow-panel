@@ -16,7 +16,7 @@ import net.minecraft.world.level.block.state.BlockState;
  * auch durch Wände (Baritone zeichnet sie, siehe BaritoneRahmen).
  * Wo du beim Einschalten stehst, ist die Mitte der Eingangsmauer (das Tor). Die Burg geht in die Richtung,
  * in die du schaust. Der Sockel beginnt auf Höhe deiner Füße.
- * Dazu "Platz ebnen": Baritone gräbt die Sockel-Fläche frei und stopft danach Löcher und Wasser mit Erde.
+ * Dazu "Platz freigraben": Baritone gräbt die Sockel-Fläche frei (Löcher stopft man selbst, z. B. mit dem Baustab).
  */
 public final class Burgvorschau {
 	/** Größe der ganzen Burg mit Sockel (Kante zu Kante). */
@@ -65,7 +65,7 @@ public final class Burgvorschau {
 	private BlockPos tor;
 	private Direction vorne;
 
-	/** Platz ebnen: 0 = aus, 1 = Baritone gräbt frei, 2 = Baritone stopft Löcher. */
+	/** Platz freigraben: 0 = aus, 1 = Baritone gräbt frei. */
 	private int phase;
 	private int wartet;
 
@@ -86,7 +86,7 @@ public final class Burgvorschau {
 		LocalPlayer p = mc.player;
 		if (an) {
 			if (phase != 0) {
-				return "Erst das Ebnen stoppen.";
+				return "Erst das Freigraben stoppen.";
 			}
 			aus();
 			return "Burg-Vorschau aus.";
@@ -110,7 +110,7 @@ public final class Burgvorschau {
 		return "Burg Richtung " + richtung(vorne) + " – Gelände-Prüfung steht im Chat.";
 	}
 
-	/** Rahmen weg (auch beim Verlassen der Welt). Ein laufendes Ebnen wird gestoppt. */
+	/** Rahmen weg (auch beim Verlassen der Welt). Ein laufendes Freigraben wird gestoppt. */
 	public void aus() {
 		if (phase != 0) {
 			BaritoneRahmen.befehl("stop");
@@ -121,46 +121,42 @@ public final class Burgvorschau {
 		BaritoneRahmen.zeigen("burg", boxen);
 	}
 
-	// ---- Platz ebnen -------------------------------------------------------------
+	// ---- Platz freigraben----------------------------------------------------------
 
 	/**
-	 * Startet oder stoppt das Ebnen der Sockel-Fläche: Baritone gräbt erst alles ab Fußhöhe weg (Hügel, Bäume,
-	 * Gras), dann füllt es Löcher und Wasser darunter mit Erde auf (höchstens FUELL_TIEFE tief).
+	 * Startet oder stoppt das Freigraben der Sockel-Fläche: Baritone gräbt alles ab Fußhöhe weg (Hügel, Bäume, Gras).
 	 */
 	public String ebnenUmschalten(Minecraft mc) {
 		LocalPlayer p = mc.player;
 		if (phase != 0) {
 			BaritoneRahmen.befehl("stop");
 			phase = 0;
-			return "Ebnen gestoppt.";
+			return "Freigraben gestoppt.";
 		}
 		if (p == null || mc.level == null) {
 			return "";
 		}
 		if (!an) {
-			return "Erst „Burg hier zeigen“ – geebnet wird genau die Sockel-Fläche.";
+			return "Erst „Burg hier zeigen“ – freigegraben wird genau die Sockel-Fläche.";
 		}
 		if (!BaritoneRahmen.vorhanden()) {
-			return "Ohne Baritone geht das Ebnen nicht.";
+			return "Ohne Baritone geht das Freigraben nicht.";
 		}
 		Gelaende g = gelaendePruefen(mc);
 		chat(p, g.text());
-		if (g.oben() != Integer.MIN_VALUE) {
-			if (!bereichBefehl(tor.getY(), g.oben(), "sel cleararea")) {
-				return "Baritone hat den Befehl nicht angenommen.";
-			}
-			phase = 1;
-			wartet = 40;
-			chat(p, "Schritt 1: Baritone gräbt frei, von Y " + tor.getY() + " bis Y " + g.oben() + ". Danach werden Löcher gestopft.");
-			return "Ebnen läuft: erst freigraben, dann Löcher stopfen.";
+		if (g.oben() == Integer.MIN_VALUE) {
+			return "Da ist nichts im Weg, nichts zu graben.";
 		}
-		if (g.unten() != Integer.MIN_VALUE) {
-			return fuellenStarten(p, g) ? "Nichts zum Freigraben, Löcher werden gestopft." : "Baritone hat den Befehl nicht angenommen.";
+		if (!bereichBefehl(tor.getY(), g.oben(), "sel cleararea")) {
+			return "Baritone hat den Befehl nicht angenommen.";
 		}
-		return "Die Fläche ist schon eben, nichts zu tun.";
+		phase = 1;
+		wartet = 40;
+		chat(p, "Baritone gräbt frei, von Y " + tor.getY() + " bis Y " + g.oben() + ". Löcher danach selbst stopfen (z. B. mit dem Baustab).");
+		return "Freigraben läuft.";
 	}
 
-	/** Jeden Tick: ist das Freigraben fertig, kommt das Löcherstopfen, danach ist Schluss. */
+	/** Jeden Tick: ist Baritone mit dem Freigraben fertig, Bescheid sagen. */
 	public void tick(Minecraft mc) {
 		if (phase == 0 || mc.player == null || mc.level == null) {
 			return;
@@ -172,28 +168,9 @@ public final class Burgvorschau {
 		if (BaritoneRahmen.bautGerade()) {
 			return;
 		}
-		if (phase == 1) {
-			// nach dem Graben nochmal nachschauen, wo jetzt noch Löcher sind
-			Gelaende g = gelaendePruefen(mc);
-			if (g.unten() != Integer.MIN_VALUE && fuellenStarten(mc.player, g)) {
-				return;
-			}
-		}
 		phase = 0;
-		chat(mc.player, "Fertig: Die Fläche ist eben. Zum Kontrollieren die Vorschau nochmal neu zeigen.");
-		mc.player.sendOverlayMessage(Component.literal("Burg-Platz: fertig geebnet"));
-	}
-
-	private boolean fuellenStarten(LocalPlayer p, Gelaende g) {
-		if (!bereichBefehl(g.unten(), tor.getY() - 1, "sel replace air cave_air water lava dirt")) {
-			phase = 0;
-			return false;
-		}
-		phase = 2;
-		wartet = 40;
-		chat(p, "Schritt 2: Baritone stopft Löcher und Wasser mit Erde, von Y " + g.unten() + " bis Y " + (tor.getY() - 1)
-				+ ". Du brauchst genug Erde im Inventar.");
-		return true;
+		chat(mc.player, "Fertig freigegraben. Neu zeigen prüft, wo noch Löcher sind.");
+		mc.player.sendOverlayMessage(Component.literal("Burg-Platz: fertig freigegraben"));
 	}
 
 	/**

@@ -109,7 +109,7 @@ public final class TittowScreen extends Screen {
 	}
 
 	private Component ebnenText() {
-		return Component.literal(burg.ebnetGerade() ? "Ebnen läuft  (klicken = Stopp)" : "Burg-Platz ebnen (graben + stopfen)");
+		return Component.literal(burg.ebnetGerade() ? "Graben läuft  (klicken = Stopp)" : "Burg-Platz freigraben");
 	}
 
 	private Component hellText() {
