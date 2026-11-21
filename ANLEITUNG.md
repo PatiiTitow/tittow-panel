@@ -128,6 +128,13 @@ geebnet wird **nur innerhalb des äußeren grünen Rahmens**. Das Panel geht zu 
 - **Löcher stopfen, gleichzeitig:** Löcher, Wasser und Lava unter der Fläche werden mit **Erde** aufgefüllt, aber **nur 1 Block tief** (die Schicht direkt unter deinen Füßen).
   Beides passiert **in einem Durchgang**: Wo Baritone gerade gräbt, stopft es die Löcher gleich mit. Am Ende schaut der
   Bot nochmal über die Fläche und macht, was noch fehlt (höchstens 3 Runden). Im Chat steht dann das Ergebnis.
+- **Aufpasser:** Der Bot schaut beim Ebnen selbst nach, ob er festhängt, und stößt Baritone dann neu an (Meldung im Chat):
+  - steckt er **über 10 Sekunden im Wasser**,
+  - läuft er **mehr als 8 Blöcke von der Fläche weg**,
+  - oder wird die Arbeit **eine Minute lang nicht weniger**.
+  - Ist er **über 30 Blöcke** von der Fläche weg (Vorsicht, fremde Grundstücke mit Geschütztürmen) oder hängt er
+    10-mal hintereinander fest, hält er an. Dann selbst nachschauen und „Ebnen weiter“ klicken.
+  - Baritone meidet außerdem Wasser, so gut es geht (läuft nicht mehr einfach hinein).
   Dafür braucht Baritone **Erde im Inventar** (die vom Graben zählt mit).
 
 **Hotbar beim Ebnen:**

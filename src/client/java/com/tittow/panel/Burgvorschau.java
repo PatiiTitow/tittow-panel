@@ -91,7 +91,7 @@ public final class Burgvorschau {
 	}
 
 	/** Ergebnis der Gelände-Prüfung. oben/unten = Integer.MIN_VALUE, wenn nichts zu tun ist. */
-	private record Gelaende(String text, int oben, int unten) {
+	private record Gelaende(String text, int oben, int unten, int offen) {
 	}
 
 	public boolean istAn() {
@@ -272,10 +272,96 @@ public final class Burgvorschau {
 			return "Die Fläche ist schon eben, nichts zu tun.";
 		}
 		durchgang = 0;
+		neustarts = 0;
+		letzterRest = g.offen();
+		// Baritone soll Wasser meiden (nicht hineinlaufen und darin hängen bleiben); Wasser oben drüber ist in Ordnung
+		BaritoneRahmen.einstellung("walkOnWaterOnePenalty", 20.0);
+		BaritoneRahmen.einstellung("okIfWater", true);
 		if (!ebnenStarten(p, g)) {
 			return "Baritone hat den Bauplan nicht angenommen.";
 		}
 		return "Ebnen läuft: freigraben und Löcher stopfen gleichzeitig.";
+	}
+
+	// ---- Aufpasser: hängt der Bot fest? -------------------------------------------
+
+	private int aufpassTicks, letzterRest = Integer.MAX_VALUE, stillstand, wasserTicks, rausTicks, neustarts;
+
+	/**
+	 * Läuft, solange Baritone arbeitet: steckt der Bot im Wasser fest, läuft er von der Fläche weg (fremde
+	 * Grundstücke!) oder kommt er eine Minute lang nicht voran, wird Baritone neu angestoßen.
+	 */
+	private void aufpassen(Minecraft mc) {
+		LocalPlayer p = mc.player;
+		// 1. im Wasser hängen geblieben
+		if (p.isInWater()) {
+			if (++wasserTicks > 200) {
+				neuStarten(mc, "steckt im Wasser fest");
+				return;
+			}
+		} else {
+			wasserTicks = 0;
+		}
+		// 2. von der Fläche weggelaufen
+		int[] a = welt(tor, vorne, 14, 14);
+		int[] b = welt(tor, vorne, 135, 135);
+		int x = p.getBlockX(), z = p.getBlockZ();
+		int raus = Math.max(Math.max(Math.min(a[0], b[0]) - x, x - Math.max(a[0], b[0])),
+				Math.max(Math.min(a[1], b[1]) - z, z - Math.max(a[1], b[1])));
+		if (raus > 30) {
+			anhalten(mc, "Der Bot ist über 30 Blöcke von der Fläche weg (Vorsicht, fremde Grundstücke) – Ebnen angehalten. "
+					+ "Geh zurück auf die Fläche und klick „Ebnen weiter“.");
+			return;
+		}
+		if (raus > 8) {
+			if (++rausTicks > 100) {
+				neuStarten(mc, "ist von der Fläche runtergelaufen");
+				return;
+			}
+		} else {
+			rausTicks = 0;
+		}
+		// 3. alle 30 Sekunden: wird es weniger?
+		if (++aufpassTicks >= 600) {
+			aufpassTicks = 0;
+			int rest = gelaendePruefen(mc).offen();
+			if (rest < letzterRest) {
+				letzterRest = rest;
+				stillstand = 0;
+				neustarts = 0;
+			} else if (++stillstand >= 2) {
+				neuStarten(mc, "kommt seit einer Minute nicht weiter");
+			}
+		}
+	}
+
+	private void neuStarten(Minecraft mc, String grund) {
+		wasserTicks = 0;
+		rausTicks = 0;
+		stillstand = 0;
+		aufpassTicks = 0;
+		if (++neustarts > 10) {
+			anhalten(mc, "Der Bot hängt immer wieder fest (zuletzt: " + grund + "). Ebnen angehalten – schau bitte selbst nach, "
+					+ "dann „Ebnen weiter“.");
+			return;
+		}
+		chat(mc.player, "Der Bot " + grund + " – Baritone wird neu angestoßen (" + neustarts + "/10).");
+		BaritoneRahmen.befehl("stop");
+		Gelaende g = gelaendePruefen(mc);
+		if (!ebnenStarten(mc.player, g)) {
+			anhalten(mc, "Baritone hat den Bauplan nicht angenommen.");
+		} else {
+			durchgang--; // Neu-Anstoßen zählt nicht als eigene Runde
+		}
+	}
+
+	/** Ebnen anhalten, aber gemerkt lassen (dann heißt der Knopf "Ebnen weiter"). */
+	private void anhalten(Minecraft mc, String text) {
+		BaritoneRahmen.befehl("stop");
+		terminal.abbrechen();
+		versorgung.abbrechen(mc);
+		phase = 0;
+		chat(mc.player, text);
 	}
 
 	/** Gibt Baritone den Ebnen-Bauplan: von der Schicht unter deinen Füßen bis zum höchsten Hindernis. */
@@ -294,6 +380,9 @@ public final class Burgvorschau {
 		terminalPause = 0;
 		durchgang++;
 		ebnenMerken(true);
+		if (neustarts > 0) {
+			return true; // beim Neu-Anstoßen nicht jedes Mal den ganzen Text
+		}
 		chat(p, "Baritone gräbt frei (bis Y " + oben + ") und stopft dabei Löcher und Wasser auf Y " + (fuss - 1)
 				+ " mit Erde. Geht die Erde aus, holt der Bot neue aus dem Funk-Terminal in Slot 8.");
 		return true;
@@ -343,6 +432,7 @@ public final class Burgvorschau {
 			return;
 		}
 		if (BaritoneRahmen.bautGerade()) {
+			aufpassen(mc);
 			return;
 		}
 		// Baritone ist fertig: nochmal nachschauen (z. B. Stellen, die vorher nicht geladen waren)
@@ -402,6 +492,7 @@ public final class Burgvorschau {
 		int fuss = tor.getY();
 		int minBoden = Integer.MAX_VALUE, maxBoden = Integer.MIN_VALUE;
 		int huegel = 0, loecher = 0, wasser = 0, baeume = 0, unbekannt = 0;
+		int offen = 0; // Spalten, in denen noch etwas zu tun ist (zum Prüfen, ob der Bot vorankommt)
 		int oben = Integer.MIN_VALUE, unten = Integer.MAX_VALUE;
 		for (int x = 14; x <= 135; x++) {
 			for (int z = 14; z <= 135; z++) {
@@ -410,7 +501,11 @@ public final class Burgvorschau {
 					unbekannt++;
 					continue;
 				}
-				boolean baum = false, nass = false;
+				boolean baum = false, nass = false, arbeit = false;
+				BlockState drunter = mc.level.getBlockState(new BlockPos(w[0], fuss - 1, w[1]));
+				if (drunter.isAir() || drunter.liquid() || drunter.canBeReplaced()) {
+					arbeit = true; // hier muss Erde hin
+				}
 				int boden = Integer.MIN_VALUE, grund = Integer.MIN_VALUE;
 				for (int y = fuss + SUCH_HOEHE; y >= fuss - FUELL_TIEFE - 1; y--) {
 					BlockState s = mc.level.getBlockState(new BlockPos(w[0], y, w[1]));
@@ -419,6 +514,7 @@ public final class Burgvorschau {
 					}
 					if (!s.liquid() && y >= fuss) {
 						oben = Math.max(oben, y); // alles ab Fußhöhe muss weg (Hügel, Bäume, Gras)
+						arbeit = true;
 					}
 					if (s.is(BlockTags.LEAVES) || s.is(BlockTags.LOGS)) {
 						baum = true;
@@ -438,6 +534,9 @@ public final class Burgvorschau {
 						grund = y;
 						break;
 					}
+				}
+				if (arbeit) {
+					offen++;
 				}
 				if (baum) {
 					baeume++;
@@ -474,7 +573,7 @@ public final class Burgvorschau {
 		if (unbekannt > 0) {
 			t.append(", ").append(prozent(unbekannt, alle)).append(" nicht geladen (näher rangehen)");
 		}
-		return new Gelaende(t.toString(), oben, unten == Integer.MAX_VALUE ? Integer.MIN_VALUE : unten);
+		return new Gelaende(t.toString(), oben, unten == Integer.MAX_VALUE ? Integer.MIN_VALUE : unten, offen);
 	}
 
 	private static void chat(LocalPlayer p, String text) {
