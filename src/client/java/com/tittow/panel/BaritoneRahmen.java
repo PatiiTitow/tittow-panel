@@ -199,12 +199,18 @@ final class BaritoneRahmen {
 						}
 						BlockState jetzt = (BlockState) a[3];
 						if (y == 0) {
-							return jetzt.isAir() || jetzt.liquid() || jetzt.canBeReplaced(); // nur Löcher
+							return true; // Boden-Schicht gehört ganz dazu: fester Boden gilt als "richtig" und wird nicht abgebaut
 						}
 						return !jetzt.liquid(); // darüber alles weg, außer Wasser/Lava
 					}
-					case "desiredState":
-						return (Integer) a[1] == 0 ? erde : luft;
+					case "desiredState": {
+						if ((Integer) a[1] != 0) {
+							return luft;
+						}
+						BlockState jetzt = (BlockState) a[3];
+						// Loch, Wasser, Pflanze: Erde hin. Fester Boden (auch schon gestopfte Erde): so lassen
+						return jetzt.isAir() || jetzt.liquid() || jetzt.canBeReplaced() ? erde : jetzt;
+					}
 					case "reset":
 						return null;
 					case "toString":

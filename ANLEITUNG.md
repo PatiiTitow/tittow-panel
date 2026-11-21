@@ -126,7 +126,9 @@ Es wird **nichts gebaut**, du kannst alles ablaufen und anschauen, ob die Burg d
 geebnet wird **nur innerhalb des äußeren grünen Rahmens**. Das Panel geht zu und **Baritone** legt los:
 - **Freigraben:** alles ab deiner Fußhöhe kommt weg – Hügel, Bäume, Gras (bis 64 Blöcke hoch).
 - **Löcher stopfen, gleichzeitig:** Löcher, Wasser und Lava unter der Fläche werden mit **Erde** aufgefüllt, aber **nur 1 Block tief** (die Schicht direkt unter deinen Füßen).
-  Beides passiert **in einem Durchgang**: Wo Baritone gerade gräbt, stopft es die Löcher gleich mit. Am Ende schaut der
+  Beides in einem Auftrag, **Schicht für Schicht von unten**: Zuerst wird der Boden fertig gemacht (Löcher und Wasser
+  werden vom Rand aus zugestopft, Stück für Stück weiter), dann darüber freigegraben. Fertigen Boden und frisch
+  gestopfte Erde baut Baritone nicht wieder ab, und es gräbt sich nicht nach unten. Am Ende schaut der
   Bot nochmal über die Fläche und macht, was noch fehlt (höchstens 3 Runden). Im Chat steht dann das Ergebnis.
 - **Aufpasser:** Der Bot schaut beim Ebnen selbst nach, ob er festhängt, und stößt Baritone dann neu an (Meldung im Chat):
   - steckt er **über 10 Sekunden im Wasser**,

@@ -277,6 +277,14 @@ public final class Burgvorschau {
 		// Baritone soll Wasser meiden (nicht hineinlaufen und darin hängen bleiben); Wasser oben drüber ist in Ordnung
 		BaritoneRahmen.einstellung("walkOnWaterOnePenalty", 20.0);
 		BaritoneRahmen.einstellung("okIfWater", true);
+		// Fertigen Boden (auch frisch gestopfte Erde) nicht wieder abbauen, nicht nach unten graben
+		BaritoneRahmen.einstellung("breakCorrectBlockPenaltyMultiplier", 1000.0);
+		BaritoneRahmen.einstellung("allowDownward", false);
+		// Schicht für Schicht von unten: erst den Boden fertig machen (vom Rand aus zustopfen, Stück für Stück weiter),
+		// dann darüber freigraben. Eine Stelle, die nicht geht, hält nicht alles auf.
+		BaritoneRahmen.einstellung("buildInLayers", true);
+		BaritoneRahmen.einstellung("layerOrder", false);
+		BaritoneRahmen.einstellung("skipFailedLayers", true);
 		if (!ebnenStarten(p, g)) {
 			return "Baritone hat den Bauplan nicht angenommen.";
 		}
