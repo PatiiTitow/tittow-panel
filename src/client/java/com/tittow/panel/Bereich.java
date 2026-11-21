@@ -46,6 +46,7 @@ public final class Bereich {
 	public String burgRichtung;    // "north", "south", "east", "west"
 	public String burgWelt;        // Server-Adresse bzw. Einzelspieler-Welt + Dimension
 	public boolean burgEbnen;      // Ebnen war gestartet und ist noch nicht fertig
+	public Map<String, Integer> burgStartInventar; // was beim Start des Ebnens im Inventar war (bleibt drin)
 
 	public static Bereich laden() {
 		try {

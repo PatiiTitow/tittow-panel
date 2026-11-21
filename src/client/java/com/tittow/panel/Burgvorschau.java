@@ -17,7 +17,7 @@ import net.minecraft.world.level.block.state.BlockState;
  * Wo du beim Einschalten stehst, ist die Mitte der Eingangsmauer (das Tor). Die Burg geht in die Richtung,
  * in die du schaust. Der Sockel beginnt auf Höhe deiner Füße.
  * Dazu "Platz ebnen": Baritone gräbt die Sockel-Fläche (der äußere grüne Rahmen) frei und stopft danach Löcher
- * und Wasser mit Erde, nur 1 Block tief (die Schicht direkt unter deinen Füßen). Fehlt Erde, holt ErdeHolen sie aus dem Funk-Terminal.
+ * und Wasser mit Erde, nur 1 Block tief (die Schicht direkt unter deinen Füßen). Fehlt Erde oder ist das Inventar voll, hilft FunkTerminal.
  */
 public final class Burgvorschau {
 	/** Größe der ganzen Burg mit Sockel (Kante zu Kante). */
@@ -69,9 +69,9 @@ public final class Burgvorschau {
 	/** Platz ebnen: 0 = aus, 1 = Baritone gräbt frei, 2 = Baritone stopft Löcher. */
 	private int phase;
 	private int wartet;
-	private final ErdeHolen erdeHolen = new ErdeHolen();
-	/** Nach einem Fehlschlag beim Erde-Holen eine Weile nicht nochmal versuchen. */
-	private int erdePause;
+	private final FunkTerminal terminal = new FunkTerminal();
+	/** Nach einem Fehlschlag beim Funk-Terminal eine Weile nicht nochmal versuchen. */
+	private int terminalPause;
 
 	/** Hier wird die platzierte Burg gespeichert, damit sie nach dem Neu-Joinen wieder da ist. */
 	private final Bereich einstellungen;
@@ -143,7 +143,7 @@ public final class Burgvorschau {
 	public void aus() {
 		if (phase != 0) {
 			BaritoneRahmen.befehl("stop");
-			erdeHolen.abbrechen();
+			terminal.abbrechen();
 			phase = 0;
 		}
 		an = false;
@@ -212,7 +212,7 @@ public final class Burgvorschau {
 		LocalPlayer p = mc.player;
 		if (phase != 0) {
 			BaritoneRahmen.befehl("stop");
-			erdeHolen.abbrechen();
+			terminal.abbrechen();
 			phase = 0;
 			ebnenMerken(false);
 			return "Ebnen gestoppt.";
@@ -227,6 +227,11 @@ public final class Burgvorschau {
 			return "Ohne Baritone geht das Ebnen nicht.";
 		}
 		BaritoneRahmen.einstellung("allowInventory", true); // Baritone darf Erde auch aus dem Inventar oben nehmen
+		if (!einstellungen.burgEbnen || einstellungen.burgStartInventar == null) {
+			// neuer Start (nicht "weitermachen"): merken, was jetzt im Inventar ist – das bleibt immer drin
+			einstellungen.burgStartInventar = FunkTerminal.inventar(p);
+			einstellungen.speichern();
+		}
 		Gelaende g = gelaendePruefen(mc);
 		chat(p, g.text());
 		if (g.oben() != Integer.MIN_VALUE) {
@@ -257,26 +262,31 @@ public final class Burgvorschau {
 		if (phase == 0) {
 			return;
 		}
-		if (erdeHolen.laeuft()) {
-			String meldung = erdeHolen.tick(mc);
+		if (terminal.laeuft()) {
+			String meldung = terminal.tick(mc);
 			if (meldung != null) {
 				chat(mc.player, meldung);
 				if (!meldung.startsWith("OK")) {
-					erdePause = 20 * 60; // eine Minute warten, dann nochmal probieren
+					terminalPause = 20 * 60; // eine Minute warten, dann nochmal probieren
 				}
 			}
 			return;
 		}
-		if (erdePause > 0) {
-			erdePause--;
+		if (terminalPause > 0) {
+			terminalPause--;
 		}
 		if (wartet > 0) { // Baritone braucht einen Moment, bis es loslegt
 			wartet--;
 			return;
 		}
-		if (phase == 2 && erdePause == 0 && ErdeHolen.erde(mc.player) < 32 && BaritoneRahmen.bautGerade()) {
+		if (terminalPause == 0 && FunkTerminal.inventarVoll(mc.player) && BaritoneRahmen.bautGerade()) {
+			chat(mc.player, "Inventar voll: lege neue Sachen ins Funk-Terminal (was du beim Start dabei hattest, bleibt).");
+			terminal.ablegen(mc, einstellungen.burgStartInventar);
+			return;
+		}
+		if (phase == 2 && terminalPause == 0 && FunkTerminal.erde(mc.player) < 32 && BaritoneRahmen.bautGerade()) {
 			chat(mc.player, "Erde wird knapp: hole Erde aus dem Funk-Terminal (Slot 8).");
-			erdeHolen.starten(mc);
+			terminal.erdeHolen(mc);
 			return;
 		}
 		if (BaritoneRahmen.bautGerade()) {
@@ -302,7 +312,7 @@ public final class Burgvorschau {
 		}
 		phase = 2;
 		wartet = 40;
-		erdePause = 0;
+		terminalPause = 0;
 		ebnenMerken(true);
 		chat(p, "Schritt 2: Baritone stopft Löcher und Wasser mit Erde, von Y " + g.unten() + " bis Y " + (tor.getY() - 1)
 				+ " (nur 1 Block tief). Geht die Erde aus, holt der Bot neue aus dem Funk-Terminal in Slot 8.");

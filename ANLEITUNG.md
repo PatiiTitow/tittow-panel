@@ -129,6 +129,12 @@ geebnet wird **nur innerhalb des äußeren grünen Rahmens**. Das Panel geht zu 
   Slot 8** der Hotbar, öffnet es (Rechtsklick), nimmt so viel Erde, wie ins Inventar passt (blättert auch weiter, wenn
   es einen „Weiter“-Knopf gibt), macht es zu und baut weiter. Liegt das Terminal woanders im Inventar, legt er es
   wieder auf Slot 8. Findet er keine Erde, steht das im Chat und er versucht es nach einer Minute nochmal.
+- **Inventar voll:** Dann öffnet der Bot das Funk-Terminal und **legt die neu aufgesammelten Sachen hinein**
+  (Shift-Klick, sonst anklicken und in einen leeren Platz legen). Danach gräbt er weiter.
+  - **Was du beim Start des Ebnens dabei hattest, bleibt im Inventar**, z. B. Schaufel (Slot 3), Spitzhacke (Slot 4),
+    Axt (Slot 5) und das Terminal (Slot 8). Das merkt er sich auch beim „weitermachen“ nach dem Neu-Joinen.
+  - 128 Erde behält er immer, fürs Löcherstopfen.
+  - Geht nichts hinein (z. B. Lager voll), steht das im Chat und er versucht es nach einer Minute nochmal.
 - Am Ende steht „fertig geebnet“ im Chat. Nochmal klicken (**„Ebnen läuft (klicken = Stopp)“**) hält alles an.
 - Werkzeug (Schaufel, Spitzhacke, Axt) in die Hotbar legen, das nimmt Baritone selbst. Bei viel Graben wird das
   Inventar voll – zwischendurch ausleeren.
@@ -141,4 +147,4 @@ geebnet wird **nur innerhalb des äußeren grünen Rahmens**. Das Panel geht zu 
 - `src/client/java/com/tittow/panel/Kisten.java` – Kisten-Anzeige: Suchen und geöffnete Kisten merken
 - `src/client/java/com/tittow/panel/BaritoneRahmen.java` – lässt Baritone die grünen Rahmen zeichnen
 - `src/client/java/com/tittow/panel/Burgvorschau.java` – Burg-Vorschau: Umrisse der Blutfeste, Gelände-Prüfung und Platz ebnen
-- `src/client/java/com/tittow/panel/ErdeHolen.java` – holt beim Ebnen Erde aus dem Funk-Terminal (Slot 8)
+- `src/client/java/com/tittow/panel/FunkTerminal.java` – beim Ebnen: Erde aus dem Funk-Terminal (Slot 8) holen, volles Inventar hineinlegen
