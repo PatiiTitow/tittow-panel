@@ -133,9 +133,9 @@ geebnet wird **nur innerhalb des äußeren grünen Rahmens**. Das Panel geht zu 
   nicht wieder ab, und er gräbt sich nicht nach unten.
 - Bei „Ebnen weiter“ (z. B. nach dem Neu-Joinen) macht er bei dem Streifen weiter, bei dem er aufgehört hat.
 - **Aufpasser:** Der Bot schaut beim Ebnen selbst nach, ob er festhängt, und startet den Streifen dann neu (Meldung im Chat):
-  - steckt er **über 10 Sekunden im Wasser**,
-  - läuft er **mehr als 8 Blöcke von der Fläche weg**,
-  - oder wird die Arbeit im Streifen **eine Minute lang nicht weniger**.
+  - steckt er **über 20 Sekunden im Wasser**,
+  - ist er **über 10 Sekunden mehr als 8 Blöcke von der Fläche weg**,
+  - oder ist im Streifen **2 Minuten lang kein einziger Block weniger** geworden (solange er abbaut, gilt er nie als festgehangen).
   - Klappt ein Streifen nach 3 Versuchen nicht, überspringt er ihn und macht mit dem nächsten weiter (Rest selbst machen).
   - Ist er **über 30 Blöcke** von der Fläche weg (Vorsicht, fremde Grundstücke mit Geschütztürmen), hält er an.
     Dann selbst zurückgehen und „Ebnen weiter“ klicken.

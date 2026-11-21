@@ -89,7 +89,7 @@ public final class Burgvorschau {
 	}
 
 	/** Ergebnis der Gelände-Prüfung. oben/unten = Integer.MIN_VALUE, wenn nichts zu tun ist. */
-	private record Gelaende(String text, int oben, int unten, int offen) {
+	private record Gelaende(String text, int oben, int unten, int offen, int bloecke) {
 	}
 
 	public boolean istAn() {
@@ -323,7 +323,7 @@ public final class Burgvorschau {
 					return false;
 				}
 				versuch++;
-				letzterRest = g.offen();
+				letzterRest = g.bloecke();
 				stillstand = 0;
 				aufpassTicks = 0;
 				wasserTicks = 0;
@@ -374,7 +374,7 @@ public final class Burgvorschau {
 		LocalPlayer p = mc.player;
 		// 1. im Wasser hängen geblieben
 		if (p.isInWater()) {
-			if (++wasserTicks > 200) {
+			if (++wasserTicks > 400) { // 20 Sekunden
 				neuStarten(mc, "steckt im Wasser fest");
 				return;
 			}
@@ -393,23 +393,28 @@ public final class Burgvorschau {
 			return;
 		}
 		if (raus > 8) {
-			if (++rausTicks > 100) {
+			if (++rausTicks > 200) { // 10 Sekunden
 				neuStarten(mc, "ist von der Fläche runtergelaufen");
 				return;
 			}
 		} else {
 			rausTicks = 0;
 		}
-		// 3. alle 30 Sekunden: wird es im Streifen weniger?
+		// 3. baut er gerade einen Block ab, arbeitet er – das zählt nie als Festhängen
+		if (mc.gameMode != null && mc.gameMode.isDestroying()) {
+			stillstand = 0;
+		}
+		// 4. alle 30 Sekunden: werden die Blöcke im Streifen weniger? Erst nach 2 Minuten ohne einen einzigen
+		//    Block weniger (und ohne Abbauen) gilt er als festgehangen.
 		if (++aufpassTicks >= 600) {
 			aufpassTicks = 0;
 			int s = einstellungen.burgStreifen;
-			int rest = gelaendePruefen(mc, streifenX0(s), streifenX1(s)).offen();
+			int rest = gelaendePruefen(mc, streifenX0(s), streifenX1(s)).bloecke();
 			if (rest < letzterRest) {
 				letzterRest = rest;
 				stillstand = 0;
-			} else if (++stillstand >= 2) {
-				neuStarten(mc, "kommt seit einer Minute nicht weiter");
+			} else if (++stillstand >= 4) {
+				neuStarten(mc, "kommt seit 2 Minuten nicht weiter");
 			}
 		}
 	}
@@ -547,7 +552,8 @@ public final class Burgvorschau {
 		int fuss = tor.getY();
 		int minBoden = Integer.MAX_VALUE, maxBoden = Integer.MIN_VALUE;
 		int huegel = 0, loecher = 0, wasser = 0, baeume = 0, unbekannt = 0;
-		int offen = 0; // Spalten, in denen noch etwas zu tun ist (zum Prüfen, ob der Bot vorankommt)
+		int offen = 0; // Spalten, in denen noch etwas zu tun ist
+		int bloecke = 0; // einzelne Blöcke, die noch weg müssen oder hin müssen (zum Prüfen, ob der Bot vorankommt)
 		int oben = Integer.MIN_VALUE, unten = Integer.MAX_VALUE;
 		for (int x = x0; x <= x1; x++) {
 			for (int z = 14; z <= 135; z++) {
@@ -560,6 +566,13 @@ public final class Burgvorschau {
 				BlockState drunter = mc.level.getBlockState(new BlockPos(w[0], fuss - 1, w[1]));
 				if (drunter.isAir() || drunter.liquid() || drunter.canBeReplaced()) {
 					arbeit = true; // hier muss Erde hin
+					bloecke++;
+				}
+				for (int y = fuss; y <= fuss + SUCH_HOEHE; y++) { // jeden Block zählen, der noch weg muss
+					BlockState s = mc.level.getBlockState(new BlockPos(w[0], y, w[1]));
+					if (!s.isAir() && !s.liquid()) {
+						bloecke++;
+					}
 				}
 				int boden = Integer.MIN_VALUE, grund = Integer.MIN_VALUE;
 				for (int y = fuss + SUCH_HOEHE; y >= fuss - FUELL_TIEFE - 1; y--) {
@@ -628,7 +641,7 @@ public final class Burgvorschau {
 		if (unbekannt > 0) {
 			t.append(", ").append(prozent(unbekannt, alle)).append(" nicht geladen (näher rangehen)");
 		}
-		return new Gelaende(t.toString(), oben, unten == Integer.MAX_VALUE ? Integer.MIN_VALUE : unten, offen);
+		return new Gelaende(t.toString(), oben, unten == Integer.MAX_VALUE ? Integer.MIN_VALUE : unten, offen, bloecke);
 	}
 
 	private static void chat(LocalPlayer p, String text) {
