@@ -520,7 +520,7 @@ final class FunkTerminal {
 		return m;
 	}
 
-	private static String schluessel(ItemStack s) {
+	static String schluessel(ItemStack s) {
 		return BuiltInRegistries.ITEM.getKey(s.getItem()) + "|" + s.getHoverName().getString();
 	}
 

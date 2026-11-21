@@ -133,6 +133,11 @@ final class Herstellen {
 	private int leerenWarte;
 	private int ohneFortschritt;
 	private int werkbankFehler;
+	private Map<String, Long> ziel = Map.of();
+	private String titel = "den Sockel";
+	/** Rohstoffe, die im Lager fehlen (nach dem Planen). */
+	private final Map<String, Long> fehltRoh = new LinkedHashMap<>();
+	private boolean fertigGemeldet;
 	private int reinFehler;
 	private int platzFehler;
 	private Werkbank werkbank;
@@ -153,6 +158,20 @@ final class Herstellen {
 	}
 
 	String starten(Minecraft mc) {
+		return starten(mc, Material.liste().getOrDefault("sockel", Map.of()), "den Sockel");
+	}
+
+	/** Lief das letzte Herstellen bis zum Ende durch (nicht abgebrochen)? */
+	boolean zuEndeGelaufen() {
+		return fertigGemeldet;
+	}
+
+	/** Stellt her, was für "ziel" (Block-Id -> Anzahl) fehlt. titel z. B. "den Sockel" (für die Chat-Meldungen). */
+	String starten(Minecraft mc, Map<String, Long> ziel, String titel) {
+		this.ziel = ziel;
+		this.titel = titel;
+		fehltRoh.clear();
+		fertigGemeldet = false;
 		LocalPlayer p = mc.player;
 		if (p == null || mc.level == null) {
 			return "";
@@ -248,7 +267,8 @@ final class Herstellen {
 			case OFEN_LEEREN -> ofenLeeren(mc, p);
 			case FERTIG -> {
 				stoppen(mc, null);
-				chat(p, "§aFertig mit Herstellen.§r Klick „Material prüfen“, um zu sehen, was für den Sockel jetzt noch fehlt.");
+				chat(p, "§aFertig mit Herstellen§r für " + titel + ".");
+				fertigGemeldet = true;
 			}
 			default -> {
 			}
@@ -288,8 +308,7 @@ final class Herstellen {
 				lager.merge(BuiltInRegistries.ITEM.getKey(s.getItem()).toString(), (long) s.getCount(), Long::sum);
 			}
 		}
-		Map<String, Long> sockel = Material.liste().getOrDefault("sockel", Map.of());
-		Map<String, Long> fehltRoh = new LinkedHashMap<>();
+		Map<String, Long> sockel = ziel;
 		for (Map.Entry<String, Long> e : sockel.entrySet()) {
 			String id = e.getKey();
 			long noetig = e.getValue();
@@ -318,7 +337,7 @@ final class Herstellen {
 			maxEbene = Math.max(maxEbene, stufe(id));
 		}
 		// Plan in den Chat
-		chat(p, "Plan für den Sockel:");
+		chat(p, "Plan für " + titel + ":");
 		if (craftRest.isEmpty() && ofenRest.isEmpty()) {
 			chat(p, " Nichts herzustellen.");
 		}

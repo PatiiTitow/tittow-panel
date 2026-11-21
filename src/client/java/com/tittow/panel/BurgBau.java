@@ -1,0 +1,446 @@
+package com.tittow.panel;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
+
+/**
+ * Burg bauen, Abschnitt für Abschnitt (erst der Sockel, dann je 6 Blöcke Höhe):
+ * 1. Vorbereiten: nachsehen, was im Abschnitt noch fehlt, und alles herstellen und brennen (Herstellen).
+ * 2. Prüfen: Lager durchzählen. Fehlt noch etwas, hält er an und sagt, was fehlt.
+ * 3. Bauen: Schicht für Schicht, in jeder Schicht eine Blocksorte nach der anderen. Die Sorte liegt in Slot 6
+ *    (Versorgung legt nach), fehlt sie, holt er sie aus dem Funk-Terminal. Baritone baut nur diese Sorte.
+ * Nach jedem Abschnitt hält er an. "Burg weiter bauen" macht mit dem nächsten Abschnitt weiter.
+ */
+final class BurgBau {
+	private enum Schritt { VORBEREITEN, PRUEFEN, BAUEN }
+
+	private enum Zweck { KEINS, ZAEHLEN, HOLEN, ABLEGEN }
+
+	private final FunkTerminal terminal;
+	private final Herstellen herstellen;
+	private final Versorgung versorgung;
+	private final Bereich einstellungen;
+
+	private boolean an;
+	private Schritt schritt;
+	private Zweck zweck = Zweck.KEINS;
+	private Bauplan plan;
+	private BlockPos tor;
+	private Direction vorne;
+	private int von, bis;      // Höhen des Abschnitts
+	private int y;             // aktuelle Schicht
+	private List<Integer> sorten = List.of();
+	private int sorteNr;       // Stelle in "sorten"
+	private int index;         // Paletten-Nummer der Sorte, die gerade gebaut wird
+	private Item item;
+	private boolean baut;      // Baritone hat den Auftrag bekommen
+	private int versuch;
+	private int warte;
+	private int aufpassTicks, letzterRest, stillstand;
+	private int holVorher;
+	private boolean geholt;    // für diese Sorte schon aus dem Terminal geholt (nicht endlos nochmal)
+	private boolean lagerLeer; // im Terminal ist von der Sorte nichts mehr
+	private Map<String, Integer> start = Map.of();
+	private Object altWegwerf;  // Baritones Liste der "Wegwerf-Blöcke", wird am Ende zurückgestellt
+
+	BurgBau(FunkTerminal terminal, Herstellen herstellen, Versorgung versorgung, Bereich einstellungen) {
+		this.terminal = terminal;
+		this.herstellen = herstellen;
+		this.versorgung = versorgung;
+		this.einstellungen = einstellungen;
+	}
+
+	boolean laeuft() {
+		return an;
+	}
+
+	boolean imMenue() {
+		return terminal.laeuft() || herstellen.imMenue();
+	}
+
+	/** Name des Abschnitts für den Chat, z. B. "den Sockel" oder "Abschnitt 3 (Höhe 10–15)". */
+	static String name(int nr, int[] a) {
+		return nr == 0 ? "den Sockel" : "Abschnitt " + (nr + 1) + " (Höhe " + a[0] + "–" + a[1] + ")";
+	}
+
+	String starten(Minecraft mc, BlockPos tor, Direction vorne) {
+		LocalPlayer p = mc.player;
+		if (p == null || mc.level == null) {
+			return "";
+		}
+		plan = Bauplan.laden();
+		if (plan == null) {
+			return "Der Bauplan fehlt in der Mod.";
+		}
+		List<int[]> abschnitte = plan.abschnitte();
+		int nr = einstellungen.burgBauAbschnitt;
+		if (nr >= abschnitte.size()) {
+			return "Die Burg ist schon fertig gebaut.";
+		}
+		this.tor = tor;
+		this.vorne = vorne;
+		von = abschnitte.get(nr)[0];
+		bis = abschnitte.get(nr)[1];
+		an = true;
+		einstellungen.burgBauen = true;
+		einstellungen.speichern();
+		start = FunkTerminal.inventar(p);
+		zweck = Zweck.KEINS;
+		baut = false;
+		warte = 0;
+		Map<String, Long> noch = nochZuBauen(mc);
+		chat(p, "Bauen: " + name(nr, abschnitte.get(nr)) + " – erst wird alles hergestellt und gebrannt, dann gebaut.");
+		if (noch.isEmpty()) {
+			abschnittFertig(mc);
+			return "";
+		}
+		schritt = Schritt.VORBEREITEN;
+		herstellen.starten(mc, noch, name(nr, abschnitte.get(nr)));
+		return "Bauen läuft: " + name(nr, abschnitte.get(nr)) + ".";
+	}
+
+	void stoppen(Minecraft mc, String grund) {
+		if (!an) {
+			return;
+		}
+		an = false;
+		herstellen.stoppen(mc, null);
+		terminal.abbrechen();
+		BaritoneRahmen.befehl("stop");
+		einstellungenZurueck();
+		if (grund != null && mc.player != null) {
+			chat(mc.player, grund);
+		}
+	}
+
+	void tick(Minecraft mc) {
+		LocalPlayer p = mc.player;
+		if (!an || p == null || mc.level == null) {
+			return;
+		}
+		if (schritt == Schritt.VORBEREITEN) {
+			if (herstellen.laeuft()) {
+				herstellen.tick(mc);
+				return;
+			}
+			if (!herstellen.zuEndeGelaufen()) {
+				stoppen(mc, "Herstellen wurde abgebrochen – Bauen angehalten. „Burg weiter bauen“ startet den Abschnitt neu.");
+				return;
+			}
+			schritt = Schritt.PRUEFEN;
+			zweck = Zweck.ZAEHLEN;
+			terminal.zaehlen(mc);
+			return;
+		}
+		if (terminal.laeuft()) {
+			String m = terminal.tick(mc);
+			if (m != null) {
+				nachTerminal(mc, p, m);
+			}
+			return;
+		}
+		if (warte > 0) {
+			warte--;
+			return;
+		}
+		if (schritt == Schritt.BAUEN) {
+			bauen(mc, p);
+		}
+	}
+
+	private void nachTerminal(Minecraft mc, LocalPlayer p, String meldung) {
+		Zweck z = zweck;
+		zweck = Zweck.KEINS;
+		warte = 5;
+		if (z == Zweck.ZAEHLEN) {
+			if (!meldung.startsWith("OK")) {
+				stoppen(mc, meldung);
+				return;
+			}
+			pruefen(mc, p);
+		} else if (z == Zweck.HOLEN) {
+			geholt = true;
+			if (FunkTerminal.anzahl(p, item) <= holVorher) {
+				lagerLeer = true; // nichts mehr gekommen: nicht ständig nochmal versuchen
+			}
+			if (FunkTerminal.anzahl(p, item) == 0) {
+				stoppen(mc, "§c" + new ItemStack(item).getHoverName().getString() + " ist im Funk-Terminal alle§r – Bauen angehalten. "
+						+ "Besorg mehr und klick „Burg weiter bauen“.");
+			}
+		}
+	}
+
+	/** Nach dem Herstellen: ist jetzt alles für den Abschnitt da? Sonst anhalten und sagen, was fehlt. */
+	private void pruefen(Minecraft mc, LocalPlayer p) {
+		Map<String, Long> da = new HashMap<>(terminal.bestand());
+		for (int i = 0; i < 36; i++) {
+			ItemStack s = p.getInventory().getItem(i);
+			if (!s.isEmpty()) {
+				da.merge(BuiltInRegistries.ITEM.getKey(s.getItem()).toString(), (long) s.getCount(), Long::sum);
+			}
+		}
+		Map<String, Long> fehlt = new LinkedHashMap<>();
+		for (Map.Entry<String, Long> e : nochZuBauen(mc).entrySet()) {
+			long hab = da.getOrDefault(e.getKey(), 0L);
+			if (hab < e.getValue()) {
+				fehlt.put(e.getKey(), e.getValue() - hab);
+			}
+		}
+		if (!fehlt.isEmpty()) {
+			chat(p, "§cFür diesen Abschnitt fehlt noch Material:§r");
+			for (Map.Entry<String, Long> e : fehlt.entrySet()) {
+				p.sendSystemMessage(Component.literal(" §c✘ ").append(new ItemStack(Herstellen.item(e.getKey())).getHoverName())
+						.append(Component.literal("§7: fehlen " + String.format(Locale.GERMANY, "%,d", e.getValue()))));
+			}
+			stoppen(mc, "Bauen angehalten. Besorg das Material (oder die Rohstoffe dafür) und klick „Burg weiter bauen“.");
+			return;
+		}
+		chat(p, "§aAlles da.§r Jetzt wird gebaut, Schicht für Schicht.");
+		// Baritone: nichts abbauen (sonst reißt es Fertiges wieder ein), keine eigenen Blöcke zum Hochbauen benutzen
+		BaritoneRahmen.einstellung("allowInventory", false);
+		BaritoneRahmen.einstellung("allowBreak", false);
+		BaritoneRahmen.einstellung("allowPlace", true);
+		BaritoneRahmen.einstellung("buildInLayers", false);
+		BaritoneRahmen.einstellung("okIfWater", false);
+		if (altWegwerf == null) {
+			altWegwerf = BaritoneRahmen.einstellungLesen("acceptableThrowawayItems");
+		}
+		BaritoneRahmen.einstellung("acceptableThrowawayItems", new ArrayList<Item>());
+		if (enthaeltLava()) {
+			chat(p, "Hinweis: Die Lava im Brunnen setzt der Bot nicht, die kommt am Ende per Eimer.");
+		}
+		schritt = Schritt.BAUEN;
+		y = von;
+		sorteNr = 0;
+		sorten = plan.sortenInSchicht(y);
+		baut = false;
+	}
+
+	private boolean enthaeltLava() {
+		for (int yy = von; yy <= bis; yy++) {
+			for (int z = 0; z < plan.l; z++) {
+				for (int x = 0; x < plan.w; x++) {
+					if (plan.ids[plan.index(x, yy, z)].equals("minecraft:lava")) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	// ---- Bauen ---------------------------------------------------------------------------
+
+	private void bauen(Minecraft mc, LocalPlayer p) {
+		if (baut) {
+			versorgung.nachlegen(mc, p, item);
+			if (BaritoneRahmen.bautGerade()) {
+				int hab = FunkTerminal.anzahl(p, item);
+				if (FunkTerminal.inventarVoll(p)) {
+					zweck = Zweck.ABLEGEN;
+					Map<String, Integer> behalten = new HashMap<>(start);
+					behalten.put(FunkTerminal.schluessel(new ItemStack(item)), 100000); // das Baumaterial bleibt
+					terminal.ablegen(mc, behalten);
+					return;
+				}
+				if (hab < 16 && !lagerLeer && ++aufpassTicks % 40 == 0 && rest(mc) > hab) {
+					holen(mc, p);
+					return;
+				}
+				aufpassen(mc);
+				return;
+			}
+			// Baritone ist fertig (oder hat aufgegeben): ist die Sorte in der Schicht jetzt komplett?
+			baut = false;
+			int rest = rest(mc);
+			if (rest == 0) {
+				sorteNr++;
+				versuch = 0;
+				geholt = false;
+			} else if (++versuch >= 3) {
+				chat(p, "§c" + rest + "× " + new ItemStack(item).getHoverName().getString() + " in Höhe " + y
+						+ " gehen nicht§r (Baritone kommt nicht hin) – bitte selbst setzen, weiter mit dem Nächsten.");
+				sorteNr++;
+				versuch = 0;
+				geholt = false;
+			}
+			warte = 10;
+			return;
+		}
+		// nächste Sorte bzw. nächste Schicht
+		while (true) {
+			if (sorteNr >= sorten.size()) {
+				y++;
+				if (y > bis) {
+					abschnittFertig(mc);
+					return;
+				}
+				sorten = plan.sortenInSchicht(y);
+				sorteNr = 0;
+				continue;
+			}
+			index = sorten.get(sorteNr);
+			item = plan.zustaende[index].getBlock().asItem();
+			if (rest(mc) > 0) {
+				break;
+			}
+			sorteNr++;
+		}
+		int rest = rest(mc);
+		int hab = FunkTerminal.anzahl(p, item);
+		if (hab < Math.min(rest, 64) && !geholt) {
+			holen(mc, p);
+			return;
+		}
+		geholt = false;
+		lagerLeer = false;
+		versorgung.nachlegen(mc, p, item);
+		if (!passStarten()) {
+			stoppen(mc, "Baritone hat den Bauplan nicht angenommen.");
+			return;
+		}
+		baut = true;
+		aufpassTicks = 0;
+		stillstand = 0;
+		letzterRest = rest;
+		warte = 40; // Baritone braucht einen Moment
+		if (sorteNr == 0 && versuch == 0) {
+			chat(p, "Höhe " + y + " (Y " + (tor.getY() + y) + "): " + sorten.size() + " Blocksorte(n).");
+		}
+	}
+
+	private void holen(Minecraft mc, LocalPlayer p) {
+		zweck = Zweck.HOLEN;
+		holVorher = FunkTerminal.anzahl(p, item);
+		int rest = rest(mc);
+		terminal.holen(mc, item, Math.min(Math.max(rest - holVorher, 64), 64 * 20));
+	}
+
+	/** Gibt Baritone die aktuelle Schicht, nur mit der aktuellen Blocksorte. */
+	private boolean passStarten() {
+		int[] a = Burgvorschau.welt(tor, vorne, Bauplan.VERSATZ, Bauplan.VERSATZ);
+		int[] b = Burgvorschau.welt(tor, vorne, Bauplan.VERSATZ + plan.w - 1, Bauplan.VERSATZ + plan.l - 1);
+		BlockPos ecke = new BlockPos(Math.min(a[0], b[0]), tor.getY() + y, Math.min(a[1], b[1]));
+		int breitX = Math.abs(a[0] - b[0]) + 1, laengeZ = Math.abs(a[1] - b[1]) + 1;
+		final int schicht = y, sorte = index;
+		final BlockState soll = plan.zustaende[index];
+		return BaritoneRahmen.planBauen("Tittow Burg", ecke, breitX, 1, laengeZ, (wx, wy, wz) -> {
+			if (wy != tor.getY() + schicht) {
+				return null;
+			}
+			int[] m = Burgvorschau.plan(tor, vorne, wx, wz);
+			return plan.index(m[0] - Bauplan.VERSATZ, schicht, m[1] - Bauplan.VERSATZ) == sorte ? soll : null;
+		});
+	}
+
+	/** Wie viele Stellen der aktuellen Sorte in der aktuellen Schicht noch nicht stimmen. */
+	private int rest(Minecraft mc) {
+		int n = 0;
+		BlockState soll = plan.zustaende[index];
+		for (int z = 0; z < plan.l; z++) {
+			for (int x = 0; x < plan.w; x++) {
+				if (plan.index(x, y, z) != index) {
+					continue;
+				}
+				int[] w = Burgvorschau.welt(tor, vorne, x + Bauplan.VERSATZ, z + Bauplan.VERSATZ);
+				BlockPos pos = new BlockPos(w[0], tor.getY() + y, w[1]);
+				if (!mc.level.hasChunk(w[0] >> 4, w[1] >> 4) || !mc.level.getBlockState(pos).is(soll.getBlock())) {
+					n++;
+				}
+			}
+		}
+		return n;
+	}
+
+	/** Was im aktuellen Abschnitt noch gebaut werden muss (Block-Id -> Anzahl), schaut in der Welt nach. */
+	private Map<String, Long> nochZuBauen(Minecraft mc) {
+		long[] n = new long[plan.ids.length];
+		for (int yy = von; yy <= bis; yy++) {
+			for (int z = 0; z < plan.l; z++) {
+				for (int x = 0; x < plan.w; x++) {
+					int i = plan.index(x, yy, z);
+					if (!plan.setzbar(i)) {
+						continue;
+					}
+					int[] w = Burgvorschau.welt(tor, vorne, x + Bauplan.VERSATZ, z + Bauplan.VERSATZ);
+					if (!mc.level.hasChunk(w[0] >> 4, w[1] >> 4)
+							|| !mc.level.getBlockState(new BlockPos(w[0], tor.getY() + yy, w[1])).is(plan.zustaende[i].getBlock())) {
+						n[i]++;
+					}
+				}
+			}
+		}
+		Map<String, Long> m = new LinkedHashMap<>();
+		for (int i = 0; i < n.length; i++) {
+			if (n[i] > 0) {
+				m.put(plan.ids[i], n[i]);
+			}
+		}
+		return m;
+	}
+
+	/** Alle 30 Sekunden: wird es weniger? Nach 2 Minuten ohne Fortschritt die Sorte neu anstoßen. */
+	private void aufpassen(Minecraft mc) {
+		if (mc.gameMode != null && mc.gameMode.isDestroying()) {
+			stillstand = 0;
+		}
+		if (++aufpassTicks < 600) {
+			return;
+		}
+		aufpassTicks = 0;
+		int rest = rest(mc);
+		if (rest < letzterRest) {
+			letzterRest = rest;
+			stillstand = 0;
+		} else if (++stillstand >= 4) {
+			BaritoneRahmen.befehl("stop");
+			baut = false;
+			versuch++;
+			chat(mc.player, "Baritone kommt seit 2 Minuten nicht weiter – neu angestoßen.");
+		}
+	}
+
+	private void abschnittFertig(Minecraft mc) {
+		List<int[]> abschnitte = plan.abschnitte();
+		int nr = einstellungen.burgBauAbschnitt;
+		einstellungen.burgBauAbschnitt = nr + 1;
+		if (einstellungen.burgBauAbschnitt >= abschnitte.size()) {
+			einstellungen.burgBauen = false;
+		}
+		einstellungen.speichern();
+		String fertig = name(nr, abschnitte.get(nr));
+		if (einstellungen.burgBauAbschnitt >= abschnitte.size()) {
+			stoppen(mc, "§aDie ganze Burg ist fertig gebaut!§r (Die Lava im Brunnen bitte noch per Eimer setzen.)");
+		} else {
+			stoppen(mc, "§aFertig: " + fertig.substring(0, 1).toUpperCase(Locale.ROOT) + fertig.substring(1) + ".§r "
+					+ "Klick „Burg weiter bauen“ für " + name(nr + 1, abschnitte.get(nr + 1)) + ".");
+		}
+	}
+
+	private void einstellungenZurueck() {
+		BaritoneRahmen.einstellung("allowBreak", true);
+		BaritoneRahmen.einstellung("allowPlace", true);
+		if (altWegwerf != null) {
+			BaritoneRahmen.einstellung("acceptableThrowawayItems", altWegwerf);
+			altWegwerf = null;
+		}
+	}
+
+	private static void chat(LocalPlayer p, String text) {
+		p.sendSystemMessage(Component.literal("§d[Burg]§r " + text));
+	}
+}

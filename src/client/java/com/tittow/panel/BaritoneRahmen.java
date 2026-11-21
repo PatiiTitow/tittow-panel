@@ -112,6 +112,84 @@ final class BaritoneRahmen {
 		}
 	}
 
+	/** Was soll an einer Weltstelle stehen? null = gehört nicht zum Bauplan (Baritone lässt es in Ruhe). */
+	interface Ziel {
+		BlockState an(int x, int y, int z);
+	}
+
+	/**
+	 * Burg bauen: Baritone bekommt einen Bauplan-Kasten ab "ecke". Dazu gehören nur die Stellen, für die "ziel" einen
+	 * Block liefert (z. B. nur eine Blocksorte in einer Schicht), dort soll genau dieser Block hin.
+	 */
+	static boolean planBauen(String name, BlockPos ecke, int breiteX, int hoehe, int laengeZ, Ziel ziel) {
+		if (!vorhanden()) {
+			return false;
+		}
+		try {
+			Class<?> schematic = Class.forName("baritone.api.schematic.ISchematic");
+			Object plan = Proxy.newProxyInstance(schematic.getClassLoader(), new Class<?>[] {schematic}, (proxy, m, a) -> {
+				switch (m.getName()) {
+					case "widthX":
+						return breiteX;
+					case "heightY":
+						return hoehe;
+					case "lengthZ":
+						return laengeZ;
+					case "size":
+						return switch (((Direction.Axis) a[0])) {
+							case X -> breiteX;
+							case Y -> hoehe;
+							default -> laengeZ;
+						};
+					case "inSchematic": {
+						int x = (Integer) a[0], y = (Integer) a[1], z = (Integer) a[2];
+						if (x < 0 || y < 0 || z < 0 || x >= breiteX || y >= hoehe || z >= laengeZ) {
+							return false;
+						}
+						return ziel.an(ecke.getX() + x, ecke.getY() + y, ecke.getZ() + z) != null;
+					}
+					case "desiredState": {
+						int x = (Integer) a[0], y = (Integer) a[1], z = (Integer) a[2];
+						BlockState s = ziel.an(ecke.getX() + x, ecke.getY() + y, ecke.getZ() + z);
+						return s != null ? s : a[3];
+					}
+					case "reset":
+						return null;
+					case "toString":
+						return name;
+					case "hashCode":
+						return System.identityHashCode(proxy);
+					case "equals":
+						return proxy == a[0];
+					default:
+						return null;
+				}
+			});
+			Object baritone = getPrimaryBaritone.invoke(getProvider.invoke(null));
+			Object builder = Class.forName("baritone.api.IBaritone").getMethod("getBuilderProcess").invoke(baritone);
+			Class.forName("baritone.api.process.IBuilderProcess").getMethod("build", String.class, schematic, Vec3i.class)
+					.invoke(builder, name, plan, ecke);
+			return true;
+		} catch (ReflectiveOperationException | RuntimeException e) {
+			System.err.println("[Tittow Panel] Bauplan ging nicht an Baritone: " + e);
+			return false;
+		}
+	}
+
+	/** Eine Baritone-Einstellung lesen (null, wenn es sie nicht gibt). */
+	static Object einstellungLesen(String name) {
+		if (!vorhanden()) {
+			return null;
+		}
+		try {
+			Object settings = getSettings.invoke(null);
+			Object setting = settings.getClass().getField(name).get(settings);
+			return setting.getClass().getField("value").get(setting);
+		} catch (ReflectiveOperationException | RuntimeException e) {
+			return null;
+		}
+	}
+
 	/** Eine Baritone-Einstellung setzen, z. B. allowInventory. */
 	static void einstellung(String name, Object wert) {
 		if (!vorhanden()) {

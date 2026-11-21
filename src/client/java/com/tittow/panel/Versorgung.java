@@ -7,6 +7,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
@@ -130,6 +131,11 @@ final class Versorgung {
 
 	/** Hält Slot 6 voll mit Erde aus dem oberen Inventar. Danach darf Baritone weiterbauen. */
 	void erdeNachlegen(Minecraft mc, LocalPlayer p) {
+		nachlegen(mc, p, Items.DIRT);
+	}
+
+	/** Hält Slot 6 voll mit dieser Sorte aus dem oberen Inventar (beim Burg-Bauen: der Block, der gerade dran ist). */
+	void nachlegen(Minecraft mc, LocalPlayer p, Item item) {
 		if (nachfuellWarte > 0) {
 			nachfuellWarte--;
 			return;
@@ -139,17 +145,17 @@ final class Versorgung {
 		}
 		Inventory inv = p.getInventory();
 		ItemStack inSlot = inv.getItem(ERDE_SLOT);
-		if (inSlot.is(Items.DIRT) && inSlot.getCount() > 8) {
+		if (inSlot.is(item) && inSlot.getCount() > 8) {
 			return;
 		}
 		int beste = -1;
 		for (int i = Inventory.getSelectionSize(); i < 36; i++) {
 			ItemStack s = inv.getItem(i);
-			if (s.is(Items.DIRT) && (beste < 0 || s.getCount() > inv.getItem(beste).getCount())) {
+			if (s.is(item) && (beste < 0 || s.getCount() > inv.getItem(beste).getCount())) {
 				beste = i;
 			}
 		}
-		if (beste < 0 || (inSlot.is(Items.DIRT) && inv.getItem(beste).getCount() <= inSlot.getCount())) {
+		if (beste < 0 || (inSlot.is(item) && inv.getItem(beste).getCount() <= inSlot.getCount())) {
 			return;
 		}
 		// tauschen: Erde nach Slot 6, was dort lag, kommt an ihren Platz oben im Inventar

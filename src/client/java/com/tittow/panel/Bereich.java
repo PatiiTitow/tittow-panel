@@ -48,6 +48,8 @@ public final class Bereich {
 	public boolean burgEbnen;      // Ebnen war gestartet und ist noch nicht fertig
 	public boolean burgLinienAus;  // grüne Linien ausgeblendet (die Stelle bleibt trotzdem gespeichert)
 	public int burgStreifen;       // beim Ebnen: an welchem Streifen er gerade ist (für "Ebnen weiter")
+	public int burgBauAbschnitt;   // Burg bauen: welcher Abschnitt dran ist (0 = Sockel)
+	public boolean burgBauen;      // Bauen wurde gestartet und die Burg ist noch nicht fertig
 	public Map<String, Integer> burgStartInventar; // was beim Start des Ebnens im Inventar war (bleibt drin)
 
 	public static Bereich laden() {

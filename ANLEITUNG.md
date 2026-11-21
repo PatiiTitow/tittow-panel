@@ -187,8 +187,25 @@ Die Mengen kommen aus dem Bauplan der Blutfeste (Tiefenschiefer, Hauptturm aus S
 Zeigt das Lager nur einen Stapel und schreibt die echte Menge in die Beschreibung (z. B. „Menge: 1.600“), wird diese Zahl genommen.
 Geht nicht, während der Bot ebnet.
 
-### Sockel herstellen (Werkbank und Öfen)
-Knopf **„Sockel herstellen“** (neben „Material prüfen“). Am besten bei den Strom-Öfen neben der Burg starten.
+### Burg bauen (Abschnitt für Abschnitt)
+Knopf **„Burg bauen“** (neben „Material prüfen“). Am besten bei den Strom-Öfen neben dem Tor starten.
+Gebaut wird in **Abschnitten**: zuerst der **Sockel**, danach je **6 Blöcke Höhe**. Für jeden Abschnitt:
+1. **Vorbereiten:** Der Bot schaut in der Welt nach, was im Abschnitt noch fehlt, und stellt alles dafür her und brennt es
+   (siehe „Herstellen“ unten).
+2. **Prüfen:** Er zählt das Funk-Terminal durch. Fehlt noch etwas, hält er an und schreibt in den Chat, **was fehlt**.
+   Dann das Material (oder die Rohstoffe dafür) besorgen und **„Burg weiter bauen“** klicken.
+3. **Bauen:** Schicht für Schicht von unten nach oben, in jeder Schicht **eine Blocksorte nach der anderen**.
+   Die Sorte holt er aus dem Funk-Terminal und legt sie in **Slot 6**. Baritone baut nur diese Sorte, dann kommt die nächste.
+   - Baritone baut dabei **nichts ab** (damit nichts Fertiges kaputtgeht) und nimmt keine eigenen Blöcke zum Hochbauen.
+   - Kommt Baritone 2 Minuten nicht weiter, stößt er es neu an. Nach 3 Versuchen sagt er im Chat, wie viele Blöcke
+     in welcher Höhe übrig sind (selbst setzen) und macht weiter.
+   - Gegner in 2 Blöcken greift er an, bei Hunger isst er.
+4. Nach jedem Abschnitt **hält er an** („Fertig: den Sockel …“). **„Burg weiter bauen“** startet den nächsten Abschnitt.
+   Das merkt er sich auch nach dem Neu-Joinen.
+- Die **Lava im Brunnen** setzt der Bot nicht, die kommt am Ende per Eimer.
+- Nochmal klicken (**„Bauen: Stopp“**) hält an, „Burg weiter bauen“ macht beim selben Abschnitt weiter.
+
+### Herstellen (Werkbank und Öfen) – passiert beim Bauen automatisch
 1. Der Bot zählt das Funk-Terminal durch und schreibt einen **Plan** in den Chat: was er in der Werkbank macht,
    was in die Öfen kommt und welche Rohstoffe im Lager **fehlen** (die musst du selbst besorgen).
 2. **Werkbank** (Virtuelle Werkbank, Slot 7): holt die Zutaten aus dem Funk-Terminal, legt sie ins Feld und nimmt
@@ -200,11 +217,10 @@ Knopf **„Sockel herstellen“** (neben „Material prüfen“). Am besten bei 
    - Bruchstein → Stein, Tiefenschiefer-Ziegel → rissige Tiefenschiefer-Ziegel, Netherrack → Netherziegel (danach in der Werkbank zum Block)
    - Aus den „rausnehmen“-Kisten nimmt er nur, was er gebrannt hat. Kommt 3 Minuten nichts, macht er ohne weiter.
 4. Alles Fertige legt er ins **Funk-Terminal**. Was du beim Start im Inventar hattest, bleibt drin.
-5. Am Ende steht „Fertig mit Herstellen“ im Chat. Dann „Material prüfen“ klicken.
+5. Am Ende steht „Fertig mit Herstellen“ im Chat, danach geht es mit dem Prüfen und Bauen weiter.
 
-- Es wird nur so viel gemacht, wie für den Sockel fehlt (in der Werkbank kann es ein Stapel mehr werden).
-- Beim Laufen zu den Öfen baut Baritone nichts ab und nichts hin. Gegner in 2 Blöcken greift er an, bei Hunger isst er.
-- Nochmal klicken (**„Herstellen: Stopp“**) hält alles an.
+- Es wird nur so viel gemacht, wie für den Abschnitt fehlt (in der Werkbank kann es ein Stapel mehr werden).
+- Beim Laufen zu den Öfen baut Baritone nichts ab und nichts hin.
 
 ## Dateien
 - `src/client/java/com/tittow/panel/BotLogik.java` – Laufen, Schlagen, Essen
@@ -215,7 +231,10 @@ Knopf **„Sockel herstellen“** (neben „Material prüfen“). Am besten bei 
 - `src/client/java/com/tittow/panel/Burgvorschau.java` – Burg-Vorschau: Umrisse der Blutfeste, Gelände-Prüfung und Platz ebnen
 - `src/client/java/com/tittow/panel/FunkTerminal.java` – Funk-Terminal (Slot 8): Erde holen, volles Inventar hineinlegen, Lager durchzählen
 - `src/client/java/com/tittow/panel/Material.java` – Material prüfen: Bericht „da / nötig / fehlt“ für Sockel und Burg
-- `src/client/java/com/tittow/panel/Herstellen.java` – Sockel herstellen: Plan, Virtuelle Werkbank, Strom-Öfen über die Schilder-Kisten
+- `src/client/java/com/tittow/panel/Herstellen.java` – Herstellen: Plan, Virtuelle Werkbank, Strom-Öfen über die Schilder-Kisten
+- `src/client/java/com/tittow/panel/BurgBau.java` – Burg bauen: je Abschnitt vorbereiten, prüfen, Schicht für Schicht bauen
+- `src/client/java/com/tittow/panel/Bauplan.java` – liest den Bauplan der Blutfeste
+- `src/main/resources/assets/tittowpanel/burg/bauplan.bin.gz` – der Bauplan (erzeugt mit `Burgen.java bauplandatei`)
 - `src/main/resources/assets/tittowpanel/burg/material.txt` – Materialliste der Blutfeste (erzeugt mit `Desktop\Burgen\generator\Burgen.java materialdatei`)
 - `src/client/java/com/tittow/panel/Versorgung.java` – beim Ebnen: aus Slot 2 essen, Erde in Slot 6 nachlegen
 - `src/client/java/com/tittow/panel/Abwehr.java` – beim Ebnen: Gegner in 2 Blöcken mit der Waffe aus Slot 1 angreifen

@@ -1,0 +1,145 @@
+package com.tittow.panel;
+
+import java.io.DataInputStream;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.zip.GZIPInputStream;
+
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.block.state.BlockState;
+
+/**
+ * Der Bauplan der Blutfeste (Datei assets/tittowpanel/burg/bauplan.bin.gz, erzeugt mit Burgen.java bauplandatei).
+ * Plan-Koordinaten: x und z 0..121 (im Vorschau-Plan 14..135), y = 0 ist die Höhe deiner Füße am Tor.
+ * Gebaut wird in Abschnitten: erst der Sockel, dann je 6 Blöcke Höhe.
+ */
+final class Bauplan {
+	/** Im Vorschau-Plan (Burgvorschau) liegt die Burg bei 14..135. */
+	static final int VERSATZ = 14;
+	private static final int ABSCHNITT_HOEHE = 6;
+
+	private static Bauplan geladen;
+
+	final int sockel, w, h, l;
+	final String[] ids;
+	final BlockState[] zustaende;
+	private final byte[] daten;
+
+	private Bauplan(int sockel, int w, int h, int l, String[] ids, byte[] daten) {
+		this.sockel = sockel;
+		this.w = w;
+		this.h = h;
+		this.l = l;
+		this.ids = ids;
+		this.daten = daten;
+		zustaende = new BlockState[ids.length];
+		for (int i = 0; i < ids.length; i++) {
+			zustaende[i] = BuiltInRegistries.BLOCK.getValue(Identifier.parse(ids[i])).defaultBlockState();
+		}
+	}
+
+	/** Lädt den Bauplan einmal (null, wenn die Datei fehlt). */
+	static Bauplan laden() {
+		if (geladen != null) {
+			return geladen;
+		}
+		try (InputStream roh = Bauplan.class.getResourceAsStream("/assets/tittowpanel/burg/bauplan.bin.gz")) {
+			if (roh == null) {
+				return null;
+			}
+			DataInputStream in = new DataInputStream(new GZIPInputStream(roh));
+			byte[] kopf = new byte[4];
+			in.readFully(kopf);
+			if (!new String(kopf).equals("TPBP")) {
+				return null;
+			}
+			int sockel = in.readInt(), w = in.readInt(), h = in.readInt(), l = in.readInt();
+			String[] ids = new String[in.readInt()];
+			for (int i = 0; i < ids.length; i++) {
+				ids[i] = in.readUTF();
+			}
+			byte[] daten = new byte[w * h * l];
+			in.readFully(daten);
+			geladen = new Bauplan(sockel, w, h, l, ids, daten);
+		} catch (Exception e) {
+			System.err.println("[Tittow Panel] Bauplan nicht lesbar: " + e);
+		}
+		return geladen;
+	}
+
+	/** Paletten-Nummer an dieser Plan-Stelle (0 = Luft oder außerhalb). */
+	int index(int x, int y, int z) {
+		if (x < 0 || y < 0 || z < 0 || x >= w || y >= h || z >= l) {
+			return 0;
+		}
+		return daten[(y * l + z) * w + x] & 0xFF;
+	}
+
+	/** Kann der Bot das setzen? Luft, Lava und Wasser nicht (Lava im Brunnen kommt per Eimer). */
+	boolean setzbar(int index) {
+		if (index == 0) {
+			return false;
+		}
+		String id = ids[index];
+		return !id.equals("minecraft:air") && !id.equals("minecraft:lava") && !id.equals("minecraft:water");
+	}
+
+	/** Abschnitte als {von y, bis y}: zuerst der Sockel, dann je 6 Blöcke hoch (leere oben weg). */
+	List<int[]> abschnitte() {
+		List<int[]> a = new ArrayList<>();
+		a.add(new int[] {0, sockel - 1});
+		for (int y = sockel; y < h; y += ABSCHNITT_HOEHE) {
+			int bis = Math.min(h - 1, y + ABSCHNITT_HOEHE - 1);
+			if (!material(y, bis).isEmpty()) {
+				a.add(new int[] {y, bis});
+			}
+		}
+		return a;
+	}
+
+	/** Welche Blöcke in den Höhen von..bis gebraucht werden (Block-Id -> Anzahl), die meisten zuerst. */
+	Map<String, Long> material(int von, int bis) {
+		long[] n = new long[ids.length];
+		for (int y = Math.max(0, von); y <= Math.min(h - 1, bis); y++) {
+			for (int z = 0; z < l; z++) {
+				for (int x = 0; x < w; x++) {
+					n[index(x, y, z)]++;
+				}
+			}
+		}
+		Map<String, Long> m = new LinkedHashMap<>();
+		List<Integer> reihe = new ArrayList<>();
+		for (int i = 0; i < ids.length; i++) {
+			if (n[i] > 0 && setzbar(i)) {
+				reihe.add(i);
+			}
+		}
+		reihe.sort((p, q) -> Long.compare(n[q], n[p]));
+		for (int i : reihe) {
+			m.put(ids[i], n[i]);
+		}
+		return m;
+	}
+
+	/** Paletten-Nummern, die in Höhe y vorkommen (setzbare), die häufigste zuerst. */
+	List<Integer> sortenInSchicht(int y) {
+		long[] n = new long[ids.length];
+		for (int z = 0; z < l; z++) {
+			for (int x = 0; x < w; x++) {
+				n[index(x, y, z)]++;
+			}
+		}
+		List<Integer> reihe = new ArrayList<>();
+		for (int i = 0; i < ids.length; i++) {
+			if (n[i] > 0 && setzbar(i)) {
+				reihe.add(i);
+			}
+		}
+		reihe.sort((p, q) -> Long.compare(n[q], n[p]));
+		return reihe;
+	}
+}

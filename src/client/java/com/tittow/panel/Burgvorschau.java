@@ -78,6 +78,44 @@ public final class Burgvorschau {
 	private boolean pruefen;
 	/** Sockel-Material herstellen (Werkbank und Strom-Öfen). */
 	private final Herstellen herstellen = new Herstellen(terminal);
+	/** Burg bauen: je Abschnitt erst herstellen, dann bauen. */
+	private BurgBau bau;
+
+	public boolean bautGerade() {
+		return bau != null && bau.laeuft();
+	}
+
+	/** Wurde schon mal gebaut (dann heißt der Knopf "Burg weiter bauen")? */
+	public boolean bauenOffen() {
+		return einstellungen.burgBauen || einstellungen.burgBauAbschnitt > 0;
+	}
+
+	/** Startet oder stoppt das Bauen der Burg (Abschnitt für Abschnitt, vorher wird alles hergestellt). */
+	public String bauenUmschalten(Minecraft mc) {
+		if (bautGerade()) {
+			bau.stoppen(mc, "Bauen gestoppt. „Burg weiter bauen“ macht beim selben Abschnitt weiter.");
+			return "Bauen gestoppt.";
+		}
+		if (mc.player == null) {
+			return "";
+		}
+		if (!an || tor == null) {
+			return "Erst „Burg hier setzen“.";
+		}
+		if (!BaritoneRahmen.vorhanden()) {
+			return "Ohne Baritone geht das Bauen nicht.";
+		}
+		if (phase != 0) {
+			return "Geht nicht, während der Bot ebnet. Erst „Ebnen: Stopp“.";
+		}
+		if (pruefen || herstellen.laeuft()) {
+			return "Warte, bis „Material prüfen“ bzw. Herstellen fertig ist.";
+		}
+		if (bau == null) {
+			bau = new BurgBau(terminal, herstellen, versorgung, einstellungen);
+		}
+		return bau.starten(mc, tor, vorne);
+	}
 
 	public boolean herstelltGerade() {
 		return herstellen.laeuft();
@@ -114,6 +152,9 @@ public final class Burgvorschau {
 		}
 		if (pruefen) {
 			return "Läuft schon.";
+		}
+		if (bautGerade() || herstellen.laeuft()) {
+			return "Geht nicht, während der Bot baut oder herstellt.";
 		}
 		pruefen = true;
 		terminal.zaehlen(mc);
@@ -545,6 +586,18 @@ public final class Burgvorschau {
 		if (!an) {
 			wiederherstellen(mc);
 		}
+		if (bautGerade()) {
+			if (!bau.imMenue() && mc.gui.screen() == null) {
+				if (abwehr.tick(mc, mc.player)) { // Gegner näher als 2 Blöcke: erst den angreifen
+					return;
+				}
+				if (versorgung.essen(mc, mc.player)) { // Hunger: Goldene Karotten aus Slot 2
+					return;
+				}
+			}
+			bau.tick(mc);
+			return;
+		}
 		if (herstellen.laeuft()) {
 			if (!herstellen.imMenue() && mc.gui.screen() == null) {
 				if (abwehr.tick(mc, mc.player)) { // Gegner näher als 2 Blöcke: erst den angreifen
@@ -632,7 +685,7 @@ public final class Burgvorschau {
 	// ---- Umrechnen vom Bauplan in die Welt ------------------------------------
 
 	/** Weltposition eines Bauplan-Punkts: Tor-Mitte = deine Stelle, "nach innen" = deine Blickrichtung. */
-	private static int[] welt(BlockPos tor, Direction vorne, int x, int z) {
+	static int[] welt(BlockPos tor, Direction vorne, int x, int z) {
 		Direction rechts = vorne.getClockWise();
 		int seitlich = x - TOR_X;     // + = rechts von dir
 		int vor = TOR_Z - z;          // + = vor dir (in die Burg hinein)
@@ -640,6 +693,23 @@ public final class Burgvorschau {
 			tor.getX() + seitlich * rechts.getStepX() + vor * vorne.getStepX(),
 			tor.getZ() + seitlich * rechts.getStepZ() + vor * vorne.getStepZ(),
 		};
+	}
+
+	/** Umgekehrt: welcher Bauplan-Punkt (x, z) liegt an dieser Weltstelle? */
+	static int[] plan(BlockPos tor, Direction vorne, int wx, int wz) {
+		Direction rechts = vorne.getClockWise();
+		int dx = wx - tor.getX(), dz = wz - tor.getZ();
+		int seitlich = dx * rechts.getStepX() + dz * rechts.getStepZ();
+		int vor = dx * vorne.getStepX() + dz * vorne.getStepZ();
+		return new int[] {seitlich + TOR_X, TOR_Z - vor};
+	}
+
+	BlockPos tor() {
+		return tor;
+	}
+
+	Direction vorne() {
+		return vorne;
 	}
 
 	private static List<BlockPos[]> rahmenBerechnen(BlockPos tor, Direction vorne) {
