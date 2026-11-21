@@ -159,6 +159,20 @@ final class BaritoneRahmen {
 		}
 	}
 
+	/** Hat Baritone beim Bauen gewartet (z. B. weil Erde fehlte), geht es leise weiter (ohne Chat-Meldung). */
+	static void bauenFortsetzen() {
+		if (!vorhanden()) {
+			return;
+		}
+		try {
+			Object baritone = getPrimaryBaritone.invoke(getProvider.invoke(null));
+			Object builder = Class.forName("baritone.api.IBaritone").getMethod("getBuilderProcess").invoke(baritone);
+			Class.forName("baritone.api.process.IBuilderProcess").getMethod("resume").invoke(builder);
+		} catch (ReflectiveOperationException | RuntimeException e) {
+			System.err.println("[Tittow Panel] Baritone weiterbauen ging nicht: " + e);
+		}
+	}
+
 	/** Nach "sel clear" sind alle Baritone-Rahmen weg: vergessen, damit Kisten und Burg sie neu setzen. */
 	static void vergessen() {
 		rahmen.clear();

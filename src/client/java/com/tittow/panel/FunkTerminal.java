@@ -287,7 +287,9 @@ final class FunkTerminal {
 	private int naechsterZumAblegen(AbstractContainerMenu menu, LocalPlayer p) {
 		Map<String, Integer> jetzt = inventar(p);
 		for (Slot s : menu.slots) {
-			if (s.container != p.getInventory() || s.getContainerSlot() >= 36 || gehtNicht.contains(s.index)) {
+			// nur das obere Inventar (9-35): die Hotbar mit Schwert, Essen, Werkzeug, Erde, Werkbank, Terminal und Slot 9 bleibt
+			if (s.container != p.getInventory() || s.getContainerSlot() < Inventory.getSelectionSize()
+					|| s.getContainerSlot() >= 36 || gehtNicht.contains(s.index)) {
 				continue;
 			}
 			ItemStack st = s.getItem();
@@ -388,7 +390,7 @@ final class FunkTerminal {
 			return TERMINAL_SLOT;
 		}
 		for (int i = 0; i < 36; i++) {
-			if (istTerminal(inv.getItem(i))) {
+			if (i != 8 && istTerminal(inv.getItem(i))) { // Slot 9 (Nummer 8) nie anfassen
 				return i;
 			}
 		}
@@ -413,10 +415,11 @@ final class FunkTerminal {
 		return false;
 	}
 
-	/** Ein leerer Platz im eigenen Inventar (Menü-Nummer), -1 wenn keiner frei ist. */
+	/** Ein leerer Platz oben im eigenen Inventar (Menü-Nummer, nie Hotbar), -1 wenn keiner frei ist. */
 	private static int freierPlatz(AbstractContainerMenu menu, LocalPlayer p) {
 		for (Slot s : menu.slots) {
-			if (s.container == p.getInventory() && s.getContainerSlot() < 36 && s.getItem().isEmpty()) {
+			if (s.container == p.getInventory() && s.getContainerSlot() >= Inventory.getSelectionSize()
+					&& s.getContainerSlot() < 36 && s.getItem().isEmpty()) {
 				return s.index;
 			}
 		}

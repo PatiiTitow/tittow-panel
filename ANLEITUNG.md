@@ -125,19 +125,33 @@ geebnet wird **nur innerhalb des äußeren grünen Rahmens**. Das Panel geht zu 
 1. **Freigraben:** alles ab deiner Fußhöhe kommt weg – Hügel, Bäume, Gras (bis 64 Blöcke hoch).
 2. **Löcher stopfen:** Löcher, Wasser und Lava unter der Fläche werden mit **Erde** aufgefüllt, aber **nur 1 Block tief** (die Schicht direkt unter deinen Füßen).
    Dafür braucht Baritone **Erde im Inventar** (die vom Graben zählt mit).
+
+**Hotbar beim Ebnen:**
+
+| Slot | Was | Was der Bot damit macht |
+|---|---|---|
+| 1 | Schwert bzw. Glefe | bleibt liegen |
+| 2 | Essen (Goldene Karotten) | isst, sobald der Hunger unter 18 fällt, bis du wieder satt bist |
+| 3, 4, 5 | Schaufel, Spitzhacke, Axt | Baritone nimmt jeweils das passende Werkzeug |
+| 6 | Erde | die Mod legt Erde von oben aus dem Inventar hierher nach, Baritone verbaut sie |
+| 7 | Virtuelle Werkbank | bleibt liegen (fürs Ebnen nicht nötig) |
+| 8 | Funk-Terminal | zum Erde holen und Sachen ablegen |
+| 9 | (deins) | wird **nie** angefasst |
+
+Baritone selbst darf beim Ebnen nichts im Inventar umräumen (Einstellung `allowInventory` aus), damit Slot 1 und 9 bleiben, wie sie sind.
+
 - **Erde aus dem Funk-Terminal:** Hast du weniger als 32 Erde, hält der Bot kurz an, nimmt das **Funk-Terminal aus
   Slot 8** der Hotbar, öffnet es (Rechtsklick), nimmt so viel Erde, wie ins Inventar passt (blättert auch weiter, wenn
   es einen „Weiter“-Knopf gibt), macht es zu und baut weiter. Liegt das Terminal woanders im Inventar, legt er es
   wieder auf Slot 8. Findet er keine Erde, steht das im Chat und er versucht es nach einer Minute nochmal.
 - **Inventar voll:** Dann öffnet der Bot das Funk-Terminal und **legt die neu aufgesammelten Sachen hinein**
   (Shift-Klick, sonst anklicken und in einen leeren Platz legen). Danach gräbt er weiter.
-  - **Was du beim Start des Ebnens dabei hattest, bleibt im Inventar**, z. B. Schaufel (Slot 3), Spitzhacke (Slot 4),
-    Axt (Slot 5) und das Terminal (Slot 8). Das merkt er sich auch beim „weitermachen“ nach dem Neu-Joinen.
+  - Ausgeräumt wird **nur das obere Inventar**, die Hotbar (Slot 1 bis 9) bleibt immer, wie sie ist.
+  - **Was du beim Start des Ebnens dabei hattest, bleibt im Inventar.** Das merkt er sich auch beim „weitermachen“
+    nach dem Neu-Joinen.
   - 128 Erde behält er immer, fürs Löcherstopfen.
   - Geht nichts hinein (z. B. Lager voll), steht das im Chat und er versucht es nach einer Minute nochmal.
 - Am Ende steht „fertig geebnet“ im Chat. Nochmal klicken (**„Ebnen läuft (klicken = Stopp)“**) hält alles an.
-- Werkzeug (Schaufel, Spitzhacke, Axt) in die Hotbar legen, das nimmt Baritone selbst. Bei viel Graben wird das
-  Inventar voll – zwischendurch ausleeren.
 - Kisten-Rahmen und eigene Baritone-Auswahlen (`#sel`) werden beim Start kurz gelöscht, die Kisten kommen von selbst wieder.
 
 ## Dateien
@@ -148,3 +162,4 @@ geebnet wird **nur innerhalb des äußeren grünen Rahmens**. Das Panel geht zu 
 - `src/client/java/com/tittow/panel/BaritoneRahmen.java` – lässt Baritone die grünen Rahmen zeichnen
 - `src/client/java/com/tittow/panel/Burgvorschau.java` – Burg-Vorschau: Umrisse der Blutfeste, Gelände-Prüfung und Platz ebnen
 - `src/client/java/com/tittow/panel/FunkTerminal.java` – beim Ebnen: Erde aus dem Funk-Terminal (Slot 8) holen, volles Inventar hineinlegen
+- `src/client/java/com/tittow/panel/Versorgung.java` – beim Ebnen: aus Slot 2 essen, Erde in Slot 6 nachlegen

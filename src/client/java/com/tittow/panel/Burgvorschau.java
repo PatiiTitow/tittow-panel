@@ -70,6 +70,7 @@ public final class Burgvorschau {
 	private int phase;
 	private int wartet;
 	private final FunkTerminal terminal = new FunkTerminal();
+	private final Versorgung versorgung = new Versorgung();
 	/** Nach einem Fehlschlag beim Funk-Terminal eine Weile nicht nochmal versuchen. */
 	private int terminalPause;
 
@@ -144,6 +145,7 @@ public final class Burgvorschau {
 		if (phase != 0) {
 			BaritoneRahmen.befehl("stop");
 			terminal.abbrechen();
+			versorgung.abbrechen(Minecraft.getInstance());
 			phase = 0;
 		}
 		an = false;
@@ -213,6 +215,7 @@ public final class Burgvorschau {
 		if (phase != 0) {
 			BaritoneRahmen.befehl("stop");
 			terminal.abbrechen();
+			versorgung.abbrechen(Minecraft.getInstance());
 			phase = 0;
 			ebnenMerken(false);
 			return "Ebnen gestoppt.";
@@ -226,7 +229,8 @@ public final class Burgvorschau {
 		if (!BaritoneRahmen.vorhanden()) {
 			return "Ohne Baritone geht das Ebnen nicht.";
 		}
-		BaritoneRahmen.einstellung("allowInventory", true); // Baritone darf Erde auch aus dem Inventar oben nehmen
+		// Baritone darf nichts im Inventar umräumen (sonst landen Sachen auf Slot 1 und 9). Erde legt Versorgung in Slot 6 nach.
+		BaritoneRahmen.einstellung("allowInventory", false);
 		if (!einstellungen.burgEbnen || einstellungen.burgStartInventar == null) {
 			// neuer Start (nicht "weitermachen"): merken, was jetzt im Inventar ist – das bleibt immer drin
 			einstellungen.burgStartInventar = FunkTerminal.inventar(p);
@@ -271,6 +275,12 @@ public final class Burgvorschau {
 				}
 			}
 			return;
+		}
+		if (versorgung.essen(mc, mc.player)) { // Hunger: erst Goldene Karotten aus Slot 2 essen
+			return;
+		}
+		if (phase == 2) {
+			versorgung.erdeNachlegen(mc, mc.player); // Erde in Slot 6, damit Baritone sie verbauen kann
 		}
 		if (terminalPause > 0) {
 			terminalPause--;
