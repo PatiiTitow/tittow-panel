@@ -126,16 +126,19 @@ Es wird **nichts gebaut**, du kannst alles ablaufen und anschauen, ob die Burg d
 geebnet wird **nur innerhalb des äußeren grünen Rahmens**. Das Panel geht zu und **Baritone** legt los:
 - **Freigraben:** alles ab deiner Fußhöhe kommt weg – Hügel, Bäume, Gras (bis 64 Blöcke hoch).
 - **Löcher stopfen, gleichzeitig:** Löcher, Wasser und Lava unter der Fläche werden mit **Erde** aufgefüllt, aber **nur 1 Block tief** (die Schicht direkt unter deinen Füßen).
-  Beides in einem Auftrag, **Schicht für Schicht von unten**: Zuerst wird der Boden fertig gemacht (Löcher und Wasser
-  werden vom Rand aus zugestopft, Stück für Stück weiter), dann darüber freigegraben. Fertigen Boden und frisch
-  gestopfte Erde baut Baritone nicht wieder ab, und es gräbt sich nicht nach unten. Am Ende schaut der
-  Bot nochmal über die Fläche und macht, was noch fehlt (höchstens 3 Runden). Im Chat steht dann das Ergebnis.
-- **Aufpasser:** Der Bot schaut beim Ebnen selbst nach, ob er festhängt, und stößt Baritone dann neu an (Meldung im Chat):
+- **In Streifen, wie beim Rasenmähen:** Die Fläche wird in 16 Streifen geteilt (je 8 Blöcke breit, vom Tor bis hinten).
+  Der Bot macht einen Streifen nach dem anderen fertig: abbauen, und Löcher und Wasser auf dem Weg gleich mit Erde zumachen.
+  Erst danach kommt der Streifen daneben dran. So stopft er Wasser immer vom fertigen Streifen aus zu.
+  Im Chat steht, bei welchem Streifen er ist (z. B. „Streifen 3 von 16“). Fertigen Boden und gestopfte Erde baut er
+  nicht wieder ab, und er gräbt sich nicht nach unten.
+- Bei „Ebnen weiter“ (z. B. nach dem Neu-Joinen) macht er bei dem Streifen weiter, bei dem er aufgehört hat.
+- **Aufpasser:** Der Bot schaut beim Ebnen selbst nach, ob er festhängt, und startet den Streifen dann neu (Meldung im Chat):
   - steckt er **über 10 Sekunden im Wasser**,
   - läuft er **mehr als 8 Blöcke von der Fläche weg**,
-  - oder wird die Arbeit **eine Minute lang nicht weniger**.
-  - Ist er **über 30 Blöcke** von der Fläche weg (Vorsicht, fremde Grundstücke mit Geschütztürmen) oder hängt er
-    10-mal hintereinander fest, hält er an. Dann selbst nachschauen und „Ebnen weiter“ klicken.
+  - oder wird die Arbeit im Streifen **eine Minute lang nicht weniger**.
+  - Klappt ein Streifen nach 3 Versuchen nicht, überspringt er ihn und macht mit dem nächsten weiter (Rest selbst machen).
+  - Ist er **über 30 Blöcke** von der Fläche weg (Vorsicht, fremde Grundstücke mit Geschütztürmen), hält er an.
+    Dann selbst zurückgehen und „Ebnen weiter“ klicken.
   - Baritone meidet außerdem Wasser, so gut es geht (läuft nicht mehr einfach hinein).
   Dafür braucht Baritone **Erde im Inventar** (die vom Graben zählt mit).
 

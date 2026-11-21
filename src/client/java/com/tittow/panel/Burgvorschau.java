@@ -69,8 +69,6 @@ public final class Burgvorschau {
 	/** Platz ebnen: 0 = aus, 1 = Baritone gräbt frei und stopft Löcher. */
 	private int phase;
 	private int wartet;
-	/** Wie oft der Bauplan schon gestartet wurde (nach dem Ende wird nachgeschaut und höchstens 3-mal neu gestartet). */
-	private int durchgang;
 	private final FunkTerminal terminal = new FunkTerminal();
 	private final Versorgung versorgung = new Versorgung();
 	/** Nach einem Fehlschlag beim Funk-Terminal eine Weile nicht nochmal versuchen. */
@@ -234,10 +232,17 @@ public final class Burgvorschau {
 
 	// ---- Platz ebnen -------------------------------------------------------------
 
+	/** Breite eines Streifens (Blöcke). Die Fläche wird Streifen für Streifen geebnet, wie beim Rasenmähen. */
+	private static final int STREIFEN_BREITE = 8;
+	private static final int STREIFEN = (BREITE + STREIFEN_BREITE - 1) / STREIFEN_BREITE;
+
+	/** Wie oft der aktuelle Streifen schon gestartet wurde. */
+	private int versuch;
+
 	/**
-	 * Startet oder stoppt das Ebnen der Sockel-Fläche, alles in einem Durchgang: Baritone gräbt alles ab Fußhöhe
-	 * weg (Hügel, Bäume, Gras) und stopft dabei gleich die Löcher und das Wasser in der Schicht unter deinen Füßen
-	 * mit Erde zu – immer da, wo es gerade vorbeikommt.
+	 * Startet oder stoppt das Ebnen der Sockel-Fläche. Sie wird in Streifen (8 breit, vom Tor bis nach hinten)
+	 * abgearbeitet, einer nach dem anderen: Im Streifen baut Baritone alles ab Fußhöhe ab und macht Löcher und
+	 * Wasser auf dem Weg in der Schicht unter deinen Füßen gleich mit Erde zu.
 	 */
 	public String ebnenUmschalten(Minecraft mc) {
 		LocalPlayer p = mc.player;
@@ -258,46 +263,112 @@ public final class Burgvorschau {
 		if (!BaritoneRahmen.vorhanden()) {
 			return "Ohne Baritone geht das Ebnen nicht.";
 		}
-		// Baritone darf nichts im Inventar umräumen (sonst landen Sachen auf Slot 1 und 9). Erde legt Versorgung in Slot 6 nach.
-		BaritoneRahmen.einstellung("allowInventory", false);
-		if (!einstellungen.burgEbnen || einstellungen.burgStartInventar == null) {
+		boolean weiter = einstellungen.burgEbnen;
+		if (!weiter || einstellungen.burgStartInventar == null) {
 			// neuer Start (nicht "weitermachen"): merken, was jetzt im Inventar ist – das bleibt immer drin
 			einstellungen.burgStartInventar = FunkTerminal.inventar(p);
-			einstellungen.speichern();
 		}
+		if (!weiter) {
+			einstellungen.burgStreifen = 0;
+		}
+		einstellungen.speichern();
+		// Baritone darf nichts im Inventar umräumen (sonst landen Sachen auf Slot 1 und 9). Erde legt Versorgung in Slot 6 nach.
+		BaritoneRahmen.einstellung("allowInventory", false);
+		// Wasser meiden, fertigen Boden (auch frisch gestopfte Erde) nicht wieder abbauen, nicht nach unten graben
+		BaritoneRahmen.einstellung("walkOnWaterOnePenalty", 20.0);
+		BaritoneRahmen.einstellung("okIfWater", true);
+		BaritoneRahmen.einstellung("breakCorrectBlockPenaltyMultiplier", 1000.0);
+		BaritoneRahmen.einstellung("allowDownward", false);
+		BaritoneRahmen.einstellung("buildInLayers", false); // ein Streifen ist schmal genug, keine Schichten nötig
 		Gelaende g = gelaendePruefen(mc);
 		chat(p, g.text());
-		if (g.oben() == Integer.MIN_VALUE && g.unten() == Integer.MIN_VALUE) {
+		if (g.offen() == 0) {
 			ebnenMerken(false);
 			return "Die Fläche ist schon eben, nichts zu tun.";
 		}
-		durchgang = 0;
-		neustarts = 0;
-		letzterRest = g.offen();
-		// Baritone soll Wasser meiden (nicht hineinlaufen und darin hängen bleiben); Wasser oben drüber ist in Ordnung
-		BaritoneRahmen.einstellung("walkOnWaterOnePenalty", 20.0);
-		BaritoneRahmen.einstellung("okIfWater", true);
-		// Fertigen Boden (auch frisch gestopfte Erde) nicht wieder abbauen, nicht nach unten graben
-		BaritoneRahmen.einstellung("breakCorrectBlockPenaltyMultiplier", 1000.0);
-		BaritoneRahmen.einstellung("allowDownward", false);
-		// Schicht für Schicht von unten: erst den Boden fertig machen (vom Rand aus zustopfen, Stück für Stück weiter),
-		// dann darüber freigraben. Eine Stelle, die nicht geht, hält nicht alles auf.
-		BaritoneRahmen.einstellung("buildInLayers", true);
-		BaritoneRahmen.einstellung("layerOrder", false);
-		BaritoneRahmen.einstellung("skipFailedLayers", true);
-		if (!ebnenStarten(p, g)) {
+		phase = 1;
+		ebnenMerken(true);
+		chat(p, "Die Fläche wird in " + STREIFEN + " Streifen (je " + STREIFEN_BREITE + " breit, vom Tor bis hinten) geebnet, "
+				+ "einer nach dem anderen. Erde holt der Bot bei Bedarf aus dem Funk-Terminal in Slot 8.");
+		if (!naechsterStreifen(mc, false)) {
 			return "Baritone hat den Bauplan nicht angenommen.";
 		}
-		return "Ebnen läuft: freigraben und Löcher stopfen gleichzeitig.";
+		return "Ebnen läuft, Streifen " + (einstellungen.burgStreifen + 1) + " von " + STREIFEN + ".";
+	}
+
+	/** Bauplan-Spalten (x im Plan) eines Streifens. */
+	private static int streifenX0(int s) {
+		return 14 + s * STREIFEN_BREITE;
+	}
+
+	private static int streifenX1(int s) {
+		return Math.min(135, streifenX0(s) + STREIFEN_BREITE - 1);
+	}
+
+	/**
+	 * Startet den aktuellen Streifen (gleich=true: denselben nochmal) oder sucht den nächsten, in dem noch etwas
+	 * zu tun ist. Gibt false zurück, wenn Baritone den Bauplan nicht annimmt. Sind alle fertig, ist Schluss.
+	 */
+	private boolean naechsterStreifen(Minecraft mc, boolean gleich) {
+		LocalPlayer p = mc.player;
+		if (!gleich) {
+			versuch = 0;
+		}
+		while (einstellungen.burgStreifen < STREIFEN) {
+			int s = einstellungen.burgStreifen;
+			Gelaende g = gelaendePruefen(mc, streifenX0(s), streifenX1(s));
+			if (g.offen() > 0) {
+				if (!streifenBauen(s, g)) {
+					anhalten(mc, "Baritone hat den Bauplan nicht angenommen.");
+					return false;
+				}
+				versuch++;
+				letzterRest = g.offen();
+				stillstand = 0;
+				aufpassTicks = 0;
+				wasserTicks = 0;
+				rausTicks = 0;
+				if (versuch == 1) {
+					chat(p, "Streifen " + (s + 1) + " von " + STREIFEN + " (" + g.offen() + " Stellen zu tun).");
+				}
+				return true;
+			}
+			einstellungen.burgStreifen++; // nichts zu tun: gleich weiter
+			einstellungen.speichern();
+			versuch = 0;
+		}
+		// alle Streifen durch
+		Gelaende g = gelaendePruefen(mc);
+		phase = 0;
+		ebnenMerken(false);
+		einstellungen.burgStreifen = 0;
+		einstellungen.speichern();
+		chat(p, "Fertig: alle Streifen durch. " + g.text());
+		p.sendOverlayMessage(Component.literal("Burg-Platz: fertig geebnet"));
+		return true;
+	}
+
+	/** Gibt Baritone den Bauplan für einen Streifen: von der Schicht unter deinen Füßen bis zum höchsten Hindernis. */
+	private boolean streifenBauen(int s, Gelaende g) {
+		int fuss = tor.getY();
+		int oben = Math.max(g.oben(), fuss); // mindestens die Fußhöhe (z. B. Gras), auch wenn nur Löcher da sind
+		int[] a = welt(tor, vorne, streifenX0(s), 14);
+		int[] b = welt(tor, vorne, streifenX1(s), 135);
+		BlockPos ecke = new BlockPos(Math.min(a[0], b[0]), fuss - 1, Math.min(a[1], b[1]));
+		int breitX = Math.abs(a[0] - b[0]) + 1, laengeZ = Math.abs(a[1] - b[1]) + 1;
+		wartet = 40;
+		terminalPause = 0;
+		return BaritoneRahmen.ebnenBauen(ecke, breitX, oben - fuss + 2, laengeZ);
 	}
 
 	// ---- Aufpasser: hängt der Bot fest? -------------------------------------------
 
-	private int aufpassTicks, letzterRest = Integer.MAX_VALUE, stillstand, wasserTicks, rausTicks, neustarts;
+	private int aufpassTicks, letzterRest = Integer.MAX_VALUE, stillstand, wasserTicks, rausTicks;
 
 	/**
 	 * Läuft, solange Baritone arbeitet: steckt der Bot im Wasser fest, läuft er von der Fläche weg (fremde
-	 * Grundstücke!) oder kommt er eine Minute lang nicht voran, wird Baritone neu angestoßen.
+	 * Grundstücke!) oder kommt er im Streifen eine Minute lang nicht voran, wird der Streifen neu gestartet,
+	 * nach 3 Versuchen übersprungen.
 	 */
 	private void aufpassen(Minecraft mc) {
 		LocalPlayer p = mc.player;
@@ -329,41 +400,36 @@ public final class Burgvorschau {
 		} else {
 			rausTicks = 0;
 		}
-		// 3. alle 30 Sekunden: wird es weniger?
+		// 3. alle 30 Sekunden: wird es im Streifen weniger?
 		if (++aufpassTicks >= 600) {
 			aufpassTicks = 0;
-			int rest = gelaendePruefen(mc).offen();
+			int s = einstellungen.burgStreifen;
+			int rest = gelaendePruefen(mc, streifenX0(s), streifenX1(s)).offen();
 			if (rest < letzterRest) {
 				letzterRest = rest;
 				stillstand = 0;
-				neustarts = 0;
 			} else if (++stillstand >= 2) {
 				neuStarten(mc, "kommt seit einer Minute nicht weiter");
 			}
 		}
 	}
 
+	/** Streifen neu anstoßen; nach 3 Versuchen den Streifen überspringen und mit dem nächsten weitermachen. */
 	private void neuStarten(Minecraft mc, String grund) {
-		wasserTicks = 0;
-		rausTicks = 0;
-		stillstand = 0;
-		aufpassTicks = 0;
-		if (++neustarts > 10) {
-			anhalten(mc, "Der Bot hängt immer wieder fest (zuletzt: " + grund + "). Ebnen angehalten – schau bitte selbst nach, "
-					+ "dann „Ebnen weiter“.");
+		BaritoneRahmen.befehl("stop");
+		if (versuch >= 3) {
+			chat(mc.player, "Der Bot " + grund + " – Streifen " + (einstellungen.burgStreifen + 1)
+					+ " wird übersprungen (Rest bitte selbst machen), weiter mit dem nächsten.");
+			einstellungen.burgStreifen++;
+			einstellungen.speichern();
+			naechsterStreifen(mc, false);
 			return;
 		}
-		chat(mc.player, "Der Bot " + grund + " – Baritone wird neu angestoßen (" + neustarts + "/10).");
-		BaritoneRahmen.befehl("stop");
-		Gelaende g = gelaendePruefen(mc);
-		if (!ebnenStarten(mc.player, g)) {
-			anhalten(mc, "Baritone hat den Bauplan nicht angenommen.");
-		} else {
-			durchgang--; // Neu-Anstoßen zählt nicht als eigene Runde
-		}
+		chat(mc.player, "Der Bot " + grund + " – Streifen " + (einstellungen.burgStreifen + 1) + " wird neu angestoßen.");
+		naechsterStreifen(mc, true);
 	}
 
-	/** Ebnen anhalten, aber gemerkt lassen (dann heißt der Knopf "Ebnen weiter"). */
+	/** Ebnen anhalten, aber gemerkt lassen (dann heißt der Knopf "Ebnen weiter" und es geht beim Streifen weiter). */
 	private void anhalten(Minecraft mc, String text) {
 		BaritoneRahmen.befehl("stop");
 		terminal.abbrechen();
@@ -372,31 +438,7 @@ public final class Burgvorschau {
 		chat(mc.player, text);
 	}
 
-	/** Gibt Baritone den Ebnen-Bauplan: von der Schicht unter deinen Füßen bis zum höchsten Hindernis. */
-	private boolean ebnenStarten(LocalPlayer p, Gelaende g) {
-		int fuss = tor.getY();
-		int oben = Math.max(g.oben(), fuss); // mindestens die Fußhöhe (z. B. Gras), auch wenn nur Löcher da sind
-		int[] a = welt(tor, vorne, 14, 14);
-		int[] b = welt(tor, vorne, 135, 135);
-		BlockPos ecke = new BlockPos(Math.min(a[0], b[0]), fuss - 1, Math.min(a[1], b[1]));
-		if (!BaritoneRahmen.ebnenBauen(ecke, BREITE, oben - fuss + 2, BREITE)) {
-			phase = 0;
-			return false;
-		}
-		phase = 1;
-		wartet = 40;
-		terminalPause = 0;
-		durchgang++;
-		ebnenMerken(true);
-		if (neustarts > 0) {
-			return true; // beim Neu-Anstoßen nicht jedes Mal den ganzen Text
-		}
-		chat(p, "Baritone gräbt frei (bis Y " + oben + ") und stopft dabei Löcher und Wasser auf Y " + (fuss - 1)
-				+ " mit Erde. Geht die Erde aus, holt der Bot neue aus dem Funk-Terminal in Slot 8.");
-		return true;
-	}
-
-	/** Jeden Tick: essen, Erde nachlegen, Funk-Terminal, und am Ende nachschauen, ob alles eben ist. */
+	/** Jeden Tick: essen, Erde nachlegen, Funk-Terminal, aufpassen, und wenn ein Streifen fertig ist, der nächste. */
 	public void tick(Minecraft mc) {
 		if (mc.player == null || mc.level == null) {
 			return;
@@ -443,15 +485,15 @@ public final class Burgvorschau {
 			aufpassen(mc);
 			return;
 		}
-		// Baritone ist fertig: nochmal nachschauen (z. B. Stellen, die vorher nicht geladen waren)
-		Gelaende g = gelaendePruefen(mc);
-		if ((g.oben() != Integer.MIN_VALUE || g.unten() != Integer.MIN_VALUE) && durchgang < 3 && ebnenStarten(mc.player, g)) {
+		// Baritone ist mit dem Streifen fertig: nachschauen, ob noch etwas fehlt, sonst der nächste Streifen
+		int s = einstellungen.burgStreifen;
+		if (gelaendePruefen(mc, streifenX0(s), streifenX1(s)).offen() > 0 && versuch < 3) {
+			naechsterStreifen(mc, true);
 			return;
 		}
-		phase = 0;
-		ebnenMerken(false);
-		chat(mc.player, "Fertig: Die Fläche ist eben. " + g.text());
-		mc.player.sendOverlayMessage(Component.literal("Burg-Platz: fertig geebnet"));
+		einstellungen.burgStreifen++;
+		einstellungen.speichern();
+		naechsterStreifen(mc, false);
 	}
 
 	// ---- Umrechnen vom Bauplan in die Welt ------------------------------------
@@ -497,12 +539,17 @@ public final class Burgvorschau {
 	 * freigegraben (oben) und ab wo aufgefüllt werden müsste (unten).
 	 */
 	private Gelaende gelaendePruefen(Minecraft mc) {
+		return gelaendePruefen(mc, 14, 135);
+	}
+
+	/** Wie oben, aber nur für die Bauplan-Spalten x0 bis x1 (ein Streifen). */
+	private Gelaende gelaendePruefen(Minecraft mc, int x0, int x1) {
 		int fuss = tor.getY();
 		int minBoden = Integer.MAX_VALUE, maxBoden = Integer.MIN_VALUE;
 		int huegel = 0, loecher = 0, wasser = 0, baeume = 0, unbekannt = 0;
 		int offen = 0; // Spalten, in denen noch etwas zu tun ist (zum Prüfen, ob der Bot vorankommt)
 		int oben = Integer.MIN_VALUE, unten = Integer.MAX_VALUE;
-		for (int x = 14; x <= 135; x++) {
+		for (int x = x0; x <= x1; x++) {
 			for (int z = 14; z <= 135; z++) {
 				int[] w = welt(tor, vorne, x, z);
 				if (!mc.level.hasChunk(w[0] >> 4, w[1] >> 4)) {
@@ -569,7 +616,7 @@ public final class Burgvorschau {
 				}
 			}
 		}
-		int alle = BREITE * BREITE;
+		int alle = (x1 - x0 + 1) * BREITE;
 		StringBuilder t = new StringBuilder();
 		if (minBoden != Integer.MAX_VALUE) {
 			t.append("Boden Y ").append(minBoden).append(" bis ").append(maxBoden).append(" (du Y ").append(fuss - 1).append("). ");
