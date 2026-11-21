@@ -285,7 +285,9 @@ public final class Burgvorschau {
 		BaritoneRahmen.einstellung("allowInventory", false);
 		// Wasser meiden, fertigen Boden (auch frisch gestopfte Erde) nicht wieder abbauen, nicht nach unten graben
 		BaritoneRahmen.einstellung("walkOnWaterOnePenalty", 20.0);
-		BaritoneRahmen.einstellung("okIfWater", true);
+		// Wasser in der Schicht unter den Füßen soll zugemacht werden. Mit okIfWater=true hielt Baritone Wasser für
+		// "schon richtig" und meldete sofort "Done building". Wasser darüber gehört gar nicht zum Bauplan.
+		BaritoneRahmen.einstellung("okIfWater", false);
 		BaritoneRahmen.einstellung("breakCorrectBlockPenaltyMultiplier", 1000.0);
 		BaritoneRahmen.einstellung("allowDownward", false);
 		BaritoneRahmen.einstellung("buildInLayers", false); // ein Streifen ist schmal genug, keine Schichten nötig
