@@ -112,11 +112,14 @@ Es wird **nichts gebaut**, du kannst alles ablaufen und anschauen, ob die Burg d
 
 ### Burg-Platz ebnen
 **„Burg-Platz ebnen (graben + stopfen)“** macht die Sockel-Fläche (122 x 122) eben. Vorher muss die Vorschau an sein,
-geebnet wird genau dort. Das Panel geht zu und **Baritone** legt los:
+geebnet wird **nur innerhalb des äußeren grünen Rahmens**. Das Panel geht zu und **Baritone** legt los:
 1. **Freigraben:** alles ab deiner Fußhöhe kommt weg – Hügel, Bäume, Gras (bis 64 Blöcke hoch).
-2. **Löcher stopfen:** Löcher, Wasser und Lava unter der Fläche werden mit **Erde** aufgefüllt, höchstens 8 Blöcke tief.
-   Dafür braucht Baritone **Erde im Inventar** (die vom Graben zählt mit). Fehlt Erde, wartet Baritone;
-   Erde holen und im Chat `#resume` schreiben.
+2. **Löcher stopfen:** Löcher, Wasser und Lava unter der Fläche werden mit **Erde** aufgefüllt, **höchstens 3 Blöcke tief**.
+   Dafür braucht Baritone **Erde im Inventar** (die vom Graben zählt mit).
+- **Erde aus dem Funk-Terminal:** Hast du weniger als 32 Erde, hält der Bot kurz an, nimmt das **Funk-Terminal aus
+  Slot 8** der Hotbar, öffnet es (Rechtsklick), nimmt so viel Erde, wie ins Inventar passt (blättert auch weiter, wenn
+  es einen „Weiter“-Knopf gibt), macht es zu und baut weiter. Liegt das Terminal woanders im Inventar, legt er es
+  wieder auf Slot 8. Findet er keine Erde, steht das im Chat und er versucht es nach einer Minute nochmal.
 - Am Ende steht „fertig geebnet“ im Chat. Nochmal klicken (**„Ebnen läuft (klicken = Stopp)“**) hält alles an.
 - Werkzeug (Schaufel, Spitzhacke, Axt) in die Hotbar legen, das nimmt Baritone selbst. Bei viel Graben wird das
   Inventar voll – zwischendurch ausleeren.
@@ -129,3 +132,4 @@ geebnet wird genau dort. Das Panel geht zu und **Baritone** legt los:
 - `src/client/java/com/tittow/panel/Kisten.java` – Kisten-Anzeige: Suchen und geöffnete Kisten merken
 - `src/client/java/com/tittow/panel/BaritoneRahmen.java` – lässt Baritone die grünen Rahmen zeichnen
 - `src/client/java/com/tittow/panel/Burgvorschau.java` – Burg-Vorschau: Umrisse der Blutfeste, Gelände-Prüfung und Platz ebnen
+- `src/client/java/com/tittow/panel/ErdeHolen.java` – holt beim Ebnen Erde aus dem Funk-Terminal (Slot 8)

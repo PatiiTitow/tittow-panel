@@ -107,6 +107,18 @@ final class BaritoneRahmen {
 		}
 	}
 
+	/** Eine Baritone-Einstellung setzen, z. B. allowInventory. */
+	static void einstellung(String name, Object wert) {
+		if (!vorhanden()) {
+			return;
+		}
+		try {
+			setzen(getSettings.invoke(null), name, wert);
+		} catch (ReflectiveOperationException | RuntimeException e) {
+			System.err.println("[Tittow Panel] Baritone-Einstellung " + name + " nicht gesetzt: " + e);
+		}
+	}
+
 	private static void setzen(Object settings, String name, Object wert) {
 		try {
 			Object setting = settings.getClass().getField(name).get(settings);

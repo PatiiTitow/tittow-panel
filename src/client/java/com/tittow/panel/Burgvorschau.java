@@ -16,7 +16,8 @@ import net.minecraft.world.level.block.state.BlockState;
  * auch durch Wände (Baritone zeichnet sie, siehe BaritoneRahmen).
  * Wo du beim Einschalten stehst, ist die Mitte der Eingangsmauer (das Tor). Die Burg geht in die Richtung,
  * in die du schaust. Der Sockel beginnt auf Höhe deiner Füße.
- * Dazu "Platz ebnen": Baritone gräbt die Sockel-Fläche frei und stopft danach Löcher und Wasser mit Erde.
+ * Dazu "Platz ebnen": Baritone gräbt die Sockel-Fläche (der äußere grüne Rahmen) frei und stopft danach Löcher
+ * und Wasser mit Erde, höchstens 3 Blöcke tief. Fehlt Erde, holt ErdeHolen sie aus dem Funk-Terminal.
  */
 public final class Burgvorschau {
 	/** Größe der ganzen Burg mit Sockel (Kante zu Kante). */
@@ -56,7 +57,7 @@ public final class Burgvorschau {
 	private static final int[] MAUERTUERME = {38, 56, 75, 94, 112};
 
 	/** Wie tief Löcher unter dem Sockel höchstens aufgefüllt werden (Blöcke unter deinen Füßen). */
-	private static final int FUELL_TIEFE = 8;
+	private static final int FUELL_TIEFE = 3;
 	/** Bis wie hoch über deinen Füßen nach Hügeln und Bäumen gesucht wird. */
 	private static final int SUCH_HOEHE = 64;
 
@@ -68,6 +69,9 @@ public final class Burgvorschau {
 	/** Platz ebnen: 0 = aus, 1 = Baritone gräbt frei, 2 = Baritone stopft Löcher. */
 	private int phase;
 	private int wartet;
+	private final ErdeHolen erdeHolen = new ErdeHolen();
+	/** Nach einem Fehlschlag beim Erde-Holen eine Weile nicht nochmal versuchen. */
+	private int erdePause;
 
 	/** Ergebnis der Gelände-Prüfung. oben/unten = Integer.MIN_VALUE, wenn nichts zu tun ist. */
 	private record Gelaende(String text, int oben, int unten) {
@@ -114,6 +118,7 @@ public final class Burgvorschau {
 	public void aus() {
 		if (phase != 0) {
 			BaritoneRahmen.befehl("stop");
+			erdeHolen.abbrechen();
 			phase = 0;
 		}
 		an = false;
@@ -131,6 +136,7 @@ public final class Burgvorschau {
 		LocalPlayer p = mc.player;
 		if (phase != 0) {
 			BaritoneRahmen.befehl("stop");
+			erdeHolen.abbrechen();
 			phase = 0;
 			return "Ebnen gestoppt.";
 		}
@@ -143,6 +149,7 @@ public final class Burgvorschau {
 		if (!BaritoneRahmen.vorhanden()) {
 			return "Ohne Baritone geht das Ebnen nicht.";
 		}
+		BaritoneRahmen.einstellung("allowInventory", true); // Baritone darf Erde auch aus dem Inventar oben nehmen
 		Gelaende g = gelaendePruefen(mc);
 		chat(p, g.text());
 		if (g.oben() != Integer.MIN_VALUE) {
@@ -165,8 +172,26 @@ public final class Burgvorschau {
 		if (phase == 0 || mc.player == null || mc.level == null) {
 			return;
 		}
+		if (erdeHolen.laeuft()) {
+			String meldung = erdeHolen.tick(mc);
+			if (meldung != null) {
+				chat(mc.player, meldung);
+				if (!meldung.startsWith("OK")) {
+					erdePause = 20 * 60; // eine Minute warten, dann nochmal probieren
+				}
+			}
+			return;
+		}
+		if (erdePause > 0) {
+			erdePause--;
+		}
 		if (wartet > 0) { // Baritone braucht einen Moment, bis es loslegt
 			wartet--;
+			return;
+		}
+		if (phase == 2 && erdePause == 0 && ErdeHolen.erde(mc.player) < 32 && BaritoneRahmen.bautGerade()) {
+			chat(mc.player, "Erde wird knapp: hole Erde aus dem Funk-Terminal (Slot 8).");
+			erdeHolen.starten(mc);
 			return;
 		}
 		if (BaritoneRahmen.bautGerade()) {
@@ -191,8 +216,9 @@ public final class Burgvorschau {
 		}
 		phase = 2;
 		wartet = 40;
+		erdePause = 0;
 		chat(p, "Schritt 2: Baritone stopft Löcher und Wasser mit Erde, von Y " + g.unten() + " bis Y " + (tor.getY() - 1)
-				+ ". Du brauchst genug Erde im Inventar.");
+				+ " (höchstens 3 tief). Geht die Erde aus, holt der Bot neue aus dem Funk-Terminal in Slot 8.");
 		return true;
 	}
 
