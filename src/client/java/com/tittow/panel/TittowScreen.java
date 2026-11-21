@@ -86,33 +86,42 @@ public final class TittowScreen extends Screen {
 		}).pos(mitte + 2, y).size(98, 20).build());
 		y += 24;
 		// (Schließen geht mit Esc, der Platz gehört der Burg-Vorschau)
-		this.addRenderableWidget(Button.builder(burgText(), b -> {
-			meldung = burg.umschalten(this.minecraft);
-			b.setMessage(burgText());
+		Button linienKnopf = this.addRenderableWidget(Button.builder(linienText(), b -> {
+			meldung = burg.linienUmschalten();
+			b.setMessage(linienText());
 		}).pos(mitte - 100, y).size(98, 20).build());
 		this.addRenderableWidget(Button.builder(weiteText(), b -> {
 			meldung = kisten.weiteUmschalten(this.minecraft);
 			b.setMessage(weiteText());
 		}).pos(mitte + 2, y).size(98, 20).build());
 		y += 24;
+		this.addRenderableWidget(Button.builder(setzenText(), b -> {
+			meldung = burg.setzen(this.minecraft);
+			b.setMessage(setzenText());
+			linienKnopf.setMessage(linienText());
+		}).pos(mitte - 100, y).size(98, 20).build());
 		this.addRenderableWidget(Button.builder(ebnenText(), b -> {
 			meldung = burg.ebnenUmschalten(this.minecraft);
 			b.setMessage(ebnenText());
 			if (burg.ebnetGerade()) {
 				this.onClose(); // Fenster zu, damit Baritone sofort loslegt
 			}
-		}).pos(mitte - 100, y).size(200, 20).build());
+		}).pos(mitte + 2, y).size(98, 20).build());
 	}
 
-	private Component burgText() {
-		return Component.literal(burg.istAn() ? "Burg: AN (weg)" : "Burg hier zeigen");
+	private Component linienText() {
+		return Component.literal(burg.linienAn() ? "Burg-Linien: AN" : "Burg-Linien: AUS");
+	}
+
+	private Component setzenText() {
+		return Component.literal(burg.istAn() ? "Burg neu setzen" : "Burg hier setzen");
 	}
 
 	private Component ebnenText() {
 		if (burg.ebnetGerade()) {
-			return Component.literal("Ebnen läuft  (klicken = Stopp)");
+			return Component.literal("Ebnen: Stopp");
 		}
-		return Component.literal(burg.ebnenOffen() ? "Burg-Platz ebnen (weitermachen)" : "Burg-Platz ebnen (graben + stopfen)");
+		return Component.literal(burg.ebnenOffen() ? "Ebnen weiter" : "Platz ebnen");
 	}
 
 	private Component hellText() {

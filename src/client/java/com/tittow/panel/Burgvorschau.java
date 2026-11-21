@@ -100,30 +100,56 @@ public final class Burgvorschau {
 		return phase != 0;
 	}
 
-	/** Einschalten: Burg an deiner Stelle und Blickrichtung zeigen. Ausschalten: Rahmen weg. Gibt eine Meldung zurück. */
-	public String umschalten(Minecraft mc) {
-		LocalPlayer p = mc.player;
-		if (an) {
-			if (phase != 0) {
-				return "Erst das Ebnen stoppen.";
-			}
-			aus();
-			einstellungen.burgTor = null; // selbst ausgeschaltet: auch nicht mehr merken
-			einstellungen.burgEbnen = false;
-			einstellungen.speichern();
-			return "Burg-Vorschau aus.";
+	/** Sind die grünen Linien eingeschaltet? (Die Burg-Stelle bleibt auch bei AUS gespeichert.) */
+	public boolean linienAn() {
+		return !einstellungen.burgLinienAus;
+	}
+
+	/** Grüne Linien ein- oder ausblenden. Die Stelle der Burg bleibt dabei gespeichert. */
+	public String linienUmschalten() {
+		einstellungen.burgLinienAus = !einstellungen.burgLinienAus;
+		einstellungen.speichern();
+		rahmenAnzeigen();
+		if (!an) {
+			return linienAn() ? "Linien AN (sobald eine Burg gesetzt ist)." : "Linien AUS.";
 		}
+		return linienAn() ? "Linien AN." : "Linien AUS – die Burg-Stelle bleibt gespeichert.";
+	}
+
+	/** Zeigt die Burg-Rahmen, wenn eine Burg gesetzt ist und die Linien an sind, sonst keine. */
+	private void rahmenAnzeigen() {
+		BaritoneRahmen.zeigen("burg", an && linienAn() ? boxen : List.of());
+	}
+
+	/** Bis wann ein zweiter Klick auf "Burg neu setzen" das Verschieben bestätigt. */
+	private long bestaetigenBis;
+
+	/**
+	 * Burg an deiner Stelle und Blickrichtung setzen (Tor-Mitte = du). Ist schon eine gesetzt, muss man zum
+	 * Verschieben zweimal klicken, damit sie nicht aus Versehen wegspringt. Gibt eine Meldung zurück.
+	 */
+	public String setzen(Minecraft mc) {
+		LocalPlayer p = mc.player;
 		if (p == null || mc.level == null) {
 			return "";
+		}
+		if (phase != 0) {
+			return "Erst das Ebnen stoppen.";
 		}
 		if (!BaritoneRahmen.vorhanden()) {
 			return "Ohne Baritone kann die Vorschau keine Rahmen zeichnen.";
 		}
+		if (an && System.currentTimeMillis() > bestaetigenBis) {
+			bestaetigenBis = System.currentTimeMillis() + 5000;
+			return "Burg wirklich hierher verschieben? Dann innerhalb von 5 Sekunden nochmal klicken.";
+		}
+		bestaetigenBis = 0;
 		vorne = p.getDirection(); // Blickrichtung, auf Norden/Osten/Süden/Westen gerundet
 		tor = p.blockPosition();
 		boxen = rahmenBerechnen(tor, vorne);
 		an = true;
-		BaritoneRahmen.zeigen("burg", boxen);
+		einstellungen.burgLinienAus = false; // neu gesetzt: Linien zeigen
+		rahmenAnzeigen();
 		einstellungen.burgTor = new int[] {tor.getX(), tor.getY(), tor.getZ()};
 		einstellungen.burgRichtung = vorne.name();
 		einstellungen.burgWelt = weltName(mc);
@@ -150,7 +176,7 @@ public final class Burgvorschau {
 		}
 		an = false;
 		boxen = List.of();
-		BaritoneRahmen.zeigen("burg", boxen);
+		rahmenAnzeigen();
 		wiederWarte = 60;
 	}
 
@@ -175,11 +201,11 @@ public final class Burgvorschau {
 		tor = new BlockPos(t[0], t[1], t[2]);
 		boxen = rahmenBerechnen(tor, vorne);
 		an = true;
-		BaritoneRahmen.zeigen("burg", boxen);
+		rahmenAnzeigen();
 		chat(mc.player, "Burg-Vorschau wieder da: Tor bei " + tor.getX() + " " + tor.getY() + " " + tor.getZ()
 				+ ", Burg geht nach " + richtung(vorne) + ".");
 		if (einstellungen.burgEbnen) {
-			chat(mc.player, "Das Ebnen war noch nicht fertig. Numpad 8 → „Burg-Platz ebnen (weitermachen)“, "
+			chat(mc.player, "Das Ebnen war noch nicht fertig. Numpad 8 → „Ebnen weiter“, "
 					+ "dann macht der Bot da weiter, wo er aufgehört hat.");
 		}
 	}
@@ -224,7 +250,7 @@ public final class Burgvorschau {
 			return "";
 		}
 		if (!an) {
-			return "Erst „Burg hier zeigen“ – geebnet wird genau die Sockel-Fläche.";
+			return "Erst „Burg hier setzen“ – geebnet wird genau die Sockel-Fläche.";
 		}
 		if (!BaritoneRahmen.vorhanden()) {
 			return "Ohne Baritone geht das Ebnen nicht.";
@@ -342,7 +368,7 @@ public final class Burgvorschau {
 				&& BaritoneRahmen.befehl(befehl);
 		BaritoneRahmen.befehl("sel clear"); // der Auftrag ist schon bei Baritone, die Auswahl braucht es nicht mehr
 		BaritoneRahmen.vergessen();
-		BaritoneRahmen.zeigen("burg", boxen);
+		rahmenAnzeigen();
 		return ok;
 	}
 

@@ -98,7 +98,7 @@ Im Panel schaltet **„Kisten grün: AN/AUS“** die Kisten-Anzeige (übernommen
 - Die Rahmen zeichnet **Baritone**. Ohne Baritone in Pumpcraft gibt es keine Rahmen.
 
 ## Burg-Vorschau (Blutfeste)
-Im Panel zeigt **„Burg hier zeigen“** die Umrisse der geplanten Burg als **grüne Rahmen** in der Welt, auch durch Wände.
+Im Panel setzt **„Burg hier setzen“** die Burg an deine Stelle und zeigt die Umrisse der geplanten Burg als **grüne Rahmen** in der Welt, auch durch Wände.
 Es wird **nichts gebaut**, du kannst alles ablaufen und anschauen, ob die Burg dort hinpasst.
 - **Wo du stehst, ist die Mitte der Eingangsmauer** (das Tor). Die Burg geht in die Richtung, **in die du schaust**
   (gerundet auf Norden, Osten, Süden oder Westen). Der Sockel fängt auf Höhe deiner Füße an.
@@ -106,7 +106,9 @@ Es wird **nichts gebaut**, du kannst alles ablaufen und anschauen, ob die Burg d
   Fassade und der große Mittelturm (124 hoch).
 - Im **Chat** steht danach eine **Gelände-Prüfung**: wie hoch der Boden unter der Fläche ist, und wie viel davon
   Hügel (müssten weg), Löcher (müssten aufgefüllt werden), Wasser und Bäume sind.
-- Nochmal klicken (**„Burg: AN (weg)“**) nimmt die Rahmen wieder weg. Zum Verschieben: weg, an die neue Stelle gehen, neu zeigen.
+- **„Burg-Linien: AN/AUS“** blendet die grünen Rahmen nur ein oder aus. Die Stelle der Burg bleibt dabei gespeichert.
+- **„Burg neu setzen“** verschiebt die Burg an deine jetzige Stelle. Damit das nicht aus Versehen passiert, musst du
+  innerhalb von 5 Sekunden **zweimal** klicken.
 - Beim Verlassen der Welt verschwindet die Vorschau. Die Rahmen zeichnet **Baritone**, wie bei den Kisten.
 - Geschlossen wird das Panel jetzt mit **Esc** (der Knopf „Schließen“ hat dem Burg-Knopf Platz gemacht).
 
@@ -115,12 +117,12 @@ Es wird **nichts gebaut**, du kannst alles ablaufen und anschauen, ob die Burg d
   ist die **Vorschau nach ein paar Sekunden von selbst wieder da**, an derselben Stelle. Im Chat steht „Burg-Vorschau wieder da“.
 - Das gilt nur für denselben Server (bzw. dieselbe Einzelspieler-Welt) und dieselbe Dimension. Bist du im Nether,
   kommt die Vorschau wieder, sobald du zurück in der Oberwelt bist.
-- War das **Ebnen** noch nicht fertig, heißt der Knopf **„Burg-Platz ebnen (weitermachen)“**. Ein Klick, und der Bot
+- War das **Ebnen** noch nicht fertig, heißt der Knopf **„Ebnen weiter“**. Ein Klick, und der Bot
   schaut sich die Fläche neu an und macht nur noch, was fehlt.
-- Erst wenn du die Vorschau selbst ausschaltest („Burg: AN (weg)“), wird sie vergessen.
+- Die Stelle bleibt gespeichert, bis du die Burg mit „Burg neu setzen“ woanders hinsetzt. Auch bei „Burg-Linien: AUS“.
 
 ### Burg-Platz ebnen
-**„Burg-Platz ebnen (graben + stopfen)“** macht die Sockel-Fläche (122 x 122) eben. Vorher muss die Vorschau an sein,
+**„Platz ebnen“** macht die Sockel-Fläche (122 x 122) eben. Vorher muss die Burg gesetzt sein,
 geebnet wird **nur innerhalb des äußeren grünen Rahmens**. Das Panel geht zu und **Baritone** legt los:
 1. **Freigraben:** alles ab deiner Fußhöhe kommt weg – Hügel, Bäume, Gras (bis 64 Blöcke hoch).
 2. **Löcher stopfen:** Löcher, Wasser und Lava unter der Fläche werden mit **Erde** aufgefüllt, aber **nur 1 Block tief** (die Schicht direkt unter deinen Füßen).
@@ -151,7 +153,7 @@ Baritone selbst darf beim Ebnen nichts im Inventar umräumen (Einstellung `allow
     nach dem Neu-Joinen.
   - 128 Erde behält er immer, fürs Löcherstopfen.
   - Geht nichts hinein (z. B. Lager voll), steht das im Chat und er versucht es nach einer Minute nochmal.
-- Am Ende steht „fertig geebnet“ im Chat. Nochmal klicken (**„Ebnen läuft (klicken = Stopp)“**) hält alles an.
+- Am Ende steht „fertig geebnet“ im Chat. Nochmal klicken (**„Ebnen: Stopp“**) hält alles an. Die Linien dürfen beim Ebnen auch aus sein.
 - Kisten-Rahmen und eigene Baritone-Auswahlen (`#sel`) werden beim Start kurz gelöscht, die Kisten kommen von selbst wieder.
 
 ## Dateien
