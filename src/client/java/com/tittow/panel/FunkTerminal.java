@@ -28,7 +28,11 @@ final class FunkTerminal {
 	/** Slot 8 in der Hotbar (gezählt ab 0). */
 	private static final int TERMINAL_SLOT = 7;
 	/** So viel Erde bleibt beim Ablegen im Inventar, für das Löcherstopfen. */
-	private static final int ERDE_BEHALTEN = 128;
+	private static final int ERDE_BEHALTEN = 640;
+	/** Beim Holen nur bis zu dieser Menge Erde nehmen (weniger als beim Ablegen bleibt, sonst legt er sie gleich wieder rein). */
+	private static final int ERDE_HOLEN_BIS = 512;
+	/** Beim Holen immer so viele Plätze im Inventar frei lassen (für Sachen, die beim Abbauen dazukommen). */
+	private static final int FREI_LASSEN = 3;
 	private static final String[] WEITER = {"weiter", "nächste", "naechste", "next", "→", "»", ">>"};
 
 	/** 0 = aus, 1 = Terminal öffnen, 2 = auf das Menü warten, 3 = Sachen nehmen/ablegen, 4 = zumachen. */
@@ -61,7 +65,7 @@ final class FunkTerminal {
 		schritt = 0;
 	}
 
-	/** Erde aus dem Terminal holen, so viel ins Inventar passt. */
+	/** Erde aus dem Terminal holen: bis etwa 8 Stacks, ein paar Plätze im Inventar bleiben frei. */
 	void erdeHolen(Minecraft mc) {
 		beginnen(mc, false, Map.of());
 	}
@@ -193,8 +197,8 @@ final class FunkTerminal {
 				aufnehmen = true;
 			}
 		}
-		if (p.getInventory().getFreeSlot() < 0 || klicks >= 60) {
-			schritt = 4; // Inventar voll
+		if (freiePlaetze(p) <= FREI_LASSEN || jetzt >= ERDE_HOLEN_BIS || klicks >= 60) {
+			schritt = 4; // genug Erde, oder das Inventar würde zu voll
 			return;
 		}
 		for (Slot s : menu.slots) {
@@ -372,6 +376,11 @@ final class FunkTerminal {
 	/** Ist kein Platz im Inventar mehr frei? */
 	static boolean inventarVoll(LocalPlayer p) {
 		return p.getInventory().getFreeSlot() < 0;
+	}
+
+	/** Leere Plätze im Inventar (Hotbar und oben). */
+	private static int freiePlaetze(LocalPlayer p) {
+		return 36 - belegt(p);
 	}
 
 	private static int belegt(LocalPlayer p) {

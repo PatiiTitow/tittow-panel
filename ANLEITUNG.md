@@ -153,7 +153,7 @@ geebnet wird **nur innerhalb des äußeren grünen Rahmens**. Das Panel geht zu 
 | 1 | Schwert bzw. Glefe | kommt ein **Gegner näher als 2 Blöcke**, hält der Bot kurz an, nimmt die Waffe und greift an (nur Monster, nie Spieler, Tiere oder Dorfbewohner). Danach arbeitet er weiter |
 | 2 | Essen (Goldene Karotten) | isst, sobald der Hunger unter 18 fällt, bis du wieder satt bist |
 | 3, 4, 5 | Schaufel, Spitzhacke, Axt | Baritone nimmt jeweils das passende Werkzeug. Die **Fähigkeit der Spitzhacke** (Rechtsklick) benutzt der Bot alle 20 Sekunden |
-| 6 | Erde | die Mod legt Erde von oben aus dem Inventar hierher nach. Baritone baut sich damit hoch (an hohe Bäume und Hügel) und stopft Löcher. Fehlt Erde, holt der Bot welche aus dem Funk-Terminal (unter 32) |
+| 6 | Erde | die Mod legt Erde von oben aus dem Inventar hierher nach. Baritone baut sich damit hoch (an hohe Bäume und Hügel) und stopft Löcher. Fehlt Erde (unter 32), holt der Bot etwa 8 Stacks aus dem Funk-Terminal und lässt dabei ein paar Plätze im Inventar frei |
 | 7 | Virtuelle Werkbank (Rechtsklick in die Luft öffnet die Werkbank, wird nicht aufgestellt) | bleibt liegen (fürs Ebnen nicht nötig) |
 | 8 | Funk-Terminal | zum Erde holen und Sachen ablegen |
 | 9 | (deins) | wird **nie** angefasst |
@@ -169,7 +169,7 @@ Baritone selbst darf beim Ebnen nichts im Inventar umräumen (Einstellung `allow
   - Ausgeräumt wird **nur das obere Inventar**, die Hotbar (Slot 1 bis 9) bleibt immer, wie sie ist.
   - **Was du beim Start des Ebnens dabei hattest, bleibt im Inventar.** Das merkt er sich auch beim „weitermachen“
     nach dem Neu-Joinen.
-  - 128 Erde behält er immer, fürs Löcherstopfen.
+  - Bis zu 10 Stacks Erde behält er immer, fürs Löcherstopfen (mehr, als er auf einmal holt, damit er sie nicht gleich wieder reinlegt).
   - Geht nichts hinein (z. B. Lager voll), steht das im Chat und er versucht es nach einer Minute nochmal.
 - Am Ende steht „fertig geebnet“ im Chat. Nochmal klicken (**„Ebnen: Stopp“**) hält alles an. Die Linien dürfen beim Ebnen auch aus sein.
 
