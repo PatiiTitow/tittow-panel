@@ -224,7 +224,11 @@ final class BurgBau {
 			chat(p, "Hinweis: Die Lava im Brunnen setzt der Bot nicht, die kommt am Ende per Eimer.");
 		}
 		schritt = Schritt.BAUEN;
+		// fertige Schichten überspringt er von selbst (er schaut in der Welt nach, was schon steht)
 		y = von;
+		if (einstellungen.burgBauSchicht > von) {
+			chat(p, "Er macht da weiter, wo er aufgehört hat (zuletzt Höhe " + einstellungen.burgBauSchicht + "). Was schon steht, überspringt er.");
+		}
 		sorteNr = 0;
 		sorten = plan.sortenInSchicht(y);
 		baut = false;
@@ -285,6 +289,8 @@ final class BurgBau {
 		while (true) {
 			if (sorteNr >= sorten.size()) {
 				y++;
+				einstellungen.burgBauSchicht = y; // merken, wo er gerade ist
+				einstellungen.speichern();
 				if (y > bis) {
 					abschnittFertig(mc);
 					return;
@@ -417,6 +423,7 @@ final class BurgBau {
 	private void abschnittFertig(Minecraft mc) {
 		int nr = einstellungen.burgBauAbschnitt;
 		einstellungen.burgBauAbschnitt = nr + 1;
+		einstellungen.burgBauSchicht = 0;
 		einstellungen.burgBauen = false; // erst mal nur der Sockel: danach ist Schluss
 		einstellungen.speichern();
 		stoppen(mc, "§aDer Sockel ist fertig gebaut!§r");

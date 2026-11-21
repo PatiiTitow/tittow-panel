@@ -203,6 +203,9 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
 4. Ist der Sockel fertig, steht **„Der Sockel ist fertig gebaut!“** im Chat und der Knopf heißt **„Sockel fertig ✔“**.
    Das merkt er sich auch nach dem Neu-Joinen.
 - Nochmal klicken (**„Bauen: Stopp“**) hält an, **„Sockel weiter bauen“** macht da weiter, wo er aufgehört hat.
+- **Er merkt sich, wo er war**, auch nach dem Neu-Joinen oder Neustart: Beim Weiterbauen schaut er in der Welt nach, was schon
+  steht, und baut nur den Rest. Auch beim Herstellen macht er nur noch, was für den Rest fehlt. Steh dafür in der Nähe der Burg,
+  damit die ganze Fläche geladen ist.
 
 ### Herstellen (Werkbank und Öfen) – passiert beim Bauen automatisch
 1. Der Bot zählt das Funk-Terminal durch und schreibt einen **Plan** in den Chat: was er in der Werkbank macht,
