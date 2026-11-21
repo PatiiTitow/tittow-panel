@@ -76,6 +76,30 @@ public final class Burgvorschau {
 	private int terminalPause;
 	/** Material prüfen läuft (Funk-Terminal wird durchgezählt). */
 	private boolean pruefen;
+	/** Sockel-Material herstellen (Werkbank und Strom-Öfen). */
+	private final Herstellen herstellen = new Herstellen(terminal);
+
+	public boolean herstelltGerade() {
+		return herstellen.laeuft();
+	}
+
+	/** Startet oder stoppt das Herstellen des Sockel-Materials. */
+	public String herstellenUmschalten(Minecraft mc) {
+		if (herstellen.laeuft()) {
+			herstellen.stoppen(mc, "Herstellen gestoppt.");
+			return "Herstellen gestoppt.";
+		}
+		if (mc.player == null) {
+			return "";
+		}
+		if (phase != 0) {
+			return "Geht nicht, während der Bot ebnet. Erst „Ebnen: Stopp“.";
+		}
+		if (pruefen) {
+			return "Warte, bis „Material prüfen“ fertig ist.";
+		}
+		return herstellen.starten(mc);
+	}
 
 	/**
 	 * Material prüfen: zählt alles im Funk-Terminal (alle Seiten) und im Inventar und schreibt in den Chat,
@@ -304,6 +328,8 @@ public final class Burgvorschau {
 		einstellungen.speichern();
 		// Baritone darf nichts im Inventar umräumen (sonst landen Sachen auf Slot 1 und 9). Erde legt Versorgung in Slot 6 nach.
 		BaritoneRahmen.einstellung("allowInventory", false);
+		BaritoneRahmen.einstellung("allowBreak", true); // falls Herstellen das abgeschaltet hatte
+		BaritoneRahmen.einstellung("allowPlace", true);
 		// Wasser meiden, fertigen Boden (auch frisch gestopfte Erde) nicht wieder abbauen, nicht nach unten graben
 		BaritoneRahmen.einstellung("walkOnWaterOnePenalty", 20.0);
 		// Wasser in der Schicht unter den Füßen soll zugemacht werden. Mit okIfWater=true hielt Baritone Wasser für
@@ -518,6 +544,18 @@ public final class Burgvorschau {
 		}
 		if (!an) {
 			wiederherstellen(mc);
+		}
+		if (herstellen.laeuft()) {
+			if (!herstellen.imMenue() && mc.gui.screen() == null) {
+				if (abwehr.tick(mc, mc.player)) { // Gegner näher als 2 Blöcke: erst den angreifen
+					return;
+				}
+				if (versorgung.essen(mc, mc.player)) { // Hunger: Goldene Karotten aus Slot 2
+					return;
+				}
+			}
+			herstellen.tick(mc);
+			return;
 		}
 		if (pruefen) { // Material prüfen: Funk-Terminal durchzählen, dann Bericht in den Chat
 			String meldung = terminal.laeuft() ? terminal.tick(mc) : "Das Zählen wurde abgebrochen.";

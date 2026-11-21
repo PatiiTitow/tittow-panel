@@ -187,6 +187,25 @@ Die Mengen kommen aus dem Bauplan der Blutfeste (Tiefenschiefer, Hauptturm aus S
 Zeigt das Lager nur einen Stapel und schreibt die echte Menge in die Beschreibung (z. B. „Menge: 1.600“), wird diese Zahl genommen.
 Geht nicht, während der Bot ebnet.
 
+### Sockel herstellen (Werkbank und Öfen)
+Knopf **„Sockel herstellen“** (neben „Material prüfen“). Am besten bei den Strom-Öfen neben der Burg starten.
+1. Der Bot zählt das Funk-Terminal durch und schreibt einen **Plan** in den Chat: was er in der Werkbank macht,
+   was in die Öfen kommt und welche Rohstoffe im Lager **fehlen** (die musst du selbst besorgen).
+2. **Werkbank** (Virtuelle Werkbank, Slot 7): holt die Zutaten aus dem Funk-Terminal, legt sie ins Feld und nimmt
+   alles mit Shift-Klick heraus:
+   - Bruchtiefenschiefer → polierter Tiefenschiefer → Tiefenschiefer-Ziegel → Tiefenschiefer-Fliesen
+   - Andesit → polierter Andesit, Magmacreme → Magmablock, Netherziegel + Netherwarzen → rote Netherziegel
+3. **Öfen**: sucht die Kisten mit den Schildern **„reinlegen“** (oben) und **„rausnehmen“** (unten) im Umkreis von 64 Blöcken,
+   läuft hin, verteilt das Material gleichmäßig auf die „reinlegen“-Kisten und holt das Gebrannte aus den „rausnehmen“-Kisten:
+   - Bruchstein → Stein, Tiefenschiefer-Ziegel → rissige Tiefenschiefer-Ziegel, Netherrack → Netherziegel
+   - Aus den „rausnehmen“-Kisten nimmt er nur, was er gebrannt hat. Kommt 3 Minuten nichts, macht er ohne weiter.
+4. Alles Fertige legt er ins **Funk-Terminal**. Was du beim Start im Inventar hattest, bleibt drin.
+5. Am Ende steht „Fertig mit Herstellen“ im Chat. Dann „Material prüfen“ klicken.
+
+- Es wird nur so viel gemacht, wie für den Sockel fehlt (in der Werkbank kann es ein Stapel mehr werden).
+- Beim Laufen zu den Öfen baut Baritone nichts ab und nichts hin. Gegner in 2 Blöcken greift er an, bei Hunger isst er.
+- Nochmal klicken (**„Herstellen: Stopp“**) hält alles an.
+
 ## Dateien
 - `src/client/java/com/tittow/panel/BotLogik.java` – Laufen, Schlagen, Essen
 - `src/client/java/com/tittow/panel/TittowScreen.java` – das Fenster
@@ -196,6 +215,7 @@ Geht nicht, während der Bot ebnet.
 - `src/client/java/com/tittow/panel/Burgvorschau.java` – Burg-Vorschau: Umrisse der Blutfeste, Gelände-Prüfung und Platz ebnen
 - `src/client/java/com/tittow/panel/FunkTerminal.java` – Funk-Terminal (Slot 8): Erde holen, volles Inventar hineinlegen, Lager durchzählen
 - `src/client/java/com/tittow/panel/Material.java` – Material prüfen: Bericht „da / nötig / fehlt“ für Sockel und Burg
+- `src/client/java/com/tittow/panel/Herstellen.java` – Sockel herstellen: Plan, Virtuelle Werkbank, Strom-Öfen über die Schilder-Kisten
 - `src/main/resources/assets/tittowpanel/burg/material.txt` – Materialliste der Blutfeste (erzeugt mit `Desktop\Burgen\generator\Burgen.java materialdatei`)
 - `src/client/java/com/tittow/panel/Versorgung.java` – beim Ebnen: aus Slot 2 essen, Erde in Slot 6 nachlegen
 - `src/client/java/com/tittow/panel/Abwehr.java` – beim Ebnen: Gegner in 2 Blöcken mit der Waffe aus Slot 1 angreifen

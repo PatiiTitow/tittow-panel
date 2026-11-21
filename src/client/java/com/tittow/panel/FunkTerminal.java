@@ -20,6 +20,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
@@ -53,7 +54,10 @@ final class FunkTerminal {
 	private int seiten;
 	private int klicks;
 	private int alterSlot;
-	private int erdeVorher;
+	private int erdeVorher; // wie viel vom Gesuchten vor dem Holen im Inventar war
+	/** Beim Holen: was geholt wird und bis zu welcher Menge im Inventar. */
+	private Item zielItem = Items.DIRT;
+	private int zielMenge = ERDE_HOLEN_BIS;
 	private int vorherBelegt;
 	private int erdeBeimKlick;
 	private int ohneWirkung;
@@ -82,7 +86,31 @@ final class FunkTerminal {
 
 	/** Erde aus dem Terminal holen: bis etwa 8 Stacks, ein paar Plätze im Inventar bleiben frei. */
 	void erdeHolen(Minecraft mc) {
+		zielItem = Items.DIRT;
+		zielMenge = ERDE_HOLEN_BIS;
 		beginnen(mc, false, Map.of());
+	}
+
+	/** Eine bestimmte Sorte aus dem Terminal holen, bis zu "menge" Stück mehr als jetzt (ein paar Plätze bleiben frei). */
+	void holen(Minecraft mc, Item item, int menge) {
+		if (mc.player == null) {
+			return;
+		}
+		zielItem = item;
+		zielMenge = anzahl(mc.player, item) + menge;
+		beginnen(mc, false, Map.of());
+	}
+
+	/** Wie viele von dieser Sorte im Inventar sind (Hotbar und oben). */
+	static int anzahl(LocalPlayer p, Item item) {
+		int n = 0;
+		for (int i = 0; i < 36; i++) {
+			ItemStack s = p.getInventory().getItem(i);
+			if (s.is(item)) {
+				n += s.getCount();
+			}
+		}
+		return n;
 	}
 
 	/** Alles hineinlegen, was seit dem Start dazugekommen ist (startInventar = Sachen beim Start). */
@@ -124,7 +152,7 @@ final class FunkTerminal {
 		zurueckSlot = -1;
 		gehtNicht.clear();
 		alterSlot = p.getInventory().getSelectedSlot();
-		erdeVorher = erde(p);
+		erdeVorher = anzahl(p, zielItem);
 		vorherBelegt = belegt(p);
 		ergebnis = null;
 	}
@@ -212,7 +240,7 @@ final class FunkTerminal {
 	// ---- Erde holen ----------------------------------------------------------
 
 	private void holenSchritt(Minecraft mc, LocalPlayer p, AbstractContainerMenu menu) {
-		int jetzt = erde(p);
+		int jetzt = anzahl(p, zielItem);
 		if (!menu.getCarried().isEmpty()) { // hängt etwas an der Maus: in einen freien Inventar-Platz legen
 			int frei = freierPlatz(menu, p);
 			if (frei < 0) {
@@ -229,12 +257,12 @@ final class FunkTerminal {
 				aufnehmen = true;
 			}
 		}
-		if (freiePlaetze(p) <= FREI_LASSEN || jetzt >= ERDE_HOLEN_BIS || klicks >= 60) {
+		if (freiePlaetze(p) <= FREI_LASSEN || jetzt >= zielMenge || klicks >= 60) {
 			schritt = 4; // genug Erde, oder das Inventar würde zu voll
 			return;
 		}
 		for (Slot s : menu.slots) {
-			if (s.container != p.getInventory() && s.getItem().is(Items.DIRT)) {
+			if (s.container != p.getInventory() && s.getItem().is(zielItem)) {
 				erdeBeimKlick = jetzt;
 				klick(mc, p, menu, s.index, aufnehmen ? ContainerInput.PICKUP : ContainerInput.QUICK_MOVE);
 				return;
@@ -421,8 +449,8 @@ final class FunkTerminal {
 	private int naechsterZumAblegen(AbstractContainerMenu menu, LocalPlayer p) {
 		Map<String, Integer> jetzt = inventar(p);
 		for (Slot s : menu.slots) {
-			// nur das obere Inventar (9-35): die Hotbar mit Schwert, Essen, Werkzeug, Erde, Werkbank, Terminal und Slot 9 bleibt
-			if (s.container != p.getInventory() || s.getContainerSlot() < Inventory.getSelectionSize()
+			// nur das obere Inventar (9-35) und Slot 6: die übrige Hotbar mit Schwert, Essen, Werkzeug, Werkbank, Terminal und Slot 9 bleibt
+			if (s.container != p.getInventory() || (s.getContainerSlot() < Inventory.getSelectionSize() && s.getContainerSlot() != Versorgung.ERDE_SLOT)
 					|| s.getContainerSlot() >= 36 || gehtNicht.contains(s.index)) {
 				continue;
 			}
@@ -469,9 +497,10 @@ final class FunkTerminal {
 			return frei > 0 ? "OK: " + frei + " Plätze im Inventar frei gemacht (Sachen ins Funk-Terminal gelegt), es geht weiter."
 					: "Konnte nichts ins Funk-Terminal legen (nur Sachen vom Start im Inventar, oder das Lager ist voll).";
 		}
-		int dazu = erde(p) - erdeVorher;
-		return dazu > 0 ? "OK: " + dazu + " Erde aus dem Funk-Terminal geholt, es geht weiter."
-				: "Im Funk-Terminal war keine Erde zu finden (oder das Inventar ist voll).";
+		int dazu = anzahl(p, zielItem) - erdeVorher;
+		String name = new ItemStack(zielItem).getHoverName().getString();
+		return dazu > 0 ? "OK: " + dazu + " " + name + " aus dem Funk-Terminal geholt, es geht weiter."
+				: "Im Funk-Terminal war kein(e) " + name + " zu finden (oder das Inventar ist voll).";
 	}
 
 	private void ende(String text) {

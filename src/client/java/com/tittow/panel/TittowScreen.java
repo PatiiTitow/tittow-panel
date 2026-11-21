@@ -108,12 +108,23 @@ public final class TittowScreen extends Screen {
 			}
 		}).pos(mitte + 2, y).size(98, 20).build());
 		y += 22;
-		this.addRenderableWidget(Button.builder(Component.literal("Material prüfen (Funk-Terminal)"), b -> {
+		this.addRenderableWidget(Button.builder(Component.literal("Material prüfen"), b -> {
 			meldung = burg.materialPruefen(this.minecraft);
 			if (meldung.startsWith("Prüfe")) {
 				this.onClose(); // Fenster zu, damit sich das Funk-Terminal öffnen kann
 			}
-		}).pos(mitte - 100, y).size(200, 20).build());
+		}).pos(mitte - 100, y).size(98, 20).build());
+		this.addRenderableWidget(Button.builder(herstellenText(), b -> {
+			meldung = burg.herstellenUmschalten(this.minecraft);
+			b.setMessage(herstellenText());
+			if (burg.herstelltGerade()) {
+				this.onClose(); // Fenster zu, damit Terminal, Werkbank und Kisten aufgehen können
+			}
+		}).pos(mitte + 2, y).size(98, 20).build());
+	}
+
+	private Component herstellenText() {
+		return Component.literal(burg.herstelltGerade() ? "Herstellen: Stopp" : "Sockel herstellen");
 	}
 
 	private Component linienText() {
