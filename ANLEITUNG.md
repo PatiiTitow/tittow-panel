@@ -146,7 +146,7 @@ geebnet wird **nur innerhalb des äußeren grünen Rahmens**. Das Panel geht zu 
 
 | Slot | Was | Was der Bot damit macht |
 |---|---|---|
-| 1 | Schwert bzw. Glefe | bleibt liegen |
+| 1 | Schwert bzw. Glefe | kommt ein **Gegner näher als 2 Blöcke**, hält der Bot kurz an, nimmt die Waffe und greift an (nur Monster, nie Spieler, Tiere oder Dorfbewohner). Danach arbeitet er weiter |
 | 2 | Essen (Goldene Karotten) | isst, sobald der Hunger unter 18 fällt, bis du wieder satt bist |
 | 3, 4, 5 | Schaufel, Spitzhacke, Axt | Baritone nimmt jeweils das passende Werkzeug. Die **Fähigkeit der Spitzhacke** (Rechtsklick) benutzt der Bot alle 20 Sekunden |
 | 6 | Erde | die Mod legt Erde von oben aus dem Inventar hierher nach. Baritone baut sich damit hoch (an hohe Bäume und Hügel) und stopft Löcher. Fehlt Erde, holt der Bot welche aus dem Funk-Terminal (unter 32) |
@@ -178,3 +178,4 @@ Baritone selbst darf beim Ebnen nichts im Inventar umräumen (Einstellung `allow
 - `src/client/java/com/tittow/panel/Burgvorschau.java` – Burg-Vorschau: Umrisse der Blutfeste, Gelände-Prüfung und Platz ebnen
 - `src/client/java/com/tittow/panel/FunkTerminal.java` – beim Ebnen: Erde aus dem Funk-Terminal (Slot 8) holen, volles Inventar hineinlegen
 - `src/client/java/com/tittow/panel/Versorgung.java` – beim Ebnen: aus Slot 2 essen, Erde in Slot 6 nachlegen
+- `src/client/java/com/tittow/panel/Abwehr.java` – beim Ebnen: Gegner in 2 Blöcken mit der Waffe aus Slot 1 angreifen

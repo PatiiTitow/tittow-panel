@@ -71,6 +71,7 @@ public final class Burgvorschau {
 	private int wartet;
 	private final FunkTerminal terminal = new FunkTerminal();
 	private final Versorgung versorgung = new Versorgung();
+	private final Abwehr abwehr = new Abwehr();
 	/** Nach einem Fehlschlag beim Funk-Terminal eine Weile nicht nochmal versuchen. */
 	private int terminalPause;
 
@@ -172,6 +173,7 @@ public final class Burgvorschau {
 			BaritoneRahmen.befehl("stop");
 			terminal.abbrechen();
 			versorgung.abbrechen(Minecraft.getInstance());
+			abwehr.abbrechen();
 			phase = 0;
 		}
 		an = false;
@@ -250,6 +252,7 @@ public final class Burgvorschau {
 			BaritoneRahmen.befehl("stop");
 			terminal.abbrechen();
 			versorgung.abbrechen(Minecraft.getInstance());
+			abwehr.abbrechen();
 			phase = 0;
 			ebnenMerken(false);
 			return "Ebnen gestoppt.";
@@ -439,6 +442,7 @@ public final class Burgvorschau {
 		BaritoneRahmen.befehl("stop");
 		terminal.abbrechen();
 		versorgung.abbrechen(mc);
+		abwehr.abbrechen();
 		phase = 0;
 		chat(mc.player, text);
 	}
@@ -462,6 +466,9 @@ public final class Burgvorschau {
 					terminalPause = 20 * 60; // eine Minute warten, dann nochmal probieren
 				}
 			}
+			return;
+		}
+		if (abwehr.tick(mc, mc.player)) { // Gegner näher als 2 Blöcke: erst den angreifen
 			return;
 		}
 		if (versorgung.essen(mc, mc.player)) { // Hunger: erst Goldene Karotten aus Slot 2 essen
