@@ -131,12 +131,16 @@ geebnet wird **nur innerhalb des äußeren grünen Rahmens**. Das Panel geht zu 
   Erst danach kommt der Streifen daneben dran. So stopft er Wasser immer vom fertigen Streifen aus zu.
   Im Chat steht, bei welchem Streifen er ist (z. B. „Streifen 3 von 16“). Fertigen Boden und gestopfte Erde baut er
   nicht wieder ab, und er gräbt sich nicht nach unten.
+- **Danach Löcher zumachen:** Findet der Bot im Streifen nichts mehr zum Abbauen, aber es sind noch Löcher da, schaltet er
+  um und macht gezielt nur noch die Löcher zu (Meldung „nichts mehr abzubauen – jetzt werden die … Löcher zugemacht“).
+  Erst wenn auch die zu sind, kommt der nächste Streifen. Bleibt beim Abbauen nach 3 Versuchen etwas stehen, macht er
+  trotzdem erst die Löcher zu.
 - Bei „Ebnen weiter“ (z. B. nach dem Neu-Joinen) macht er bei dem Streifen weiter, bei dem er aufgehört hat.
 - **Aufpasser:** Der Bot schaut beim Ebnen selbst nach, ob er festhängt, und startet den Streifen dann neu (Meldung im Chat):
   - steckt er **über 20 Sekunden im Wasser**,
   - ist er **über 10 Sekunden mehr als 8 Blöcke von der Fläche weg**,
   - oder ist im Streifen **2 Minuten lang kein einziger Block weniger** geworden (solange er abbaut, gilt er nie als festgehangen).
-  - Klappt ein Streifen nach 3 Versuchen nicht, überspringt er ihn und macht mit dem nächsten weiter (Rest selbst machen).
+  - Klappt ein Streifen nach 3 Versuchen nicht (auch nicht das Löcherzumachen), überspringt er ihn und macht mit dem nächsten weiter (Rest selbst machen).
   - Ist er **über 30 Blöcke** von der Fläche weg (Vorsicht, fremde Grundstücke mit Geschütztürmen), hält er an.
     Dann selbst zurückgehen und „Ebnen weiter“ klicken.
   - Baritone meidet außerdem Wasser, so gut es geht (läuft nicht mehr einfach hinein).

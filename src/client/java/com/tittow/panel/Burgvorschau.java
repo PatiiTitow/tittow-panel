@@ -90,7 +90,11 @@ public final class Burgvorschau {
 	}
 
 	/** Ergebnis der Gelände-Prüfung. oben/unten = Integer.MIN_VALUE, wenn nichts zu tun ist. */
-	private record Gelaende(String text, int oben, int unten, int offen, int bloecke) {
+	private record Gelaende(String text, int oben, int unten, int offen, int bloecke, int stopf) {
+		/** Blöcke ab Fußhöhe, die noch weg müssen. */
+		int abbau() {
+			return bloecke - stopf;
+		}
 	}
 
 	public boolean istAn() {
@@ -240,6 +244,8 @@ public final class Burgvorschau {
 
 	/** Wie oft der aktuelle Streifen schon gestartet wurde. */
 	private int versuch;
+	/** Im aktuellen Streifen ist nichts mehr abzubauen: jetzt nur noch Löcher zumachen. */
+	private boolean stopfen;
 
 	/**
 	 * Startet oder stoppt das Ebnen der Sockel-Fläche. Sie wird in Streifen (8 breit, vom Tor bis nach hinten)
@@ -316,11 +322,18 @@ public final class Burgvorschau {
 		LocalPlayer p = mc.player;
 		if (!gleich) {
 			versuch = 0;
+			stopfen = false;
 		}
 		while (einstellungen.burgStreifen < STREIFEN) {
 			int s = einstellungen.burgStreifen;
 			Gelaende g = gelaendePruefen(mc, streifenX0(s), streifenX1(s));
-			if (g.offen() > 0) {
+			if (!stopfen && g.abbau() == 0 && g.stopf() > 0) {
+				// nichts mehr abzubauen, nur noch Löcher: jetzt gezielt zumachen
+				stopfen = true;
+				versuch = 0;
+				chat(p, "Streifen " + (s + 1) + ": nichts mehr abzubauen – jetzt werden die " + g.stopf() + " Löcher zugemacht.");
+			}
+			if ((stopfen ? g.stopf() : g.offen()) > 0) {
 				if (!streifenBauen(s, g)) {
 					anhalten(mc, "Baritone hat den Bauplan nicht angenommen.");
 					return false;
@@ -331,7 +344,7 @@ public final class Burgvorschau {
 				aufpassTicks = 0;
 				wasserTicks = 0;
 				rausTicks = 0;
-				if (versuch == 1) {
+				if (versuch == 1 && !stopfen) {
 					chat(p, "Streifen " + (s + 1) + " von " + STREIFEN + " (" + g.offen() + " Stellen zu tun).");
 				}
 				return true;
@@ -339,6 +352,7 @@ public final class Burgvorschau {
 			einstellungen.burgStreifen++; // nichts zu tun: gleich weiter
 			einstellungen.speichern();
 			versuch = 0;
+			stopfen = false;
 		}
 		// alle Streifen durch
 		Gelaende g = gelaendePruefen(mc);
@@ -351,10 +365,13 @@ public final class Burgvorschau {
 		return true;
 	}
 
-	/** Gibt Baritone den Bauplan für einen Streifen: von der Schicht unter deinen Füßen bis zum höchsten Hindernis. */
+	/**
+	 * Gibt Baritone den Bauplan für einen Streifen: von der Schicht unter deinen Füßen bis zum höchsten Hindernis.
+	 * Beim Stopfen nur die Schicht unter den Füßen (dann sucht Baritone gezielt die Löcher und macht sie zu).
+	 */
 	private boolean streifenBauen(int s, Gelaende g) {
 		int fuss = tor.getY();
-		int oben = Math.max(g.oben(), fuss); // mindestens die Fußhöhe (z. B. Gras), auch wenn nur Löcher da sind
+		int oben = stopfen ? fuss - 1 : Math.max(g.oben(), fuss); // mindestens die Fußhöhe (z. B. Gras), auch wenn nur Löcher da sind
 		int[] a = welt(tor, vorne, streifenX0(s), 14);
 		int[] b = welt(tor, vorne, streifenX1(s), 135);
 		BlockPos ecke = new BlockPos(Math.min(a[0], b[0]), fuss - 1, Math.min(a[1], b[1]));
@@ -412,7 +429,14 @@ public final class Burgvorschau {
 		if (++aufpassTicks >= 600) {
 			aufpassTicks = 0;
 			int s = einstellungen.burgStreifen;
-			int rest = gelaendePruefen(mc, streifenX0(s), streifenX1(s)).bloecke();
+			Gelaende g = gelaendePruefen(mc, streifenX0(s), streifenX1(s));
+			if (!stopfen && g.abbau() == 0 && g.stopf() > 0) {
+				// alles abgebaut, Baritone sucht nur noch herum: gleich auf Löcherstopfen umschalten
+				BaritoneRahmen.befehl("stop");
+				naechsterStreifen(mc, true);
+				return;
+			}
+			int rest = g.bloecke();
 			if (rest < letzterRest) {
 				letzterRest = rest;
 				stillstand = 0;
@@ -426,15 +450,32 @@ public final class Burgvorschau {
 	private void neuStarten(Minecraft mc, String grund) {
 		BaritoneRahmen.befehl("stop");
 		if (versuch >= 3) {
-			chat(mc.player, "Der Bot " + grund + " – Streifen " + (einstellungen.burgStreifen + 1)
-					+ " wird übersprungen (Rest bitte selbst machen), weiter mit dem nächsten.");
-			einstellungen.burgStreifen++;
-			einstellungen.speichern();
-			naechsterStreifen(mc, false);
+			streifenAufgeben(mc, "Der Bot " + grund);
 			return;
 		}
 		chat(mc.player, "Der Bot " + grund + " – Streifen " + (einstellungen.burgStreifen + 1) + " wird neu angestoßen.");
 		naechsterStreifen(mc, true);
+	}
+
+	/**
+	 * 3 Versuche ohne Erfolg: Ist beim Abbauen noch etwas übrig, werden trotzdem erst die Löcher im Streifen
+	 * zugemacht. Klappt auch das nicht, wird der Streifen übersprungen.
+	 */
+	private void streifenAufgeben(Minecraft mc, String grund) {
+		int s = einstellungen.burgStreifen;
+		Gelaende g = gelaendePruefen(mc, streifenX0(s), streifenX1(s));
+		if (!stopfen && g.stopf() > 0) {
+			chat(mc.player, grund + " – in Streifen " + (s + 1) + " bleibt etwas stehen (bitte selbst abbauen). "
+					+ "Jetzt werden erst die " + g.stopf() + " Löcher zugemacht.");
+			stopfen = true;
+			versuch = 0;
+			naechsterStreifen(mc, true);
+			return;
+		}
+		chat(mc.player, grund + " – Streifen " + (s + 1) + " wird übersprungen (Rest bitte selbst machen), weiter mit dem nächsten.");
+		einstellungen.burgStreifen++;
+		einstellungen.speichern();
+		naechsterStreifen(mc, false);
 	}
 
 	/** Ebnen anhalten, aber gemerkt lassen (dann heißt der Knopf "Ebnen weiter" und es geht beim Streifen weiter). */
@@ -498,10 +539,16 @@ public final class Burgvorschau {
 			aufpassen(mc);
 			return;
 		}
-		// Baritone ist mit dem Streifen fertig: nachschauen, ob noch etwas fehlt, sonst der nächste Streifen
-		int s = einstellungen.burgStreifen;
-		if (gelaendePruefen(mc, streifenX0(s), streifenX1(s)).offen() > 0 && versuch < 3) {
+		// Baritone hat aufgehört: nachschauen, was im Streifen noch fehlt. Nichts mehr abzubauen, aber Löcher da:
+		// dann werden die jetzt zugemacht. Alles fertig: der nächste Streifen.
+		if (versuch < 3) {
 			naechsterStreifen(mc, true);
+			return;
+		}
+		int s = einstellungen.burgStreifen;
+		Gelaende g = gelaendePruefen(mc, streifenX0(s), streifenX1(s));
+		if ((stopfen ? g.stopf() : g.offen()) > 0 || (!stopfen && g.stopf() > 0)) {
+			streifenAufgeben(mc, "Baritone wird hier nicht fertig");
 			return;
 		}
 		einstellungen.burgStreifen++;
@@ -561,6 +608,7 @@ public final class Burgvorschau {
 		int minBoden = Integer.MAX_VALUE, maxBoden = Integer.MIN_VALUE;
 		int huegel = 0, loecher = 0, wasser = 0, baeume = 0, unbekannt = 0;
 		int offen = 0; // Spalten, in denen noch etwas zu tun ist
+		int stopf = 0; // Löcher in der Schicht unter den Füßen, die noch zugemacht werden müssen
 		int bloecke = 0; // einzelne Blöcke, die noch weg müssen oder hin müssen (zum Prüfen, ob der Bot vorankommt)
 		int oben = Integer.MIN_VALUE, unten = Integer.MAX_VALUE;
 		for (int x = x0; x <= x1; x++) {
@@ -575,6 +623,7 @@ public final class Burgvorschau {
 				if (drunter.isAir() || drunter.liquid() || drunter.canBeReplaced()) {
 					arbeit = true; // hier muss Erde hin
 					bloecke++;
+					stopf++;
 				}
 				for (int y = fuss; y <= fuss + SUCH_HOEHE; y++) { // jeden Block zählen, der noch weg muss
 					BlockState s = mc.level.getBlockState(new BlockPos(w[0], y, w[1]));
@@ -649,7 +698,7 @@ public final class Burgvorschau {
 		if (unbekannt > 0) {
 			t.append(", ").append(prozent(unbekannt, alle)).append(" nicht geladen (näher rangehen)");
 		}
-		return new Gelaende(t.toString(), oben, unten == Integer.MAX_VALUE ? Integer.MIN_VALUE : unten, offen, bloecke);
+		return new Gelaende(t.toString(), oben, unten == Integer.MAX_VALUE ? Integer.MIN_VALUE : unten, offen, bloecke, stopf);
 	}
 
 	private static void chat(LocalPlayer p, String text) {
