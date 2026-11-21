@@ -3,6 +3,8 @@ package com.tittow.panel;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
@@ -13,6 +15,7 @@ import net.minecraft.world.item.Items;
  * Slot 1 Schwert/Glefe, Slot 2 Essen (Goldene Karotten), Slot 3-5 Schaufel, Spitzhacke, Axt, Slot 6 Erde,
  * Slot 7 Virtuelle Werkbank, Slot 8 Funk-Terminal, Slot 9 wird nie angefasst.
  * - Essen: Hunger unter 18, dann Baritone kurz anhalten und aus Slot 2 essen, bis wieder satt.
+ * - Spitzhacke: alle 20 Sekunden ihre Fähigkeit benutzen (Rechtsklick mit Slot 4).
  * - Erde: Baritone baut nur mit Sachen aus der Hotbar. Deshalb legt die Mod Erde von oben aus dem Inventar
  *   in Slot 6 nach. (Baritone selbst darf nichts im Inventar umräumen, sonst legt es Sachen auf Slot 1 und 9.)
  */
@@ -77,6 +80,52 @@ final class Versorgung {
 			}
 		}
 		return -1;
+	}
+
+	static final int SPITZHACKE_SLOT = 3; // Slot 4
+	/** Alle 20 Sekunden die Fähigkeit der Spitzhacke (Rechtsklick). */
+	private static final int FAEHIGKEIT_TICKS = 20 * 20;
+	private int faehigkeitWarte = 40;
+
+	/**
+	 * Benutzt alle 20 Sekunden die Fähigkeit der Spitzhacke: kurz Slot 4 nehmen, Rechtsklick (wie in die Luft),
+	 * gleich wieder zurück auf das, was Baritone gerade in der Hand hatte.
+	 */
+	void spitzhackeFaehigkeit(Minecraft mc, LocalPlayer p) {
+		if (--faehigkeitWarte > 0) {
+			return;
+		}
+		if (mc.gui.screen() != null || mc.gameMode == null || p.isUsingItem()) {
+			faehigkeitWarte = 20; // gleich nochmal probieren
+			return;
+		}
+		int slot = spitzhackeSlot(p);
+		faehigkeitWarte = FAEHIGKEIT_TICKS;
+		if (slot < 0) {
+			return;
+		}
+		Inventory inv = p.getInventory();
+		int vorher = inv.getSelectedSlot();
+		inv.setSelectedSlot(slot);
+		mc.gameMode.useItem(p, InteractionHand.MAIN_HAND);
+		inv.setSelectedSlot(vorher);
+	}
+
+	/** Slot 4, wenn dort eine Spitzhacke liegt, sonst eine andere Spitzhacke in der Hotbar (nie Slot 9). -1 = keine. */
+	private static int spitzhackeSlot(LocalPlayer p) {
+		if (istSpitzhacke(p.getInventory().getItem(SPITZHACKE_SLOT))) {
+			return SPITZHACKE_SLOT;
+		}
+		for (int i = 0; i < 8; i++) {
+			if (istSpitzhacke(p.getInventory().getItem(i))) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	private static boolean istSpitzhacke(ItemStack s) {
+		return !s.isEmpty() && BuiltInRegistries.ITEM.getKey(s.getItem()).getPath().endsWith("pickaxe");
 	}
 
 	/** Hält Slot 6 voll mit Erde aus dem oberen Inventar. Danach darf Baritone weiterbauen. */

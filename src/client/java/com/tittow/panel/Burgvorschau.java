@@ -487,6 +487,7 @@ public final class Burgvorschau {
 			return;
 		}
 		if (BaritoneRahmen.bautGerade()) {
+			versorgung.spitzhackeFaehigkeit(mc, mc.player); // alle 20 Sekunden Rechtsklick mit der Spitzhacke
 			aufpassen(mc);
 			return;
 		}
