@@ -17,7 +17,7 @@ import net.minecraft.world.level.block.state.BlockState;
  * Wo du beim Einschalten stehst, ist die Mitte der Eingangsmauer (das Tor). Die Burg geht in die Richtung,
  * in die du schaust. Der Sockel beginnt auf Höhe deiner Füße.
  * Dazu "Platz ebnen": Baritone gräbt die Sockel-Fläche (der äußere grüne Rahmen) frei und stopft danach Löcher
- * und Wasser mit Erde, höchstens 3 Blöcke tief. Fehlt Erde, holt ErdeHolen sie aus dem Funk-Terminal.
+ * und Wasser mit Erde, nur 1 Block tief (die Schicht direkt unter deinen Füßen). Fehlt Erde, holt ErdeHolen sie aus dem Funk-Terminal.
  */
 public final class Burgvorschau {
 	/** Größe der ganzen Burg mit Sockel (Kante zu Kante). */
@@ -57,7 +57,7 @@ public final class Burgvorschau {
 	private static final int[] MAUERTUERME = {38, 56, 75, 94, 112};
 
 	/** Wie tief Löcher unter dem Sockel höchstens aufgefüllt werden (Blöcke unter deinen Füßen). */
-	private static final int FUELL_TIEFE = 3;
+	private static final int FUELL_TIEFE = 1;
 	/** Bis wie hoch über deinen Füßen nach Hügeln und Bäumen gesucht wird. */
 	private static final int SUCH_HOEHE = 64;
 
@@ -218,7 +218,7 @@ public final class Burgvorschau {
 		wartet = 40;
 		erdePause = 0;
 		chat(p, "Schritt 2: Baritone stopft Löcher und Wasser mit Erde, von Y " + g.unten() + " bis Y " + (tor.getY() - 1)
-				+ " (höchstens 3 tief). Geht die Erde aus, holt der Bot neue aus dem Funk-Terminal in Slot 8.");
+				+ " (nur 1 Block tief). Geht die Erde aus, holt der Bot neue aus dem Funk-Terminal in Slot 8.");
 		return true;
 	}
 

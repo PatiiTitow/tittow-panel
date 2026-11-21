@@ -114,7 +114,7 @@ Es wird **nichts gebaut**, du kannst alles ablaufen und anschauen, ob die Burg d
 **„Burg-Platz ebnen (graben + stopfen)“** macht die Sockel-Fläche (122 x 122) eben. Vorher muss die Vorschau an sein,
 geebnet wird **nur innerhalb des äußeren grünen Rahmens**. Das Panel geht zu und **Baritone** legt los:
 1. **Freigraben:** alles ab deiner Fußhöhe kommt weg – Hügel, Bäume, Gras (bis 64 Blöcke hoch).
-2. **Löcher stopfen:** Löcher, Wasser und Lava unter der Fläche werden mit **Erde** aufgefüllt, **höchstens 3 Blöcke tief**.
+2. **Löcher stopfen:** Löcher, Wasser und Lava unter der Fläche werden mit **Erde** aufgefüllt, aber **nur 1 Block tief** (die Schicht direkt unter deinen Füßen).
    Dafür braucht Baritone **Erde im Inventar** (die vom Graben zählt mit).
 - **Erde aus dem Funk-Terminal:** Hast du weniger als 32 Erde, hält der Bot kurz an, nimmt das **Funk-Terminal aus
   Slot 8** der Hotbar, öffnet es (Rechtsklick), nimmt so viel Erde, wie ins Inventar passt (blättert auch weiter, wenn
