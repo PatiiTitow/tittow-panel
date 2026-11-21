@@ -183,7 +183,7 @@ Danach steht im Chat für den **Sockel** jeder Block einzeln:
 
 Für die **ganze Burg** steht nur eine Zeile Übersicht darunter (wie viele Sorten reichen, wie viel zusammen fehlt).
 
-Die Mengen kommen aus dem Bauplan der Blutfeste (Tiefenschiefer, Hauptturm aus Schwarzstein).
+Die Mengen kommen aus dem Bauplan der Blutfeste (Tiefenschiefer, Hauptturm aus Schwarzstein, Netherziegel statt Rot).
 Zeigt das Lager nur einen Stapel und schreibt die echte Menge in die Beschreibung (z. B. „Menge: 1.600“), wird diese Zahl genommen.
 Geht nicht, während der Bot ebnet.
 
@@ -194,10 +194,10 @@ Knopf **„Sockel herstellen“** (neben „Material prüfen“). Am besten bei 
 2. **Werkbank** (Virtuelle Werkbank, Slot 7): holt die Zutaten aus dem Funk-Terminal, legt sie ins Feld und nimmt
    alles mit Shift-Klick heraus:
    - Bruchtiefenschiefer → polierter Tiefenschiefer → Tiefenschiefer-Ziegel → Tiefenschiefer-Fliesen
-   - Andesit → polierter Andesit, Magmacreme → Magmablock, Netherziegel + Netherwarzen → rote Netherziegel
+   - Andesit → polierter Andesit, Magmacreme → Magmablock, 4 Netherziegel → 1 Netherziegel-Block
 3. **Öfen**: sucht die Kisten mit den Schildern **„reinlegen“** (oben) und **„rausnehmen“** (unten) im Umkreis von 64 Blöcken,
    läuft hin, verteilt das Material gleichmäßig auf die „reinlegen“-Kisten und holt das Gebrannte aus den „rausnehmen“-Kisten:
-   - Bruchstein → Stein, Tiefenschiefer-Ziegel → rissige Tiefenschiefer-Ziegel, Netherrack → Netherziegel
+   - Bruchstein → Stein, Tiefenschiefer-Ziegel → rissige Tiefenschiefer-Ziegel, Netherrack → Netherziegel (danach in der Werkbank zum Block)
    - Aus den „rausnehmen“-Kisten nimmt er nur, was er gebrannt hat. Kommt 3 Minuten nichts, macht er ohne weiter.
 4. Alles Fertige legt er ins **Funk-Terminal**. Was du beim Start im Inventar hattest, bleibt drin.
 5. Am Ende steht „Fertig mit Herstellen“ im Chat. Dann „Material prüfen“ klicken.
