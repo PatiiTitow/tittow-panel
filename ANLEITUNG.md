@@ -187,23 +187,22 @@ Die Mengen kommen aus dem Bauplan der Blutfeste (Tiefenschiefer, Hauptturm aus S
 Zeigt das Lager nur einen Stapel und schreibt die echte Menge in die Beschreibung (z. B. „Menge: 1.600“), wird diese Zahl genommen.
 Geht nicht, während der Bot ebnet.
 
-### Burg bauen (Abschnitt für Abschnitt)
-Knopf **„Burg bauen“** (neben „Material prüfen“). Am besten bei den Strom-Öfen neben dem Tor starten.
-Gebaut wird in **Abschnitten**: zuerst der **Sockel**, danach je **6 Blöcke Höhe**. Für jeden Abschnitt:
-1. **Vorbereiten:** Der Bot schaut in der Welt nach, was im Abschnitt noch fehlt, und stellt alles dafür her und brennt es
+### Sockel bauen
+Knopf **„Sockel bauen“** (neben „Material prüfen“). Am besten bei den Strom-Öfen neben dem Tor starten.
+Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** hergestellt und gebrannt. Der Rest der Burg kommt später.
+1. **Vorbereiten:** Der Bot schaut in der Welt nach, was am Sockel noch fehlt, und stellt alles dafür her und brennt es
    (siehe „Herstellen“ unten).
 2. **Prüfen:** Er zählt das Funk-Terminal durch. Fehlt noch etwas, hält er an und schreibt in den Chat, **was fehlt**.
-   Dann das Material (oder die Rohstoffe dafür) besorgen und **„Burg weiter bauen“** klicken.
+   Dann das Material (oder die Rohstoffe dafür) besorgen und **„Sockel weiter bauen“** klicken.
 3. **Bauen:** Schicht für Schicht von unten nach oben, in jeder Schicht **eine Blocksorte nach der anderen**.
    Die Sorte holt er aus dem Funk-Terminal und legt sie in **Slot 6**. Baritone baut nur diese Sorte, dann kommt die nächste.
    - Baritone baut dabei **nichts ab** (damit nichts Fertiges kaputtgeht) und nimmt keine eigenen Blöcke zum Hochbauen.
    - Kommt Baritone 2 Minuten nicht weiter, stößt er es neu an. Nach 3 Versuchen sagt er im Chat, wie viele Blöcke
      in welcher Höhe übrig sind (selbst setzen) und macht weiter.
    - Gegner in 2 Blöcken greift er an, bei Hunger isst er.
-4. Nach jedem Abschnitt **hält er an** („Fertig: den Sockel …“). **„Burg weiter bauen“** startet den nächsten Abschnitt.
+4. Ist der Sockel fertig, steht **„Der Sockel ist fertig gebaut!“** im Chat und der Knopf heißt **„Sockel fertig ✔“**.
    Das merkt er sich auch nach dem Neu-Joinen.
-- Die **Lava im Brunnen** setzt der Bot nicht, die kommt am Ende per Eimer.
-- Nochmal klicken (**„Bauen: Stopp“**) hält an, „Burg weiter bauen“ macht beim selben Abschnitt weiter.
+- Nochmal klicken (**„Bauen: Stopp“**) hält an, **„Sockel weiter bauen“** macht da weiter, wo er aufgehört hat.
 
 ### Herstellen (Werkbank und Öfen) – passiert beim Bauen automatisch
 1. Der Bot zählt das Funk-Terminal durch und schreibt einen **Plan** in den Chat: was er in der Werkbank macht,

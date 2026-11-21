@@ -23,7 +23,7 @@ import net.minecraft.world.level.block.state.BlockState;
  * 2. Prüfen: Lager durchzählen. Fehlt noch etwas, hält er an und sagt, was fehlt.
  * 3. Bauen: Schicht für Schicht, in jeder Schicht eine Blocksorte nach der anderen. Die Sorte liegt in Slot 6
  *    (Versorgung legt nach), fehlt sie, holt er sie aus dem Funk-Terminal. Baritone baut nur diese Sorte.
- * Nach jedem Abschnitt hält er an. "Burg weiter bauen" macht mit dem nächsten Abschnitt weiter.
+ * Erst mal wird nur der Sockel (Abschnitt 1) gebaut, danach ist Schluss. "Sockel weiter bauen" macht nach einem Stopp weiter.
  */
 final class BurgBau {
 	private enum Schritt { VORBEREITEN, PRUEFEN, BAUEN }
@@ -88,8 +88,8 @@ final class BurgBau {
 		}
 		List<int[]> abschnitte = plan.abschnitte();
 		int nr = einstellungen.burgBauAbschnitt;
-		if (nr >= abschnitte.size()) {
-			return "Die Burg ist schon fertig gebaut.";
+		if (nr >= 1) { // erst mal wird nur der Sockel gebaut
+			return "Der Sockel ist schon fertig gebaut.";
 		}
 		this.tor = tor;
 		this.vorne = vorne;
@@ -103,14 +103,14 @@ final class BurgBau {
 		baut = false;
 		warte = 0;
 		Map<String, Long> noch = nochZuBauen(mc);
-		chat(p, "Bauen: " + name(nr, abschnitte.get(nr)) + " – erst wird alles hergestellt und gebrannt, dann gebaut.");
+		chat(p, "Sockel bauen: erst wird alles dafür hergestellt und gebrannt, dann gebaut.");
 		if (noch.isEmpty()) {
 			abschnittFertig(mc);
 			return "";
 		}
 		schritt = Schritt.VORBEREITEN;
 		herstellen.starten(mc, noch, name(nr, abschnitte.get(nr)));
-		return "Bauen läuft: " + name(nr, abschnitte.get(nr)) + ".";
+		return "Sockel bauen läuft.";
 	}
 
 	void stoppen(Minecraft mc, String grund) {
@@ -138,7 +138,7 @@ final class BurgBau {
 				return;
 			}
 			if (!herstellen.zuEndeGelaufen()) {
-				stoppen(mc, "Herstellen wurde abgebrochen – Bauen angehalten. „Burg weiter bauen“ startet den Abschnitt neu.");
+				stoppen(mc, "Herstellen wurde abgebrochen – Bauen angehalten. „Sockel weiter bauen“ startet neu.");
 				return;
 			}
 			schritt = Schritt.PRUEFEN;
@@ -179,7 +179,7 @@ final class BurgBau {
 			}
 			if (FunkTerminal.anzahl(p, item) == 0) {
 				stoppen(mc, "§c" + new ItemStack(item).getHoverName().getString() + " ist im Funk-Terminal alle§r – Bauen angehalten. "
-						+ "Besorg mehr und klick „Burg weiter bauen“.");
+						+ "Besorg mehr und klick „Sockel weiter bauen“.");
 			}
 		}
 	}
@@ -201,12 +201,12 @@ final class BurgBau {
 			}
 		}
 		if (!fehlt.isEmpty()) {
-			chat(p, "§cFür diesen Abschnitt fehlt noch Material:§r");
+			chat(p, "§cFür den Sockel fehlt noch Material:§r");
 			for (Map.Entry<String, Long> e : fehlt.entrySet()) {
 				p.sendSystemMessage(Component.literal(" §c✘ ").append(new ItemStack(Herstellen.item(e.getKey())).getHoverName())
 						.append(Component.literal("§7: fehlen " + String.format(Locale.GERMANY, "%,d", e.getValue()))));
 			}
-			stoppen(mc, "Bauen angehalten. Besorg das Material (oder die Rohstoffe dafür) und klick „Burg weiter bauen“.");
+			stoppen(mc, "Bauen angehalten. Besorg das Material (oder die Rohstoffe dafür) und klick „Sockel weiter bauen“.");
 			return;
 		}
 		chat(p, "§aAlles da.§r Jetzt wird gebaut, Schicht für Schicht.");
@@ -415,20 +415,11 @@ final class BurgBau {
 	}
 
 	private void abschnittFertig(Minecraft mc) {
-		List<int[]> abschnitte = plan.abschnitte();
 		int nr = einstellungen.burgBauAbschnitt;
 		einstellungen.burgBauAbschnitt = nr + 1;
-		if (einstellungen.burgBauAbschnitt >= abschnitte.size()) {
-			einstellungen.burgBauen = false;
-		}
+		einstellungen.burgBauen = false; // erst mal nur der Sockel: danach ist Schluss
 		einstellungen.speichern();
-		String fertig = name(nr, abschnitte.get(nr));
-		if (einstellungen.burgBauAbschnitt >= abschnitte.size()) {
-			stoppen(mc, "§aDie ganze Burg ist fertig gebaut!§r (Die Lava im Brunnen bitte noch per Eimer setzen.)");
-		} else {
-			stoppen(mc, "§aFertig: " + fertig.substring(0, 1).toUpperCase(Locale.ROOT) + fertig.substring(1) + ".§r "
-					+ "Klick „Burg weiter bauen“ für " + name(nr + 1, abschnitte.get(nr + 1)) + ".");
-		}
+		stoppen(mc, "§aDer Sockel ist fertig gebaut!§r");
 	}
 
 	private void einstellungenZurueck() {

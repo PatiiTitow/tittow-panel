@@ -85,15 +85,20 @@ public final class Burgvorschau {
 		return bau != null && bau.laeuft();
 	}
 
-	/** Wurde schon mal gebaut (dann heißt der Knopf "Burg weiter bauen")? */
+	/** Ist der Sockel schon fertig gebaut? */
+	public boolean sockelFertig() {
+		return einstellungen.burgBauAbschnitt >= 1;
+	}
+
+	/** Wurde mit dem Sockel angefangen, er ist aber noch nicht fertig (dann heißt der Knopf "Sockel weiter bauen")? */
 	public boolean bauenOffen() {
-		return einstellungen.burgBauen || einstellungen.burgBauAbschnitt > 0;
+		return einstellungen.burgBauen && einstellungen.burgBauAbschnitt == 0;
 	}
 
 	/** Startet oder stoppt das Bauen der Burg (Abschnitt für Abschnitt, vorher wird alles hergestellt). */
 	public String bauenUmschalten(Minecraft mc) {
 		if (bautGerade()) {
-			bau.stoppen(mc, "Bauen gestoppt. „Burg weiter bauen“ macht beim selben Abschnitt weiter.");
+			bau.stoppen(mc, "Bauen gestoppt. „Sockel weiter bauen“ macht da weiter.");
 			return "Bauen gestoppt.";
 		}
 		if (mc.player == null) {

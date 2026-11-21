@@ -127,7 +127,10 @@ public final class TittowScreen extends Screen {
 		if (burg.bautGerade()) {
 			return Component.literal("Bauen: Stopp");
 		}
-		return Component.literal(burg.bauenOffen() ? "Burg weiter bauen" : "Burg bauen");
+		if (burg.sockelFertig()) {
+			return Component.literal("Sockel fertig ✔");
+		}
+		return Component.literal(burg.bauenOffen() ? "Sockel weiter bauen" : "Sockel bauen");
 	}
 
 	private Component linienText() {
