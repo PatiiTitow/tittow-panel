@@ -47,7 +47,7 @@ public final class TittowScreen extends Screen {
 			}
 		}).pos(mitte - 100, y).size(200, 20).build());
 
-		y += 32;
+		y += 26;
 		this.addRenderableWidget(Button.builder(Component.literal("+ Ecke hier"), b -> eckeHinzufuegen())
 				.pos(mitte - 100, y).size(98, 20).build());
 		this.addRenderableWidget(Button.builder(Component.literal("Letzte Ecke weg"), b -> {
@@ -57,12 +57,12 @@ public final class TittowScreen extends Screen {
 				meldung = "Letzte Ecke entfernt, noch " + bereich.ecken.size() + ".";
 			}
 		}).pos(mitte + 2, y).size(98, 20).build());
-		y += 24;
+		y += 22;
 		this.addRenderableWidget(Button.builder(Component.literal("Mob-Ecke 1 hier"), b -> setzen("mobs1"))
 				.pos(mitte - 100, y).size(98, 20).build());
 		this.addRenderableWidget(Button.builder(Component.literal("Mob-Ecke 2 hier"), b -> setzen("mobs2"))
 				.pos(mitte + 2, y).size(98, 20).build());
-		y += 24;
+		y += 22;
 		this.addRenderableWidget(Button.builder(Component.literal("Fläche löschen"), b -> {
 			bereich.ecken.clear();
 			bereich.ecke1 = bereich.ecke2 = bereich.mobs1 = bereich.mobs2 = null;
@@ -73,7 +73,7 @@ public final class TittowScreen extends Screen {
 			hell.umschalten(this.minecraft);
 			b.setMessage(hellText());
 		}).pos(mitte + 2, y).size(98, 20).build());
-		y += 24;
+		y += 22;
 		this.addRenderableWidget(Button.builder(kistenText(), b -> {
 			kisten.umschalten(this.minecraft);
 			b.setMessage(kistenText());
@@ -84,7 +84,7 @@ public final class TittowScreen extends Screen {
 			b.setMessage(werfenText());
 			meldung = bereich.werfen ? "Inventar voll: wirft Power Orbs, Scrolls und Enderperlen zu den Mobs." : "Wirft nichts mehr.";
 		}).pos(mitte + 2, y).size(98, 20).build());
-		y += 24;
+		y += 22;
 		// (Schließen geht mit Esc, der Platz gehört der Burg-Vorschau)
 		Button linienKnopf = this.addRenderableWidget(Button.builder(linienText(), b -> {
 			meldung = burg.linienUmschalten();
@@ -94,7 +94,7 @@ public final class TittowScreen extends Screen {
 			meldung = kisten.weiteUmschalten(this.minecraft);
 			b.setMessage(weiteText());
 		}).pos(mitte + 2, y).size(98, 20).build());
-		y += 24;
+		y += 22;
 		this.addRenderableWidget(Button.builder(setzenText(), b -> {
 			meldung = burg.setzen(this.minecraft);
 			b.setMessage(setzenText());
@@ -107,6 +107,13 @@ public final class TittowScreen extends Screen {
 				this.onClose(); // Fenster zu, damit Baritone sofort loslegt
 			}
 		}).pos(mitte + 2, y).size(98, 20).build());
+		y += 22;
+		this.addRenderableWidget(Button.builder(Component.literal("Material prüfen (Funk-Terminal)"), b -> {
+			meldung = burg.materialPruefen(this.minecraft);
+			if (meldung.startsWith("Prüfe")) {
+				this.onClose(); // Fenster zu, damit sich das Funk-Terminal öffnen kann
+			}
+		}).pos(mitte - 100, y).size(200, 20).build());
 	}
 
 	private Component linienText() {
@@ -188,10 +195,10 @@ public final class TittowScreen extends Screen {
 		graphics.centeredText(this.font, "Kills: " + bot.kills() + "   |   " + stelle, mitte, y + 40, GRAU);
 		// unten eine Zeile: die letzte Meldung, sonst der Hinweis
 		if (!meldung.isEmpty()) {
-			graphics.centeredText(this.font, meldung, mitte, this.height / 2 + 116, GRUEN);
+			graphics.centeredText(this.font, meldung, mitte, this.height / 2 + 124, GRUEN);
 		} else {
 			graphics.centeredText(this.font, "Ecken in beliebiger Reihenfolge setzen (L = 6 Ecken). Schließen mit Esc. Nur für die eigene Welt!",
-					mitte, this.height / 2 + 116, GRAU);
+					mitte, this.height / 2 + 124, GRAU);
 		}
 		karteZeichnen(graphics, mitte + 112, this.height / 2 - 60);
 	}

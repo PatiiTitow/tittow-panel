@@ -74,6 +74,27 @@ public final class Burgvorschau {
 	private final Abwehr abwehr = new Abwehr();
 	/** Nach einem Fehlschlag beim Funk-Terminal eine Weile nicht nochmal versuchen. */
 	private int terminalPause;
+	/** Material prüfen läuft (Funk-Terminal wird durchgezählt). */
+	private boolean pruefen;
+
+	/**
+	 * Material prüfen: zählt alles im Funk-Terminal (alle Seiten) und im Inventar und schreibt in den Chat,
+	 * wie viel von jedem Block für den Sockel und für die ganze Burg da ist und wie viel noch fehlt.
+	 */
+	public String materialPruefen(Minecraft mc) {
+		if (mc.player == null) {
+			return "";
+		}
+		if (phase != 0) {
+			return "Geht nicht, während der Bot ebnet. Erst „Ebnen: Stopp“.";
+		}
+		if (pruefen) {
+			return "Läuft schon.";
+		}
+		pruefen = true;
+		terminal.zaehlen(mc);
+		return "Prüfe Material im Funk-Terminal …";
+	}
 
 	/** Hier wird die platzierte Burg gespeichert, damit sie nach dem Neu-Joinen wieder da ist. */
 	private final Bereich einstellungen;
@@ -497,6 +518,18 @@ public final class Burgvorschau {
 		}
 		if (!an) {
 			wiederherstellen(mc);
+		}
+		if (pruefen) { // Material prüfen: Funk-Terminal durchzählen, dann Bericht in den Chat
+			String meldung = terminal.laeuft() ? terminal.tick(mc) : "Das Zählen wurde abgebrochen.";
+			if (meldung != null) {
+				pruefen = false;
+				if (meldung.startsWith("OK")) {
+					Material.bericht(mc.player, terminal.bestand());
+				} else {
+					chat(mc.player, meldung);
+				}
+			}
+			return;
 		}
 		if (phase == 0) {
 			return;

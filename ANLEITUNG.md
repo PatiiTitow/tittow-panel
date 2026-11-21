@@ -173,6 +173,18 @@ Baritone selbst darf beim Ebnen nichts im Inventar umräumen (Einstellung `allow
   - Geht nichts hinein (z. B. Lager voll), steht das im Chat und er versucht es nach einer Minute nochmal.
 - Am Ende steht „fertig geebnet“ im Chat. Nochmal klicken (**„Ebnen: Stopp“**) hält alles an. Die Linien dürfen beim Ebnen auch aus sein.
 
+### Material prüfen
+Knopf **„Material prüfen (Funk-Terminal)“** (ganz unten im Panel). Das Panel geht zu, der Bot öffnet das Funk-Terminal
+(Slot 8), blättert **alle Seiten** durch und zählt, was im Lager ist. Was du im Inventar hast, zählt mit.
+Danach steht im Chat, getrennt für den **Sockel** und die **ganze Burg**:
+- ✔ grün: davon ist genug da (z. B. „Erde: 14.200 da, 13.924 nötig“),
+- ✘ rot: zu wenig, mit „fehlen …“,
+- oben drüber: wie viele Sorten schon reichen und wie viele Blöcke zusammen noch fehlen.
+
+Die Mengen kommen aus dem Bauplan der Blutfeste (Tiefenschiefer, Hauptturm aus Schwarzstein).
+Zeigt das Lager nur einen Stapel und schreibt die echte Menge in die Beschreibung (z. B. „Menge: 1.600“), wird diese Zahl genommen.
+Geht nicht, während der Bot ebnet.
+
 ## Dateien
 - `src/client/java/com/tittow/panel/BotLogik.java` – Laufen, Schlagen, Essen
 - `src/client/java/com/tittow/panel/TittowScreen.java` – das Fenster
@@ -180,6 +192,8 @@ Baritone selbst darf beim Ebnen nichts im Inventar umräumen (Einstellung `allow
 - `src/client/java/com/tittow/panel/Kisten.java` – Kisten-Anzeige: Suchen und geöffnete Kisten merken
 - `src/client/java/com/tittow/panel/BaritoneRahmen.java` – lässt Baritone die grünen Rahmen zeichnen
 - `src/client/java/com/tittow/panel/Burgvorschau.java` – Burg-Vorschau: Umrisse der Blutfeste, Gelände-Prüfung und Platz ebnen
-- `src/client/java/com/tittow/panel/FunkTerminal.java` – beim Ebnen: Erde aus dem Funk-Terminal (Slot 8) holen, volles Inventar hineinlegen
+- `src/client/java/com/tittow/panel/FunkTerminal.java` – Funk-Terminal (Slot 8): Erde holen, volles Inventar hineinlegen, Lager durchzählen
+- `src/client/java/com/tittow/panel/Material.java` – Material prüfen: Bericht „da / nötig / fehlt“ für Sockel und Burg
+- `src/main/resources/assets/tittowpanel/burg/material.txt` – Materialliste der Blutfeste (erzeugt mit `Desktop\Burgen\generator\Burgen.java materialdatei`)
 - `src/client/java/com/tittow/panel/Versorgung.java` – beim Ebnen: aus Slot 2 essen, Erde in Slot 6 nachlegen
 - `src/client/java/com/tittow/panel/Abwehr.java` – beim Ebnen: Gegner in 2 Blöcken mit der Waffe aus Slot 1 angreifen

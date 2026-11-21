@@ -5,8 +5,13 @@ import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -38,6 +43,10 @@ final class FunkTerminal {
 	/** 0 = aus, 1 = Terminal öffnen, 2 = auf das Menü warten, 3 = Sachen nehmen/ablegen, 4 = zumachen. */
 	private int schritt;
 	private boolean ablegen; // false = Erde holen, true = Sachen hineinlegen
+	private boolean zaehlen; // nur nachschauen: alle Seiten durchgehen und zählen, was im Lager ist
+	/** Beim Zählen: Sorte (z. B. minecraft:dirt) und Anzahl im Lager. */
+	private final Map<String, Long> bestand = new HashMap<>();
+	private final Set<String> gezaehlteSeiten = new HashSet<>();
 	private Map<String, Integer> start = Map.of();
 	private int warte;
 	private int versuche;
@@ -63,6 +72,12 @@ final class FunkTerminal {
 	/** Beim Stoppen des Ebnens: nicht weiter klicken. */
 	void abbrechen() {
 		schritt = 0;
+		zaehlen = false;
+	}
+
+	/** Wird gerade nur gezählt (Material prüfen)? */
+	boolean zaehltGerade() {
+		return schritt != 0 && zaehlen;
 	}
 
 	/** Erde aus dem Terminal holen: bis etwa 8 Stacks, ein paar Plätze im Inventar bleiben frei. */
@@ -75,12 +90,27 @@ final class FunkTerminal {
 		beginnen(mc, true, startInventar == null ? Map.of() : startInventar);
 	}
 
+	/** Nur nachschauen: alle Seiten im Terminal durchgehen und zählen. Ergebnis danach mit bestand(). */
+	void zaehlen(Minecraft mc) {
+		zaehlen = true;
+		bestand.clear();
+		gezaehlteSeiten.clear();
+		beginnen(mc, false, Map.of());
+	}
+
+	/** Was beim letzten Zählen im Lager war (Sorte -> Anzahl). */
+	Map<String, Long> bestand() {
+		return bestand;
+	}
+
 	private void beginnen(Minecraft mc, boolean ablegen, Map<String, Integer> startInventar) {
 		LocalPlayer p = mc.player;
 		if (p == null) {
 			return;
 		}
-		BaritoneRahmen.befehl("pause"); // Baritone soll nicht weiterlaufen, während das Menü offen ist
+		if (!zaehlen) {
+			BaritoneRahmen.befehl("pause"); // Baritone soll nicht weiterlaufen, während das Menü offen ist
+		}
 		this.ablegen = ablegen;
 		this.start = startInventar;
 		schritt = 1;
@@ -127,6 +157,8 @@ final class FunkTerminal {
 				AbstractContainerMenu menu = p.containerMenu;
 				if (menu == p.inventoryMenu || !(mc.gui.screen() instanceof AbstractContainerScreen<?>)) {
 					schritt = 4; // Menü ist zu (z. B. selbst mit Esc zugemacht)
+				} else if (zaehlen) {
+					zaehlenSchritt(mc, p, menu);
 				} else if (ablegen) {
 					ablegenSchritt(mc, p, menu);
 				} else {
@@ -220,6 +252,104 @@ final class FunkTerminal {
 			}
 		}
 		schritt = 4;
+	}
+
+	// ---- Zählen (Material prüfen) -------------------------------------------------
+
+	/** Zählt die aktuelle Seite, dann weiter zur nächsten. Kommt eine Seite doppelt oder gibt es keine weitere: fertig. */
+	private void zaehlenSchritt(Minecraft mc, LocalPlayer p, AbstractContainerMenu menu) {
+		StringBuilder sig = new StringBuilder();
+		for (Slot s : menu.slots) {
+			if (s.container != p.getInventory()) {
+				ItemStack st = s.getItem();
+				sig.append(s.index).append(':').append(st.isEmpty() ? "-" : schluessel(st) + "x" + st.getCount() + loreText(st)).append(';');
+			}
+		}
+		if (!gezaehlteSeiten.add(sig.toString())) {
+			schritt = 4; // diese Seite kennen wir schon: alles gezählt
+			return;
+		}
+		boolean protokoll = gezaehlteSeiten.size() <= 2; // die ersten Seiten ins Log schreiben (zum Nachsehen, wie das Terminal aussieht)
+		for (Slot s : menu.slots) {
+			ItemStack st = s.getItem();
+			if (s.container == p.getInventory() || st.isEmpty() || istWeiter(st) || istZurueck(st)) {
+				continue;
+			}
+			long n = menge(st);
+			bestand.merge(BuiltInRegistries.ITEM.getKey(st.getItem()).toString(), n, Long::sum);
+			if (protokoll) {
+				System.out.println("[Tittow Panel] Terminal Seite " + gezaehlteSeiten.size() + " Platz " + s.index + ": "
+						+ BuiltInRegistries.ITEM.getKey(st.getItem()) + " x" + st.getCount() + " \"" + st.getHoverName().getString()
+						+ "\" Lore=" + loreText(st) + " -> " + n);
+			}
+		}
+		if (seiten < 80) {
+			for (Slot s : menu.slots) {
+				if (s.container != p.getInventory() && !s.getItem().isEmpty() && istWeiter(s.getItem())) {
+					seiten++;
+					klick(mc, p, menu, s.index, ContainerInput.PICKUP);
+					warte = 20; // der Server braucht einen Moment für die nächste Seite
+					return;
+				}
+			}
+		}
+		schritt = 4;
+	}
+
+	/** Alle Zeilen der Beschreibung (Lore) eines Gegenstands, mit | getrennt. */
+	private static String loreText(ItemStack st) {
+		ItemLore lore = st.get(DataComponents.LORE);
+		if (lore == null || lore.lines().isEmpty()) {
+			return "";
+		}
+		StringBuilder t = new StringBuilder();
+		for (Component c : lore.lines()) {
+			t.append('|').append(c.getString());
+		}
+		return t.toString();
+	}
+
+	private static final Pattern ZAHL = Pattern.compile("(\\d[\\d.,' ]*)");
+	private static final String[] MENGEN_WORTE = {"anzahl", "menge", "amount", "stored", "gespeichert", "bestand", "lager",
+			"stück", "stk", "count", "quantity", "insgesamt", "gesamt", "total", "vorhanden", "items"};
+
+	/**
+	 * Wie viele davon im Lager sind: Lager-Menüs zeigen oft nur einen Stapel und schreiben die echte Menge in die
+	 * Beschreibung (z. B. "Menge: 1.600"). Steht dort so eine Zahl, gilt sie, sonst die Stapelgröße.
+	 */
+	static long menge(ItemStack st) {
+		long beste = st.getCount();
+		ItemLore lore = st.get(DataComponents.LORE);
+		if (lore == null) {
+			return beste;
+		}
+		for (Component c : lore.lines()) {
+			String zeile = c.getString().toLowerCase(Locale.ROOT);
+			boolean mengenZeile = false;
+			for (String w : MENGEN_WORTE) {
+				if (zeile.contains(w)) {
+					mengenZeile = true;
+					break;
+				}
+			}
+			if (!mengenZeile) {
+				continue;
+			}
+			Matcher m = ZAHL.matcher(zeile);
+			while (m.find()) {
+				String ziffern = m.group(1).replaceAll("[^0-9]", "");
+				if (!ziffern.isEmpty() && ziffern.length() < 12) {
+					beste = Math.max(beste, Long.parseLong(ziffern));
+				}
+			}
+		}
+		return beste;
+	}
+
+	private static boolean istZurueck(ItemStack s) {
+		String name = s.getHoverName().getString().toLowerCase(Locale.ROOT);
+		return name.contains("zurück") || name.contains("vorherige") || name.contains("back") || name.contains("previous")
+				|| name.contains("←") || name.contains("«") || name.contains("<<");
 	}
 
 	// ---- Sachen ablegen --------------------------------------------------------
@@ -325,8 +455,12 @@ final class FunkTerminal {
 			p.closeContainer();
 		}
 		p.getInventory().setSelectedSlot(alterSlot);
-		BaritoneRahmen.befehl("resume");
 		schritt = 0;
+		if (zaehlen) {
+			zaehlen = false;
+			return ergebnis != null ? ergebnis : "OK: Lager durchgezählt (" + gezaehlteSeiten.size() + " Seiten).";
+		}
+		BaritoneRahmen.befehl("resume");
 		if (ergebnis != null) {
 			return ergebnis;
 		}
