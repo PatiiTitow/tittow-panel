@@ -16,7 +16,7 @@ import net.minecraft.world.level.block.state.BlockState;
  * auch durch Wände (Baritone zeichnet sie, siehe BaritoneRahmen).
  * Wo du beim Einschalten stehst, ist die Mitte der Eingangsmauer (das Tor). Die Burg geht in die Richtung,
  * in die du schaust. Der Sockel beginnt auf Höhe deiner Füße.
- * Dazu "Platz ebnen": Baritone gräbt die Sockel-Fläche (der äußere grüne Rahmen) frei und stopft danach Löcher
+ * Dazu "Platz ebnen": Baritone gräbt die Sockel-Fläche (der äußere grüne Rahmen) frei und stopft gleichzeitig Löcher
  * und Wasser mit Erde, nur 1 Block tief (die Schicht direkt unter deinen Füßen). Fehlt Erde oder ist das Inventar voll, hilft FunkTerminal.
  */
 public final class Burgvorschau {
@@ -66,9 +66,11 @@ public final class Burgvorschau {
 	private BlockPos tor;
 	private Direction vorne;
 
-	/** Platz ebnen: 0 = aus, 1 = Baritone gräbt frei, 2 = Baritone stopft Löcher. */
+	/** Platz ebnen: 0 = aus, 1 = Baritone gräbt frei und stopft Löcher. */
 	private int phase;
 	private int wartet;
+	/** Wie oft der Bauplan schon gestartet wurde (nach dem Ende wird nachgeschaut und höchstens 3-mal neu gestartet). */
+	private int durchgang;
 	private final FunkTerminal terminal = new FunkTerminal();
 	private final Versorgung versorgung = new Versorgung();
 	/** Nach einem Fehlschlag beim Funk-Terminal eine Weile nicht nochmal versuchen. */
@@ -233,8 +235,9 @@ public final class Burgvorschau {
 	// ---- Platz ebnen -------------------------------------------------------------
 
 	/**
-	 * Startet oder stoppt das Ebnen der Sockel-Fläche: Baritone gräbt erst alles ab Fußhöhe weg (Hügel, Bäume,
-	 * Gras), dann füllt es Löcher und Wasser darunter mit Erde auf (höchstens FUELL_TIEFE tief).
+	 * Startet oder stoppt das Ebnen der Sockel-Fläche, alles in einem Durchgang: Baritone gräbt alles ab Fußhöhe
+	 * weg (Hügel, Bäume, Gras) und stopft dabei gleich die Löcher und das Wasser in der Schicht unter deinen Füßen
+	 * mit Erde zu – immer da, wo es gerade vorbeikommt.
 	 */
 	public String ebnenUmschalten(Minecraft mc) {
 		LocalPlayer p = mc.player;
@@ -264,24 +267,39 @@ public final class Burgvorschau {
 		}
 		Gelaende g = gelaendePruefen(mc);
 		chat(p, g.text());
-		if (g.oben() != Integer.MIN_VALUE) {
-			if (!bereichBefehl(tor.getY(), g.oben(), "sel cleararea")) {
-				return "Baritone hat den Befehl nicht angenommen.";
-			}
-			phase = 1;
-			wartet = 40;
-			ebnenMerken(true);
-			chat(p, "Schritt 1: Baritone gräbt frei, von Y " + tor.getY() + " bis Y " + g.oben() + ". Danach werden Löcher gestopft.");
-			return "Ebnen läuft: erst freigraben, dann Löcher stopfen.";
+		if (g.oben() == Integer.MIN_VALUE && g.unten() == Integer.MIN_VALUE) {
+			ebnenMerken(false);
+			return "Die Fläche ist schon eben, nichts zu tun.";
 		}
-		if (g.unten() != Integer.MIN_VALUE) {
-			return fuellenStarten(p, g) ? "Nichts zum Freigraben, Löcher werden gestopft." : "Baritone hat den Befehl nicht angenommen.";
+		durchgang = 0;
+		if (!ebnenStarten(p, g)) {
+			return "Baritone hat den Bauplan nicht angenommen.";
 		}
-		ebnenMerken(false);
-		return "Die Fläche ist schon eben, nichts zu tun.";
+		return "Ebnen läuft: freigraben und Löcher stopfen gleichzeitig.";
 	}
 
-	/** Jeden Tick: ist das Freigraben fertig, kommt das Löcherstopfen, danach ist Schluss. */
+	/** Gibt Baritone den Ebnen-Bauplan: von der Schicht unter deinen Füßen bis zum höchsten Hindernis. */
+	private boolean ebnenStarten(LocalPlayer p, Gelaende g) {
+		int fuss = tor.getY();
+		int oben = Math.max(g.oben(), fuss); // mindestens die Fußhöhe (z. B. Gras), auch wenn nur Löcher da sind
+		int[] a = welt(tor, vorne, 14, 14);
+		int[] b = welt(tor, vorne, 135, 135);
+		BlockPos ecke = new BlockPos(Math.min(a[0], b[0]), fuss - 1, Math.min(a[1], b[1]));
+		if (!BaritoneRahmen.ebnenBauen(ecke, BREITE, oben - fuss + 2, BREITE)) {
+			phase = 0;
+			return false;
+		}
+		phase = 1;
+		wartet = 40;
+		terminalPause = 0;
+		durchgang++;
+		ebnenMerken(true);
+		chat(p, "Baritone gräbt frei (bis Y " + oben + ") und stopft dabei Löcher und Wasser auf Y " + (fuss - 1)
+				+ " mit Erde. Geht die Erde aus, holt der Bot neue aus dem Funk-Terminal in Slot 8.");
+		return true;
+	}
+
+	/** Jeden Tick: essen, Erde nachlegen, Funk-Terminal, und am Ende nachschauen, ob alles eben ist. */
 	public void tick(Minecraft mc) {
 		if (mc.player == null || mc.level == null) {
 			return;
@@ -305,7 +323,7 @@ public final class Burgvorschau {
 		if (versorgung.essen(mc, mc.player)) { // Hunger: erst Goldene Karotten aus Slot 2 essen
 			return;
 		}
-		// Erde in Slot 6: beim Freigraben zum Hochbauen (an hohe Bäume und Hügel), beim Stopfen zum Auffüllen
+		// Erde in Slot 6: zum Hochbauen (an hohe Bäume und Hügel) und zum Löcherstopfen
 		versorgung.erdeNachlegen(mc, mc.player);
 		if (terminalPause > 0) {
 			terminalPause--;
@@ -319,7 +337,7 @@ public final class Burgvorschau {
 			terminal.ablegen(mc, einstellungen.burgStartInventar);
 			return;
 		}
-		if (terminalPause == 0 && FunkTerminal.erde(mc.player) < (phase == 2 ? 32 : 16) && BaritoneRahmen.bautGerade()) {
+		if (terminalPause == 0 && FunkTerminal.erde(mc.player) < 32 && BaritoneRahmen.bautGerade()) {
 			chat(mc.player, "Erde wird knapp: hole Erde aus dem Funk-Terminal (Slot 8).");
 			terminal.erdeHolen(mc);
 			return;
@@ -327,49 +345,15 @@ public final class Burgvorschau {
 		if (BaritoneRahmen.bautGerade()) {
 			return;
 		}
-		if (phase == 1) {
-			// nach dem Graben nochmal nachschauen, wo jetzt noch Löcher sind
-			Gelaende g = gelaendePruefen(mc);
-			if (g.unten() != Integer.MIN_VALUE && fuellenStarten(mc.player, g)) {
-				return;
-			}
+		// Baritone ist fertig: nochmal nachschauen (z. B. Stellen, die vorher nicht geladen waren)
+		Gelaende g = gelaendePruefen(mc);
+		if ((g.oben() != Integer.MIN_VALUE || g.unten() != Integer.MIN_VALUE) && durchgang < 3 && ebnenStarten(mc.player, g)) {
+			return;
 		}
 		phase = 0;
 		ebnenMerken(false);
-		chat(mc.player, "Fertig: Die Fläche ist eben. Zum Kontrollieren die Vorschau nochmal neu zeigen.");
+		chat(mc.player, "Fertig: Die Fläche ist eben. " + g.text());
 		mc.player.sendOverlayMessage(Component.literal("Burg-Platz: fertig geebnet"));
-	}
-
-	private boolean fuellenStarten(LocalPlayer p, Gelaende g) {
-		if (!bereichBefehl(g.unten(), tor.getY() - 1, "sel replace air cave_air water lava dirt")) {
-			phase = 0;
-			return false;
-		}
-		phase = 2;
-		wartet = 40;
-		terminalPause = 0;
-		ebnenMerken(true);
-		chat(p, "Schritt 2: Baritone stopft Löcher und Wasser mit Erde, von Y " + g.unten() + " bis Y " + (tor.getY() - 1)
-				+ " (nur 1 Block tief). Geht die Erde aus, holt der Bot neue aus dem Funk-Terminal in Slot 8.");
-		return true;
-	}
-
-	/**
-	 * Lässt Baritone einen "sel"-Befehl auf der Sockel-Fläche zwischen zwei Höhen ausführen. Baritone nimmt dafür alle
-	 * Auswahl-Rahmen, deshalb kommen Kisten- und Burg-Rahmen kurz weg und danach wieder hin.
-	 */
-	private boolean bereichBefehl(int y0, int y1, String befehl) {
-		int[] a = welt(tor, vorne, 14, 14);
-		int[] b = welt(tor, vorne, 135, 135);
-		BaritoneRahmen.befehl("sel clear");
-		BaritoneRahmen.vergessen();
-		boolean ok = BaritoneRahmen.befehl("sel pos1 " + a[0] + " " + y0 + " " + a[1])
-				&& BaritoneRahmen.befehl("sel pos2 " + b[0] + " " + y1 + " " + b[1])
-				&& BaritoneRahmen.befehl(befehl);
-		BaritoneRahmen.befehl("sel clear"); // der Auftrag ist schon bei Baritone, die Auswahl braucht es nicht mehr
-		BaritoneRahmen.vergessen();
-		rahmenAnzeigen();
-		return ok;
 	}
 
 	// ---- Umrechnen vom Bauplan in die Welt ------------------------------------

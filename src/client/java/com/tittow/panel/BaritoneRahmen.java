@@ -3,11 +3,16 @@ package com.tittow.panel;
 import java.awt.Color;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.Vec3i;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * Lässt Baritone grüne Rahmen durch die Wände zeichnen (Baritones "Selections"), wie im Patri-Autofarmer.
@@ -155,6 +160,70 @@ final class BaritoneRahmen {
 			Object builder = Class.forName("baritone.api.IBaritone").getMethod("getBuilderProcess").invoke(baritone);
 			return Boolean.TRUE.equals(Class.forName("baritone.api.process.IBaritoneProcess").getMethod("isActive").invoke(builder));
 		} catch (ReflectiveOperationException | RuntimeException e) {
+			return false;
+		}
+	}
+
+	/**
+	 * Ebnen in einem Durchgang: Baritone bekommt einen eigenen Bauplan (Kasten ab der Ecke unten),
+	 * unterste Schicht = Erde, aber nur wo Luft, Wasser oder Lava ist (Löcher stopfen, fester Boden bleibt),
+	 * alle Schichten darüber = Luft (freigraben). Wasser darüber lässt es in Ruhe, das kann man nicht abbauen.
+	 * Baritone arbeitet beides gleichzeitig ab, je nachdem, wo es gerade ist.
+	 */
+	static boolean ebnenBauen(BlockPos ecke, int breiteX, int hoehe, int laengeZ) {
+		if (!vorhanden()) {
+			return false;
+		}
+		try {
+			Class<?> schematic = Class.forName("baritone.api.schematic.ISchematic");
+			BlockState erde = Blocks.DIRT.defaultBlockState();
+			BlockState luft = Blocks.AIR.defaultBlockState();
+			Object plan = Proxy.newProxyInstance(schematic.getClassLoader(), new Class<?>[] {schematic}, (proxy, m, a) -> {
+				switch (m.getName()) {
+					case "widthX":
+						return breiteX;
+					case "heightY":
+						return hoehe;
+					case "lengthZ":
+						return laengeZ;
+					case "size":
+						return switch (((Direction.Axis) a[0])) {
+							case X -> breiteX;
+							case Y -> hoehe;
+							default -> laengeZ;
+						};
+					case "inSchematic": {
+						int x = (Integer) a[0], y = (Integer) a[1], z = (Integer) a[2];
+						if (x < 0 || y < 0 || z < 0 || x >= breiteX || y >= hoehe || z >= laengeZ) {
+							return false;
+						}
+						BlockState jetzt = (BlockState) a[3];
+						if (y == 0) {
+							return jetzt.isAir() || jetzt.liquid() || jetzt.canBeReplaced(); // nur Löcher
+						}
+						return !jetzt.liquid(); // darüber alles weg, außer Wasser/Lava
+					}
+					case "desiredState":
+						return (Integer) a[1] == 0 ? erde : luft;
+					case "reset":
+						return null;
+					case "toString":
+						return "Tittow Burg-Platz";
+					case "hashCode":
+						return System.identityHashCode(proxy);
+					case "equals":
+						return proxy == a[0];
+					default:
+						return null;
+				}
+			});
+			Object baritone = getPrimaryBaritone.invoke(getProvider.invoke(null));
+			Object builder = Class.forName("baritone.api.IBaritone").getMethod("getBuilderProcess").invoke(baritone);
+			Class.forName("baritone.api.process.IBuilderProcess").getMethod("build", String.class, schematic, Vec3i.class)
+					.invoke(builder, "Burg-Platz", plan, ecke);
+			return true;
+		} catch (ReflectiveOperationException | RuntimeException e) {
+			System.err.println("[Tittow Panel] Ebnen-Bauplan ging nicht an Baritone: " + e);
 			return false;
 		}
 	}
