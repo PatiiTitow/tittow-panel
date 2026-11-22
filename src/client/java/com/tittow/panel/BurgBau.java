@@ -83,6 +83,11 @@ final class BurgBau {
 	private Vec3 ausweichStart;     // wo er beim Ausweichen losging
 	private final java.util.Set<Integer> leer = new java.util.HashSet<>(); // Sorten, die im Terminal wirklich alle sind
 	private Object altWegwerf;  // Baritones Liste der "Wegwerf-Blöcke", wird am Ende zurückgestellt
+	/** Baritones Rechenzeiten für Wege beim Bauen (Millisekunden), länger als normal. */
+	private static final Map<String, Long> ZEITEN = Map.of(
+			"primaryTimeoutMS", 2000L, "failureTimeoutMS", 6000L,
+			"planAheadPrimaryTimeoutMS", 6000L, "planAheadFailureTimeoutMS", 10000L);
+	private final Map<String, Object> alteZeiten = new HashMap<>(); // die Zeiten von vorher, kommen am Ende zurück
 
 	BurgBau(FunkTerminal terminal, Herstellen herstellen, Versorgung versorgung, Bereich einstellungen) {
 		this.terminal = terminal;
@@ -281,6 +286,17 @@ final class BurgBau {
 		BaritoneRahmen.einstellung("allowPlace", true);
 		BaritoneRahmen.einstellung("buildInLayers", false);
 		BaritoneRahmen.einstellung("okIfWater", false);
+		// mehr Zeit zum Wegrechnen: sonst findet er auf der großen Fläche keinen ganzen Weg (rot), sondern nur
+		// halbe (blau), und springt zwischen zwei halben Wegen hin und her
+		for (Map.Entry<String, Long> e : ZEITEN.entrySet()) {
+			if (!alteZeiten.containsKey(e.getKey())) {
+				Object alt = BaritoneRahmen.einstellungLesen(e.getKey());
+				if (alt != null) {
+					alteZeiten.put(e.getKey(), alt);
+				}
+			}
+			BaritoneRahmen.einstellung(e.getKey(), e.getValue());
+		}
 		if (altWegwerf == null) {
 			altWegwerf = BaritoneRahmen.einstellungLesen("acceptableThrowawayItems");
 		}
@@ -891,6 +907,10 @@ final class BurgBau {
 			BaritoneRahmen.einstellung("acceptableThrowawayItems", altWegwerf);
 			altWegwerf = null;
 		}
+		for (Map.Entry<String, Object> e : alteZeiten.entrySet()) {
+			BaritoneRahmen.einstellung(e.getKey(), e.getValue());
+		}
+		alteZeiten.clear();
 	}
 
 	private static void chat(LocalPlayer p, String text) {

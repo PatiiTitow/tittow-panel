@@ -213,6 +213,9 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
      Am Schluss sagt er, was gefehlt hat. Dann Material besorgen und **„Sockel weiter bauen“** klicken.
    (Alles Hergestellte und Gebrannte liegt vorher schon im Funk-Terminal, das legt „Herstellen“ dort ab.)
    - Baritone baut dabei **nichts ab** (damit nichts Fertiges kaputtgeht).
+   - Baritone bekommt beim Bauen **mehr Zeit zum Wegrechnen**. Ein **blauer** Weg heißt: er rechnet noch. Ein **roter**
+     Weg ist fertig. So springt er seltener zwischen zwei halben Wegen hin und her. Am Ende werden die alten Zeiten
+     zurückgestellt.
    - **Zum Hochbauen nimmt er Erde.** Die liegt beim Bauen in **Slot 5**, die Axt kommt solange nach oben ins Inventar
      und am Ende (oder bei „Bauen: Stopp“) wieder zurück nach Slot 5. Erde holt er sich bei Bedarf aus dem Funk-Terminal.
    - Nach dem Abschnitt **baut er das Erd-Gerüst wieder ab** (nur Erde, wo laut Bauplan nichts hingehört).
