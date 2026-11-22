@@ -78,6 +78,16 @@ final class BurgBau {
 	private static final long MELDUNG_ALLE = 5 * 60 * 1000L; // alle 5 Minuten
 	private Map<String, Integer> start = Map.of(); // Sachen vom Start, die im Inventar bleiben (ohne Baumaterial)
 	private int platzFehler;    // wie oft hintereinander das Platzmachen nicht geholfen hat
+	/** Größe der Felder, in denen gebaut wird (16 x 16 Blöcke). */
+	private static final int FELD = 16;
+	private List<int[]> felder = List.of(); // Felder {x0, z0, x1, z1} im Bauplan, von außen nach innen
+	private int feldNr;                     // Stelle in "felder"
+	private int[] feld;                     // aktuelles Feld (null = gerade keins)
+	private int feldRunde;                  // wievielte Runde im aktuellen Feld
+	private boolean fortschrittImFeld;      // hat die Runde im Feld etwas gebracht?
+	private List<Integer> schichtSorten = List.of(); // alle Sorten der aktuellen Höhe
+	private boolean schichtAngesagt;        // "Höhe ..." schon in den Chat geschrieben
+	private int slotWarte;                  // Ticks gewartet, bis der Block in Slot 6 liegt
 	private boolean ausgewichen;   // bei dieser Sorte schon einmal ausgewichen (beim nächsten Hängen: nächste Sorte)
 	private int ausweichTicks = -1; // >= 0: weicht gerade aus (springen, ein Stück weggehen)
 	private Vec3 ausweichStart;     // wo er beim Ausweichen losging
@@ -327,7 +337,15 @@ final class BurgBau {
 			chat(p, "Er macht da weiter, wo er aufgehört hat (zuletzt Höhe " + einstellungen.burgBauSchicht + "). Was schon steht, überspringt er.");
 		}
 		sorteNr = 0;
-		sorten = plan.sortenInSchicht(y);
+		sorten = List.of();
+		schichtSorten = plan.sortenInSchicht(y);
+		felder = felderMachen();
+		feldNr = 0;
+		feld = null;
+		schichtAngesagt = false;
+		slotWarte = 0;
+		runde = 0;
+		fortschrittInRunde = false;
 		baut = false;
 		// alles vom letzten Mal vergessen (sonst holt er für die erste Sorte nichts und Baritone hat kein Material)
 		geholt = false;
@@ -378,72 +396,59 @@ final class BurgBau {
 				aufpassen(mc);
 				return;
 			}
-			// Baritone ist fertig (oder kommt nicht weiter): weiter mit der nächsten Sorte. Was von dieser Sorte noch
-			// fehlt, kommt in der nächsten Runde dran (dann haben die Blöcke oft schon Nachbarn, an die er sie setzen kann).
+			// Baritone ist fertig (oder kommt nicht weiter): weiter mit der nächsten Sorte im Feld. Was von dieser Sorte
+			// noch fehlt, kommt in der nächsten Runde dran (dann haben die Blöcke oft schon Nachbarn, an die er sie setzen kann).
 			baut = false;
 			if (rest(mc) < passStartRest) {
 				fortschrittInRunde = true;
+				fortschrittImFeld = true;
 			}
 			sorteNr++;
 			geholt = false;
 			warte = 10;
-			if (FunkTerminal.anzahl(p, item) > 0) {
-				// Sorte fertig: was übrig ist, zurück ins Funk-Terminal (die nächste Sorte holt er sich frisch heraus)
-				zweck = Zweck.ABLEGEN;
-				terminal.ablegen(mc, behalten(null));
-			}
 			return;
 		}
-		// nächste Sorte bzw. nächste Schicht
+		// nächste Sorte im Feld, nächstes Feld bzw. nächste Schicht
 		while (true) {
-			if (sorteNr >= sorten.size()) {
-				// Runde durch. Fehlt in der Schicht noch etwas und hat die Runde etwas gebracht: nochmal von vorne.
-				int offen = schichtRest(mc);
-				if (offen > 0 && fortschrittInRunde) {
-					sorteNr = 0;
-					runde++;
-					fortschrittInRunde = false;
-					continue;
-				}
-				if (offen > 0) {
-					chat(p, "In Höhe " + y + " fehlen noch " + offen + " Blöcke, da kommt er gerade nicht hin – die holt er am Schluss nach.");
-				}
-				runde = 0;
-				fortschrittInRunde = false;
-				y++;
-				einstellungen.burgBauSchicht = y; // merken, wo er gerade ist
-				einstellungen.speichern();
-				if (y > bis) {
-					// oben angekommen: was übersprungen wurde, jetzt nachholen (bis zu 3 Durchgänge von unten nach oben)
-					long offenGesamt = 0;
-					for (long n : nochZuBauen(mc).values()) {
-						offenGesamt += n;
-					}
-					if (offenGesamt > 0 && nachholRunde < 3) {
-						nachholRunde++;
-						chat(p, "Jetzt macht er fertig, was er übersprungen hat (" + offenGesamt + " Blöcke, Durchgang " + nachholRunde + " von 3).");
-						y = von;
-						sorten = plan.sortenInSchicht(y);
-						sorteNr = 0;
-						runde = 0;
+			if (feld == null) {
+				if (feldNr >= felder.size()) {
+					// alle Felder der Schicht durch. Fehlt noch etwas und hat die Runde etwas gebracht: nochmal alle Felder.
+					int offen = schichtRest(mc);
+					if (offen > 0 && fortschrittInRunde) {
+						feldNr = 0;
+						runde++;
 						fortschrittInRunde = false;
 						continue;
 					}
-					if (offenGesamt > 0 && !leer.isEmpty()) {
-						StringBuilder namen = new StringBuilder();
-						for (int i : leer) {
-							namen.append(namen.length() > 0 ? ", " : "").append(new ItemStack(plan.zustaende[i].getBlock().asItem()).getHoverName().getString());
-						}
-						chat(p, "§c" + offenGesamt + " Blöcke fehlen noch.§r Im Funk-Terminal war alle: " + namen
-								+ ". Besorg mehr und klick „Sockel weiter bauen“.");
-					} else if (offenGesamt > 0) {
-						chat(p, "§c" + offenGesamt + " Blöcke gehen auch nach 3 Nachhol-Durchgängen nicht§r – die bitte selbst setzen.");
+					if (offen > 0) {
+						chat(p, "In Höhe " + y + " fehlen noch " + offen + " Blöcke, da kommt er gerade nicht hin – die holt er am Schluss nach.");
 					}
-					aufraeumenStarten(mc, p); // erst das Erd-Gerüst wieder weg, dann ist der Abschnitt fertig
+					naechsteSchicht(mc, p);
 					return;
 				}
-				sorten = plan.sortenInSchicht(y);
+				feld = felder.get(feldNr);
+				sorten = sortenImFeld(mc);
 				sorteNr = 0;
+				feldRunde = 0;
+				fortschrittImFeld = false;
+				if (sorten.isEmpty()) { // in diesem Feld steht schon alles
+					feld = null;
+					feldNr++;
+				}
+				continue;
+			}
+			if (sorteNr >= sorten.size()) {
+				// Feld einmal durch: hat es etwas gebracht und fehlt noch etwas, nochmal (höchstens 3 Mal), sonst nächstes Feld
+				List<Integer> noch = sortenImFeld(mc);
+				if (fortschrittImFeld && feldRunde < 2 && !noch.isEmpty()) {
+					sorten = noch;
+					sorteNr = 0;
+					feldRunde++;
+					fortschrittImFeld = false;
+					continue;
+				}
+				feld = null;
+				feldNr++;
 				continue;
 			}
 			index = sorten.get(sorteNr);
@@ -462,9 +467,24 @@ final class BurgBau {
 		if (!geruestErde(mc, p)) {
 			return; // erst Erde fürs Gerüst holen
 		}
+		if (hab == 0) { // auch nach dem Holen nichts da: diese Sorte erst mal lassen
+			sorteNr++;
+			geholt = false;
+			return;
+		}
+		// erst wenn der Block wirklich in Slot 6 liegt, Baritone starten (sonst "Missing materials" und er hängt)
+		if (!p.getInventory().getItem(Versorgung.ERDE_SLOT).is(item) && slotWarte < 60) {
+			slotWarte++;
+			versorgung.sofortNachlegen(mc, p, item);
+			return;
+		}
+		if (slotWarte >= 60) {
+			System.out.println("[Tittow Panel] Bauen: " + new ItemStack(item).getHoverName().getString()
+					+ " kam nicht in Slot 6, startet trotzdem");
+		}
+		slotWarte = 0;
 		geholt = false;
 		lagerLeer = false;
-		versorgung.nachlegen(mc, p, item);
 		if (!passStarten()) {
 			stoppen(mc, "Baritone hat den Bauplan nicht angenommen.");
 			return;
@@ -477,9 +497,106 @@ final class BurgBau {
 		passStartRest = rest;
 		letztePos = p.position();
 		warte = 40; // Baritone braucht einen Moment
-		if (sorteNr == 0 && runde == 0) {
-			chat(p, "Höhe " + y + " (Y " + (tor.getY() + y) + "): " + sorten.size() + " Blocksorte(n).");
+		if (!schichtAngesagt) {
+			schichtAngesagt = true;
+			chat(p, "Höhe " + y + " (Y " + (tor.getY() + y) + "): " + schichtSorten.size() + " Blocksorte(n), in "
+					+ felder.size() + " Feldern von außen nach innen.");
 		}
+	}
+
+	/** Nächste Höhe (oder oben angekommen: Übersprungenes nachholen bzw. Abschnitt fertig). */
+	private void naechsteSchicht(Minecraft mc, LocalPlayer p) {
+		runde = 0;
+		fortschrittInRunde = false;
+		feld = null;
+		feldNr = 0;
+		schichtAngesagt = false;
+		y++;
+		einstellungen.burgBauSchicht = y; // merken, wo er gerade ist
+		einstellungen.speichern();
+		if (y > bis) {
+			// oben angekommen: was übersprungen wurde, jetzt nachholen (bis zu 3 Durchgänge von unten nach oben)
+			long offenGesamt = 0;
+			for (long n : nochZuBauen(mc).values()) {
+				offenGesamt += n;
+			}
+			if (offenGesamt > 0 && nachholRunde < 3) {
+				nachholRunde++;
+				chat(p, "Jetzt macht er fertig, was er übersprungen hat (" + offenGesamt + " Blöcke, Durchgang " + nachholRunde + " von 3).");
+				y = von;
+				schichtSorten = plan.sortenInSchicht(y);
+				restAblegen(mc);
+				return;
+			}
+			if (offenGesamt > 0 && !leer.isEmpty()) {
+				StringBuilder namen = new StringBuilder();
+				for (int i : leer) {
+					namen.append(namen.length() > 0 ? ", " : "").append(new ItemStack(plan.zustaende[i].getBlock().asItem()).getHoverName().getString());
+				}
+				chat(p, "§c" + offenGesamt + " Blöcke fehlen noch.§r Im Funk-Terminal war alle: " + namen
+						+ ". Besorg mehr und klick „Sockel weiter bauen“.");
+			} else if (offenGesamt > 0) {
+				chat(p, "§c" + offenGesamt + " Blöcke gehen auch nach 3 Nachhol-Durchgängen nicht§r – die bitte selbst setzen.");
+			}
+			aufraeumenStarten(mc, p); // erst das Erd-Gerüst wieder weg, dann ist der Abschnitt fertig
+			return;
+		}
+		schichtSorten = plan.sortenInSchicht(y);
+		restAblegen(mc);
+	}
+
+	/** Am Ende einer Höhe: übriges Baumaterial zurück ins Funk-Terminal (die Gerüst-Erde bleibt). */
+	private void restAblegen(Minecraft mc) {
+		zweck = Zweck.ABLEGEN;
+		terminal.ablegen(mc, behalten(null));
+	}
+
+	/**
+	 * Die Schicht in Felder von 16 x 16 teilen, Reihenfolge von außen nach innen (Ring für Ring, jeder Ring einmal
+	 * herum). Außen steht schon die Mauer, so hat jeder neue Block meist schon einen Nachbarn, an den er ihn setzen kann.
+	 */
+	private List<int[]> felderMachen() {
+		List<int[]> f = new ArrayList<>();
+		for (int z0 = 0; z0 < plan.l; z0 += FELD) {
+			for (int x0 = 0; x0 < plan.w; x0 += FELD) {
+				f.add(new int[] { x0, z0, Math.min(x0 + FELD, plan.w) - 1, Math.min(z0 + FELD, plan.l) - 1 });
+			}
+		}
+		double cx = (plan.w - 1) / 2.0, cz = (plan.l - 1) / 2.0;
+		f.sort((a, b) -> {
+			double ax = (a[0] + a[2]) / 2.0 - cx, az = (a[1] + a[3]) / 2.0 - cz;
+			double bx = (b[0] + b[2]) / 2.0 - cx, bz = (b[1] + b[3]) / 2.0 - cz;
+			int ring = Double.compare(Math.max(Math.abs(bx), Math.abs(bz)), Math.max(Math.abs(ax), Math.abs(az)));
+			return ring != 0 ? ring : Double.compare(Math.atan2(az, ax), Math.atan2(bz, bx));
+		});
+		return f;
+	}
+
+	/** Welche Sorten im aktuellen Feld (in dieser Höhe) noch nicht stimmen, in der Reihenfolge der Schicht. */
+	private List<Integer> sortenImFeld(Minecraft mc) {
+		boolean[] fehlt = new boolean[plan.ids.length];
+		for (int z = feld[1]; z <= feld[3]; z++) {
+			for (int x = feld[0]; x <= feld[2]; x++) {
+				int i = plan.index(x, y, z);
+				if (!fehlt[i] && plan.setzbar(i) && !stimmt(mc, x, z, i)) {
+					fehlt[i] = true;
+				}
+			}
+		}
+		List<Integer> r = new ArrayList<>();
+		for (int i : schichtSorten) {
+			if (fehlt[i]) {
+				r.add(i);
+			}
+		}
+		return r;
+	}
+
+	/** Steht an der Bauplan-Stelle x, z (aktuelle Höhe) schon der richtige Block? */
+	private boolean stimmt(Minecraft mc, int x, int z, int i) {
+		int[] w = Burgvorschau.welt(tor, vorne, x + Bauplan.VERSATZ, z + Bauplan.VERSATZ);
+		return mc.level.hasChunk(w[0] >> 4, w[1] >> 4)
+				&& mc.level.getBlockState(new BlockPos(w[0], tor.getY() + y, w[1])).is(plan.zustaende[i].getBlock());
 	}
 
 	// ---- Erde fürs Gerüst (Hochbauen) ----------------------------------------------------------
@@ -665,8 +782,10 @@ final class BurgBau {
 
 	/** Gibt Baritone die aktuelle Schicht, nur mit der aktuellen Blocksorte. */
 	private boolean passStarten() {
-		int[] a = Burgvorschau.welt(tor, vorne, Bauplan.VERSATZ, Bauplan.VERSATZ);
-		int[] b = Burgvorschau.welt(tor, vorne, Bauplan.VERSATZ + plan.w - 1, Bauplan.VERSATZ + plan.l - 1);
+		// nur das aktuelle Feld (kurze Wege, weniger Hin und Her)
+		final int[] f = feld != null ? feld : new int[] { 0, 0, plan.w - 1, plan.l - 1 };
+		int[] a = Burgvorschau.welt(tor, vorne, Bauplan.VERSATZ + f[0], Bauplan.VERSATZ + f[1]);
+		int[] b = Burgvorschau.welt(tor, vorne, Bauplan.VERSATZ + f[2], Bauplan.VERSATZ + f[3]);
 		BlockPos ecke = new BlockPos(Math.min(a[0], b[0]), tor.getY() + y, Math.min(a[1], b[1]));
 		int breitX = Math.abs(a[0] - b[0]) + 1, laengeZ = Math.abs(a[1] - b[1]) + 1;
 		final int schicht = y, sorte = index;
@@ -676,24 +795,31 @@ final class BurgBau {
 				return null;
 			}
 			int[] m = Burgvorschau.plan(tor, vorne, wx, wz);
-			return plan.index(m[0] - Bauplan.VERSATZ, schicht, m[1] - Bauplan.VERSATZ) == sorte ? soll : null;
+			int px = m[0] - Bauplan.VERSATZ, pz = m[1] - Bauplan.VERSATZ;
+			if (px < f[0] || px > f[2] || pz < f[1] || pz > f[3]) {
+				return null;
+			}
+			return plan.index(px, schicht, pz) == sorte ? soll : null;
 		});
 	}
 
-	/** Wie viele Stellen der aktuellen Sorte in der aktuellen Schicht noch nicht stimmen. */
+	/** Wie viele Stellen der aktuellen Sorte im aktuellen Feld (ohne Feld: in der ganzen Schicht) noch nicht stimmen. */
 	private int rest(Minecraft mc) {
+		return fehlen(mc, index, feld);
+	}
+
+	/** Wie viele Stellen in der aktuellen Höhe noch nicht stimmen: nur Sorte "sorte" (-1 = alle), nur im Feld f (null = überall). */
+	private int fehlen(Minecraft mc, int sorte, int[] f) {
 		int n = 0;
-		BlockState soll = plan.zustaende[index];
-		for (int z = 0; z < plan.l; z++) {
-			for (int x = 0; x < plan.w; x++) {
-				if (plan.index(x, y, z) != index) {
+		int x0 = f != null ? f[0] : 0, z0 = f != null ? f[1] : 0;
+		int x1 = f != null ? f[2] : plan.w - 1, z1 = f != null ? f[3] : plan.l - 1;
+		for (int z = z0; z <= z1; z++) {
+			for (int x = x0; x <= x1; x++) {
+				int i = plan.index(x, y, z);
+				if ((sorte >= 0 ? i != sorte : !plan.setzbar(i)) || stimmt(mc, x, z, i)) {
 					continue;
 				}
-				int[] w = Burgvorschau.welt(tor, vorne, x + Bauplan.VERSATZ, z + Bauplan.VERSATZ);
-				BlockPos pos = new BlockPos(w[0], tor.getY() + y, w[1]);
-				if (!mc.level.hasChunk(w[0] >> 4, w[1] >> 4) || !mc.level.getBlockState(pos).is(soll.getBlock())) {
-					n++;
-				}
+				n++;
 			}
 		}
 		return n;
@@ -807,6 +933,7 @@ final class BurgBau {
 			letzterRest = rest;
 			stillstand = 0;
 			fortschrittInRunde = true;
+			fortschrittImFeld = true;
 			return;
 		}
 		stillstand++;
@@ -831,11 +958,7 @@ final class BurgBau {
 		warte = 10;
 		System.out.println("[Tittow Panel] Bauen: hängt bei " + new ItemStack(item).getHoverName().getString() + " in Höhe " + y
 				+ " (noch " + rest + "), nimmt die nächste Sorte");
-		if (FunkTerminal.anzahl(p, item) > 0) {
-			// was von dieser Sorte übrig ist, zurück ins Terminal (sonst wird das Inventar mit der Zeit voll)
-			zweck = Zweck.ABLEGEN;
-			terminal.ablegen(mc, behalten(null));
-		}
+		// der Rest dieser Sorte bleibt im Inventar (im nächsten Feld braucht er sie wieder); ist es zu voll, legt er vor dem Holen ab
 	}
 
 	// ---- Fortschritt im Chat ------------------------------------------------------------------------
@@ -895,13 +1018,7 @@ final class BurgBau {
 
 	/** Wie viele Blöcke in der aktuellen Schicht (alle Sorten) noch fehlen. */
 	private int schichtRest(Minecraft mc) {
-		int merkIndex = index, n = 0;
-		for (int i : sorten) {
-			index = i;
-			n += rest(mc);
-		}
-		index = merkIndex;
-		return n;
+		return fehlen(mc, -1, null);
 	}
 
 	private void abschnittFertig(Minecraft mc) {

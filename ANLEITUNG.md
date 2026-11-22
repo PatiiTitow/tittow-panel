@@ -207,9 +207,14 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
    (siehe „Herstellen“ unten).
 2. **Prüfen:** Er zählt das Funk-Terminal durch. Fehlt noch etwas, hält er an und schreibt in den Chat, **was fehlt**.
    Dann das Material (oder die Rohstoffe dafür) besorgen und **„Sockel weiter bauen“** klicken.
-3. **Bauen:** Schicht für Schicht von unten nach oben, in jeder Schicht **eine Blocksorte nach der anderen**.
-   Die Sorte holt er **jedes Mal frisch aus dem Funk-Terminal** und legt sie in **Slot 6**. Baritone baut nur diese Sorte.
-   Er nimmt **höchstens 5 Stapel auf einmal** heraus. Ist die Sorte fertig (oder hängt er), legt er den **Rest zurück ins Funk-Terminal**, dann kommt die nächste.
+3. **Bauen:** Schicht für Schicht von unten nach oben. Jede Schicht teilt er in **Felder von 16 × 16 Blöcken** und baut
+   sie **von außen nach innen** (Ring für Ring, einmal herum). Außen steht schon die Mauer, so hat jeder neue Block meist
+   schon einen Nachbarn, an den er ihn setzen kann. Und die Wege bleiben kurz, er läuft nicht quer über die ganze Fläche.
+   In jedem Feld baut er **eine Blocksorte nach der anderen**, und das Feld bis zu 3 Mal, solange es etwas bringt.
+   Bleibt in einer Schicht etwas übrig, geht er die Felder nochmal durch.
+   Die Sorte holt er aus dem Funk-Terminal, **höchstens 5 Stapel auf einmal**, und legt sie in **Slot 6**. Baritone baut
+   nur diese Sorte und startet erst, wenn der Block **wirklich in Slot 6** liegt.
+   - Reste behält er fürs nächste Feld. Am Ende jeder Höhe legt er alles übrige Baumaterial **zurück ins Funk-Terminal**.
    - Baumaterial, das vom letzten Mal noch im Inventar liegt, legt er auch zurück. Ist das Inventar fast voll, legt er
      **erst ab und holt dann**. So meldet er nicht mehr fälschlich „alle“, nur weil kein Platz frei war.
    - Ist eine Sorte im Funk-Terminal **wirklich alle**, hält er nicht an, sondern baut mit den anderen Sorten weiter.
@@ -225,7 +230,7 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
      und am Ende (oder bei „Bauen: Stopp“) wieder zurück nach Slot 5. Erde holt er sich bei Bedarf aus dem Funk-Terminal.
    - Nach dem Abschnitt **baut er das Erd-Gerüst wieder ab** (nur Erde, wo laut Bauplan nichts hingehört).
    - **Hängt er 10 Sekunden** (setzt keinen Block und läuft nicht), **springt er, geht 3–4 Blöcke zur Seite** und setzt
-     mit derselben Sorte neu an. Hängt er danach wieder, lässt er diese Sorte erst mal und nimmt die nächste.
+     mit derselben Sorte neu an. Hängt er danach wieder, lässt er diese Sorte im Feld erst mal und nimmt die nächste.
      Ist er mit allen Sorten der Höhe durch, fängt er **wieder von vorne an** (inzwischen haben die Blöcke oft Nachbarn,
      an die er sie setzen kann). Bringt eine ganze Runde nichts mehr, macht er erst mit der nächsten Höhe weiter.
    - **Fortschritt:** Beim Losbauen und dann **alle 5 Minuten** steht im Chat, wie viel Prozent vom Sockel fertig sind und

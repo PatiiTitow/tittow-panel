@@ -135,6 +135,12 @@ final class Versorgung {
 	}
 
 	/** Hält Slot 6 voll mit dieser Sorte aus dem oberen Inventar (beim Burg-Bauen: der Block, der gerade dran ist). */
+	/** Wie nachlegen, aber ohne die Wartezeit nach dem letzten Tauschen (vor dem Start eines Bau-Auftrags). */
+	void sofortNachlegen(Minecraft mc, LocalPlayer p, Item item) {
+		nachfuellWarte = 0;
+		nachlegen(mc, p, item);
+	}
+
 	void nachlegen(Minecraft mc, LocalPlayer p, Item item) {
 		if (nachfuellWarte > 0) {
 			nachfuellWarte--;
