@@ -305,9 +305,21 @@ final class Herstellen {
 		}
 		if (geht) {
 			gehTicks++;
+			if (gehTicks % 20 == 0) {
+				System.out.println("[Tittow Panel] Laufe zu den Öfen: bin bei " + p.blockPosition().toShortString()
+						+ ", Ziel " + (stand == null ? "?" : stand.toShortString()) + ", weiteste Kiste "
+						+ String.format(Locale.ROOT, "%.1f", weitesteKiste(p.blockPosition())));
+			}
 			if (amOfen(p)) {
 				BaritoneRahmen.befehl("stop");
 				geht = false;
+			} else if (stand != null && gehTicks > 60 && p.blockPosition().distManhattan(stand) <= 1) {
+				// angekommen, aber die Kisten sind trotzdem zu weit weg
+				BaritoneRahmen.befehl("stop");
+				geht = false;
+				stoppen(mc, "Von meinem Stehplatz sind nicht alle Ofen-Kisten in Reichweite (weiteste "
+						+ String.format(Locale.GERMANY, "%.1f", weitesteKiste(p.blockPosition()))
+						+ " Blöcke). Die Kisten mit „reinlegen“ und „rausnehmen“ müssen näher beieinander stehen.");
 			} else if (gehTicks > 20 * 90) {
 				BaritoneRahmen.befehl("stop");
 				geht = false;
@@ -868,10 +880,80 @@ final class Herstellen {
 			}
 		}
 		if (!raus.isEmpty()) {
-			BlockPos mitte = raus.get(raus.size() / 2).pos();
-			stand = mitte.relative(standSeite != null ? standSeite : Direction.NORTH, 2);
+			stand = besterStand(mc, p);
+			if (stand == null) { // kein freier Platz gefunden: wie früher vor die mittlere Kiste
+				BlockPos mitte = raus.get(raus.size() / 2).pos();
+				stand = mitte.relative(standSeite != null ? standSeite : Direction.NORTH, 2);
+			}
 		}
+		StringBuilder pos = new StringBuilder();
+		for (Kiste k : rein) {
+			pos.append(" rein@").append(k.pos().toShortString());
+		}
+		for (Kiste k : raus) {
+			pos.append(" raus@").append(k.pos().toShortString());
+		}
+		System.out.println("[Tittow Panel] Ofen-Kisten:" + pos + " Stehplatz: " + (stand == null ? "keiner" : stand.toShortString()));
 		chat(p, "Ofen-Kisten gefunden: " + rein.size() + "× „reinlegen“, " + raus.size() + "× „rausnehmen“.");
+	}
+
+	/** Weiteste Entfernung vom Auge (wenn man auf "fuss" steht) zu einer der Ofen-Kisten. */
+	private double weitesteKiste(BlockPos fuss) {
+		Vec3 auge = new Vec3(fuss.getX() + 0.5, fuss.getY() + 1.62, fuss.getZ() + 0.5);
+		double max = 0;
+		for (Kiste k : rein) {
+			max = Math.max(max, auge.distanceTo(Vec3.atCenterOf(k.pos())));
+		}
+		for (Kiste k : raus) {
+			max = Math.max(max, auge.distanceTo(Vec3.atCenterOf(k.pos())));
+		}
+		return max;
+	}
+
+	/** Ein freier Platz zum Stehen (Boden drunter, 2 Blöcke Luft), von dem aus alle Ofen-Kisten zu erreichen sind. */
+	private BlockPos besterStand(Minecraft mc, LocalPlayer p) {
+		int x0 = Integer.MAX_VALUE, y0 = Integer.MAX_VALUE, z0 = Integer.MAX_VALUE;
+		int x1 = Integer.MIN_VALUE, y1 = Integer.MIN_VALUE, z1 = Integer.MIN_VALUE;
+		List<Kiste> alle = new ArrayList<>(rein);
+		alle.addAll(raus);
+		for (Kiste k : alle) {
+			BlockPos b = k.pos();
+			x0 = Math.min(x0, b.getX());
+			y0 = Math.min(y0, b.getY());
+			z0 = Math.min(z0, b.getZ());
+			x1 = Math.max(x1, b.getX());
+			y1 = Math.max(y1, b.getY());
+			z1 = Math.max(z1, b.getZ());
+		}
+		BlockPos bester = null;
+		double besterWert = Double.MAX_VALUE;
+		boolean besterReicht = false;
+		for (int x = x0 - 4; x <= x1 + 4; x++) {
+			for (int z = z0 - 4; z <= z1 + 4; z++) {
+				for (int y = y0 - 4; y <= y1 + 2; y++) {
+					BlockPos f = new BlockPos(x, y, z);
+					if (!frei(mc, f) || !frei(mc, f.above()) || frei(mc, f.below())
+							|| mc.level.getBlockEntity(f.below()) instanceof Container) {
+						continue;
+					}
+					double weit = weitesteKiste(f);
+					boolean reicht = weit <= 4.3;
+					// reicht es von hier, dann der Platz, der am nächsten am Spieler ist; sonst der mit der kürzesten Reichweite
+					double wert = reicht ? p.position().distanceTo(Vec3.atBottomCenterOf(f)) : weit;
+					if (reicht && !besterReicht || reicht == besterReicht && wert < besterWert) {
+						bester = f;
+						besterWert = wert;
+						besterReicht = reicht;
+					}
+				}
+			}
+		}
+		return bester;
+	}
+
+	/** Kann man in diesem Block stehen (keine Kollision, kein Wasser/Lava)? */
+	private static boolean frei(Minecraft mc, BlockPos b) {
+		return mc.level.getBlockState(b).getCollisionShape(mc.level, b).isEmpty() && mc.level.getFluidState(b).isEmpty();
 	}
 
 	private static boolean enthaelt(List<Kiste> l, BlockPos pos) {
