@@ -1,5 +1,5 @@
 # Blutfeste, erzeugt von Burgen.java (materialdatei)
-sockel minecraft:dirt 27848
+sockel minecraft:dirt 13924
 sockel minecraft:polished_deepslate 5042
 sockel minecraft:polished_andesite 2889
 sockel minecraft:andesite 2370
@@ -12,10 +12,10 @@ sockel minecraft:deepslate_tiles 602
 sockel minecraft:cracked_deepslate_bricks 245
 sockel minecraft:cobbled_deepslate 149
 sockel minecraft:glowstone 74
-burg minecraft:dirt 27848
 burg minecraft:deepslate_bricks 25785
 burg minecraft:nether_bricks 23002
 burg minecraft:deepslate_tiles 20128
+burg minecraft:dirt 13924
 burg minecraft:polished_deepslate 13461
 burg minecraft:red_concrete 10882
 burg minecraft:cracked_deepslate_bricks 3976

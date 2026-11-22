@@ -212,8 +212,10 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
    - **Zum Hochbauen nimmt er Erde.** Die liegt beim Bauen in **Slot 5**, die Axt kommt solange nach oben ins Inventar
      und am Ende (oder bei „Bauen: Stopp“) wieder zurück nach Slot 5. Erde holt er sich bei Bedarf aus dem Funk-Terminal.
    - Nach dem Abschnitt **baut er das Erd-Gerüst wieder ab** (nur Erde, wo laut Bauplan nichts hingehört).
-   - Kommt Baritone 2 Minuten nicht weiter, stößt er es neu an. Nach 3 Versuchen sagt er im Chat, wie viele Blöcke
-     in welcher Höhe übrig sind (selbst setzen) und macht weiter.
+   - **Hängt er 10 Sekunden** (setzt keinen Block und läuft nicht), lässt er diese Sorte erst mal und nimmt die nächste.
+     Ist er mit allen Sorten der Höhe durch, fängt er **wieder von vorne an** (inzwischen haben die Blöcke oft Nachbarn,
+     an die er sie setzen kann). Erst wenn eine ganze Runde nichts mehr bringt, sagt er, wie viele Blöcke übrig sind
+     (selbst setzen), und macht mit der nächsten Höhe weiter.
    - Mobs in 2 Blöcken (Monster und Tiere, nie Spieler oder Dorfbewohner) tötet er, bei Hunger isst er.
 4. Ist der Sockel fertig, steht **„Der Sockel ist fertig gebaut!“** im Chat und der Knopf heißt **„Sockel fertig ✔“**.
    Das merkt er sich auch nach dem Neu-Joinen.

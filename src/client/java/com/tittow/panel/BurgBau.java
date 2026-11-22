@@ -20,6 +20,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Burg bauen, Abschnitt für Abschnitt (erst der Sockel, dann je 6 Blöcke Höhe):
@@ -65,6 +66,10 @@ final class BurgBau {
 	private boolean lagerLeer; // im Terminal ist von der Sorte nichts mehr
 	private boolean erdeGeholt; // Gerüst-Erde schon geholt (nicht endlos nochmal)
 	private Item werkzeugIn5;   // was vor dem Bauen in Slot 5 lag (kommt am Ende zurück)
+	private int passStartRest;  // wie viele von der Sorte beim Start des Auftrags fehlten
+	private boolean fortschrittInRunde; // hat die aktuelle Runde durch die Sorten etwas gebracht?
+	private int runde;          // wievielte Runde in dieser Schicht
+	private Vec3 letztePos;     // wo er beim letzten Nachsehen stand (läuft er noch?)
 	private Map<String, Integer> start = Map.of();
 	private Object altWegwerf;  // Baritones Liste der "Wegwerf-Blöcke", wird am Ende zurückgestellt
 
@@ -290,22 +295,16 @@ final class BurgBau {
 				aufpassen(mc);
 				return;
 			}
-			// Baritone ist fertig (oder hat aufgegeben): ist die Sorte in der Schicht jetzt komplett?
+			// Baritone ist fertig (oder kommt nicht weiter): weiter mit der nächsten Sorte. Was von dieser Sorte noch
+			// fehlt, kommt in der nächsten Runde dran (dann haben die Blöcke oft schon Nachbarn, an die er sie setzen kann).
 			baut = false;
-			int rest = rest(mc);
-			if (rest == 0) {
-				sorteNr++;
-				versuch = 0;
-				geholt = false;
-			} else if (++versuch >= 3) {
-				chat(p, "§c" + rest + "× " + new ItemStack(item).getHoverName().getString() + " in Höhe " + y
-						+ " gehen nicht§r (Baritone kommt nicht hin) – bitte selbst setzen, weiter mit dem Nächsten.");
-				sorteNr++;
-				versuch = 0;
-				geholt = false;
+			if (rest(mc) < passStartRest) {
+				fortschrittInRunde = true;
 			}
+			sorteNr++;
+			geholt = false;
 			warte = 10;
-			if (versuch == 0 && FunkTerminal.anzahl(p, item) > 0) {
+			if (FunkTerminal.anzahl(p, item) > 0) {
 				// Sorte fertig: was übrig ist, zurück ins Funk-Terminal (die nächste Sorte holt er sich frisch heraus)
 				zweck = Zweck.ABLEGEN;
 				terminal.ablegen(mc, start);
@@ -315,6 +314,20 @@ final class BurgBau {
 		// nächste Sorte bzw. nächste Schicht
 		while (true) {
 			if (sorteNr >= sorten.size()) {
+				// Runde durch. Fehlt in der Schicht noch etwas und hat die Runde etwas gebracht: nochmal von vorne.
+				int offen = schichtRest(mc);
+				if (offen > 0 && fortschrittInRunde) {
+					sorteNr = 0;
+					runde++;
+					fortschrittInRunde = false;
+					continue;
+				}
+				if (offen > 0) {
+					chat(p, "§cIn Höhe " + y + " bleiben " + offen + " Blöcke übrig§r (er kommt nicht hin) – bitte selbst setzen. "
+							+ "Weiter mit der nächsten Höhe.");
+				}
+				runde = 0;
+				fortschrittInRunde = false;
 				y++;
 				einstellungen.burgBauSchicht = y; // merken, wo er gerade ist
 				einstellungen.speichern();
@@ -353,8 +366,10 @@ final class BurgBau {
 		aufpassTicks = 0;
 		stillstand = 0;
 		letzterRest = rest;
+		passStartRest = rest;
+		letztePos = p.position();
 		warte = 40; // Baritone braucht einen Moment
-		if (sorteNr == 0 && versuch == 0) {
+		if (sorteNr == 0 && runde == 0) {
 			chat(p, "Höhe " + y + " (Y " + (tor.getY() + y) + "): " + sorten.size() + " Blocksorte(n).");
 		}
 	}
@@ -584,25 +599,49 @@ final class BurgBau {
 		return m;
 	}
 
-	/** Alle 30 Sekunden: wird es weniger? Nach 2 Minuten ohne Fortschritt die Sorte neu anstoßen. */
+	/**
+	 * Alle 10 Sekunden: hat er einen Block gesetzt? Wenn nicht und er auch nicht läuft, hängt er: dann diese Sorte
+	 * erst mal lassen und mit der nächsten weitermachen (in der nächsten Runde kommt sie nochmal dran).
+	 * Läuft er nur herum, ohne etwas zu setzen, gilt er nach einer Minute auch als hängend.
+	 */
 	private void aufpassen(Minecraft mc) {
-		if (mc.gameMode != null && mc.gameMode.isDestroying()) {
-			stillstand = 0;
-		}
-		if (++aufpassTicks < 600) {
+		if (++aufpassTicks % 200 != 0) {
 			return;
 		}
-		aufpassTicks = 0;
+		LocalPlayer p = mc.player;
 		int rest = rest(mc);
+		Vec3 pos = p.position();
+		boolean laeuft = letztePos != null && pos.distanceTo(letztePos) > 2.0;
+		letztePos = pos;
 		if (rest < letzterRest) {
 			letzterRest = rest;
 			stillstand = 0;
-		} else if (++stillstand >= 4) {
-			BaritoneRahmen.befehl("stop");
-			baut = false;
-			versuch++;
-			chat(mc.player, "Baritone kommt seit 2 Minuten nicht weiter – neu angestoßen.");
+			fortschrittInRunde = true;
+			return;
 		}
+		stillstand++;
+		boolean baut = mc.gameMode != null && mc.gameMode.isDestroying();
+		if ((laeuft || baut) && stillstand < 6) {
+			return; // unterwegs zur nächsten Stelle
+		}
+		BaritoneRahmen.befehl("stop");
+		this.baut = false;
+		sorteNr++;
+		geholt = false;
+		warte = 10;
+		System.out.println("[Tittow Panel] Bauen: hängt bei " + new ItemStack(item).getHoverName().getString() + " in Höhe " + y
+				+ " (noch " + rest + "), nimmt die nächste Sorte");
+	}
+
+	/** Wie viele Blöcke in der aktuellen Schicht (alle Sorten) noch fehlen. */
+	private int schichtRest(Minecraft mc) {
+		int merkIndex = index, n = 0;
+		for (int i : sorten) {
+			index = i;
+			n += rest(mc);
+		}
+		index = merkIndex;
+		return n;
 	}
 
 	private void abschnittFertig(Minecraft mc) {
