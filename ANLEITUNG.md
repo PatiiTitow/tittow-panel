@@ -275,6 +275,22 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
 
 - Es wird nur so viel gemacht, wie für den Abschnitt fehlt (in der Werkbank kann es ein Stapel mehr werden).
 - Beim Laufen zu den Öfen baut Baritone nichts ab und nichts hin.
+- Er sucht sich vor den Öfen einen **freien Stehplatz**, von dem aus er die oberen und die unteren Kisten erreicht.
+  Geht das nicht, sagt er es sofort im Chat.
+
+## Beton-Farm (Numpad 9)
+Für die automatische Beton-Farm: Der Bot macht **die ganze Zeit Linksklick und gleich danach Rechtsklick**.
+1. Stell dich an die Farm und schau auf den Block.
+2. **Numpad 9** drücken, oder im Panel auf **„Beton-Farm: AUS“** klicken. Dann fängt er sofort an.
+3. **Linksklick:** Die Taste bleibt gedrückt, bis der Block weg ist (höchstens 6 Sekunden).
+   **Gleich danach Rechtsklick.** Schaust du auf nichts, macht er nur Rechtsklick.
+4. Es wird benutzt, was du in der Hand hast, wie beim echten Klicken. Spitzhacke in der Haupthand und Trockenbeton
+   in der Zweithand geht auch.
+5. **Ausschalten:** wieder **Numpad 9**, oder im Panel auf „Beton-Farm: AN“ klicken.
+
+- Ist ein Menü offen (Inventar, Chat, Panel), macht er Pause.
+- Ist das Werkzeug in der Hand fast kaputt (noch 10 Haltbarkeit), hört er von selbst auf.
+- Die Taste lässt sich in den Steuerungs-Einstellungen unter „Tittow Panel“ ändern.
 
 ## Dateien
 - `src/client/java/com/tittow/panel/BotLogik.java` – Laufen, Schlagen, Essen

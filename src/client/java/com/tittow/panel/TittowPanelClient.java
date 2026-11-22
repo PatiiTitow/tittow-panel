@@ -18,6 +18,7 @@ public final class TittowPanelClient implements ClientModInitializer {
 	private static final Hell HELL = new Hell(BEREICH);
 	private static final Kisten KISTEN = new Kisten(BEREICH);
 	private static final Burgvorschau BURG = new Burgvorschau(BEREICH);
+	private static final BetonFarm BETON = new BetonFarm();
 
 	@Override
 	public void onInitializeClient() {
@@ -27,17 +28,26 @@ public final class TittowPanelClient implements ClientModInitializer {
 		// Numpad 8 (lässt sich in den Steuerungs-Einstellungen ändern)
 		KeyMapping oeffnen = KeyMappingHelper.registerKeyMapping(new KeyMapping(
 				"key.tittowpanel.oeffnen", InputConstants.Type.KEYBOARD, SDLScancode.SDL_SCANCODE_KP_8, kategorie));
+		// Numpad 9: Beton-Farm an/aus
+		KeyMapping betonTaste = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+				"key.tittowpanel.betonfarm", InputConstants.Type.KEYBOARD, SDLScancode.SDL_SCANCODE_KP_9, kategorie));
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			while (oeffnen.consumeClick()) {
 				if (client.player != null && client.gui.screen() == null) {
-					client.gui.setScreen(new TittowScreen(BOT, BEREICH, HELL, KISTEN, BURG));
+					client.gui.setScreen(new TittowScreen(BOT, BEREICH, HELL, KISTEN, BURG, BETON));
+				}
+			}
+			while (betonTaste.consumeClick()) {
+				if (client.player != null && client.gui.screen() == null) {
+					BETON.umschalten(client);
 				}
 			}
 			BOT.tick(client);
 			HELL.tick(client);
 			KISTEN.tick(client);
 			BURG.tick(client);
+			BETON.tick(client);
 		});
 
 		// beim Verlassen der Welt den Bot ausschalten und die Kisten- und Burg-Rahmen entfernen
@@ -47,6 +57,7 @@ public final class TittowPanelClient implements ClientModInitializer {
 			}
 			KISTEN.leeren();
 			BURG.aus();
+			BETON.aus(client, null);
 		});
 	}
 }

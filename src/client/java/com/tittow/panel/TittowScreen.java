@@ -19,12 +19,14 @@ public final class TittowScreen extends Screen {
 	private final Hell hell;
 	private final Kisten kisten;
 	private final Burgvorschau burg;
+	private final BetonFarm beton;
 	private Button botKnopf;
 	private String meldung = "";
 	private String stelle = "";
 
-	public TittowScreen(BotLogik bot, Bereich bereich, Hell hell, Kisten kisten, Burgvorschau burg) {
+	public TittowScreen(BotLogik bot, Bereich bereich, Hell hell, Kisten kisten, Burgvorschau burg, BetonFarm beton) {
 		super(Component.literal("Tittow Panel"));
+		this.beton = beton;
 		this.bot = bot;
 		this.bereich = bereich;
 		this.hell = hell;
@@ -35,7 +37,7 @@ public final class TittowScreen extends Screen {
 	@Override
 	protected void init() {
 		int mitte = this.width / 2;
-		int y = this.height / 2 - 60;
+		int y = this.height / 2 - 82;
 		stelle = bot.stelleText(this.minecraft); // einmal beim Öffnen nachsehen (Trichter suchen)
 
 		this.botKnopf = this.addRenderableWidget(Button.builder(botText(), b -> {
@@ -119,6 +121,18 @@ public final class TittowScreen extends Screen {
 				this.onClose(); // Fenster zu, damit sich das Funk-Terminal öffnen kann
 			}
 		}).pos(mitte - 100, y).size(200, 20).build()); // (der Sockel ist fertig, „Sockel bauen“ gibt es nicht mehr)
+		y += 22;
+		this.addRenderableWidget(Button.builder(betonText(), b -> {
+			beton.umschalten(this.minecraft);
+			b.setMessage(betonText());
+			if (beton.istAn()) {
+				this.onClose(); // Fenster zu, damit er sofort klickt
+			}
+		}).pos(mitte - 100, y).size(200, 20).build());
+	}
+
+	private Component betonText() {
+		return Component.literal(beton.istAn() ? "Beton-Farm: AN  (Numpad 9 = aus)" : "Beton-Farm: AUS  (Numpad 9)");
 	}
 
 	private Component materialText() {
@@ -197,7 +211,7 @@ public final class TittowScreen extends Screen {
 		super.extractRenderState(graphics, mouseX, mouseY, delta);
 
 		int mitte = this.width / 2;
-		int y = this.height / 2 - 110;
+		int y = this.height / 2 - 132;
 		graphics.centeredText(this.font, "Tittow Panel", mitte, y, LILA);
 		graphics.centeredText(this.font, bot.istAktiv() ? "Status: AN" : "Status: AUS", mitte, y + 14, bot.istAktiv() ? GRUEN : ROT);
 		graphics.centeredText(this.font, bereich.beschreibung(), mitte, y + 28, WEISS);
