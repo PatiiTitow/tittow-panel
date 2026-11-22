@@ -117,7 +117,7 @@ final class Herstellen {
 	private TerminalZweck zweck;
 	private String holtGerade;
 	private int holVorher;
-	private int ebene, maxEbene;
+	private String ofenAuftrag; // welcher Ofen-Auftrag gerade in die Kisten gelegt wird
 	private final Map<String, Long> craftRest = new LinkedHashMap<>();
 	private final Map<String, Long> ofenRest = new LinkedHashMap<>();
 	private final Map<String, Long> erwartet = new LinkedHashMap<>();
@@ -337,13 +337,6 @@ final class Herstellen {
 				aufloesen(id, noetig - lo, new HashMap<>(lager), new HashMap<>(), new HashMap<>(), fehltRoh);
 			}
 		}
-		maxEbene = 0;
-		for (String id : craftRest.keySet()) {
-			maxEbene = Math.max(maxEbene, stufe(id));
-		}
-		for (String id : ofenRest.keySet()) {
-			maxEbene = Math.max(maxEbene, stufe(id));
-		}
 		// Plan in den Chat
 		chat(p, "Plan für " + titel + ":");
 		if (craftRest.isEmpty() && ofenRest.isEmpty()) {
@@ -366,8 +359,8 @@ final class Herstellen {
 				aufgegeben.add(id);
 			}
 		}
-		ebene = 1;
-		schritt = maxEbene == 0 ? Schritt.FERTIG : Schritt.OFEN_FUELLEN;
+		// Reihenfolge: erst die Öfen füllen (Brennen dauert am längsten), dann die Werkbank, dann Gebranntes abholen
+		schritt = craftRest.isEmpty() && ofenRest.isEmpty() ? Schritt.FERTIG : Schritt.OFEN_FUELLEN;
 	}
 
 	/** Verbraucht "n" von "id" aus dem Lager; fehlt etwas, wird es (wenn es ein Rezept gibt) aus den Zutaten hergestellt. */
@@ -405,9 +398,9 @@ final class Herstellen {
 	// ---- Öfen füllen ------------------------------------------------------------------
 
 	private void ofenFuellen(Minecraft mc, LocalPlayer p) {
-		String aus = naechster(ofenRest);
+		String aus = naechsterOfen();
 		if (aus == null) {
-			schritt = Schritt.CRAFTEN;
+			schritt = Schritt.CRAFTEN; // alles, was schon geht, ist in den Öfen: jetzt die Werkbank
 			return;
 		}
 		Rezept r = REZEPTE.get(aus);
@@ -427,14 +420,15 @@ final class Herstellen {
 			return;
 		}
 		vorher.put(r.ofenEin(), hab);
+		ofenAuftrag = aus;
 		kiste = new KistenArbeit(rein, ein, (int) Math.min(hab, rest), null);
 	}
 
 	// ---- Werkbank -------------------------------------------------------------------------
 
 	private void craften(Minecraft mc, LocalPlayer p) {
-		String aus = naechster(craftRest);
-		if (aus == null) {
+		String aus = naechsterCraft();
+		if (aus == null) { // Werkbank fertig (oder wartet auf Gebranntes): Gebranntes abholen
 			ablegen(mc);
 			schritt = Schritt.OFEN_LEEREN;
 			leerenWarte = 0;
@@ -498,6 +492,9 @@ final class Herstellen {
 		}
 		werkbankFehler = 0;
 		craftRest.put(aus, Math.max(0, craftRest.get(aus) - gemacht));
+		if (naechsterOfen() != null) {
+			schritt = Schritt.OFEN_FUELLEN; // z. B. Tiefenschiefer-Ziegel fertig: gleich in die Öfen (rissige Ziegel)
+		}
 	}
 
 	// ---- Öfen leeren -------------------------------------------------------------------------
@@ -505,18 +502,21 @@ final class Herstellen {
 	private void ofenLeeren(Minecraft mc, LocalPlayer p) {
 		Set<Item> ausgaben = new HashSet<>();
 		for (Map.Entry<String, Long> e : erwartet.entrySet()) {
-			if (e.getValue() > 0 && stufe(e.getKey()) == ebene && !aufgegeben.contains(e.getKey())) {
+			if (e.getValue() > 0 && !aufgegeben.contains(e.getKey())) {
 				ausgaben.add(item(e.getKey()));
 			}
 		}
 		if (ausgaben.isEmpty()) {
-			if (naechster(ofenRest) != null) {
+			if (naechsterOfen() != null) {
 				schritt = Schritt.OFEN_FUELLEN; // noch nicht alles in den Öfen (Kisten waren voll)
 				return;
 			}
+			if (naechsterCraft() != null) {
+				schritt = Schritt.CRAFTEN; // z. B. Netherziegel-Blöcke aus den gebrannten Netherziegeln
+				return;
+			}
 			ablegen(mc);
-			ebene++;
-			schritt = ebene > maxEbene ? Schritt.FERTIG : Schritt.OFEN_FUELLEN;
+			schritt = Schritt.FERTIG;
 			return;
 		}
 		if (freiePlaetze(p) <= 3) {
@@ -549,7 +549,7 @@ final class Herstellen {
 		if (k.reinItem != null) { // Öfen gefüllt
 			String ein = BuiltInRegistries.ITEM.getKey(k.reinItem).toString();
 			long weg = vorher.getOrDefault(ein, 0) - FunkTerminal.anzahl(p, k.reinItem);
-			String aus = naechster(ofenRest);
+			String aus = ofenAuftrag;
 			if (aus == null) {
 				return;
 			}
@@ -582,7 +582,7 @@ final class Herstellen {
 		if (zusammen > 0) {
 			ohneFortschritt = 0;
 			leerenWarte = 100; // 5 Sekunden, dann wieder nachsehen
-			if (naechster(ofenRest) != null) {
+			if (naechsterOfen() != null) {
 				schritt = Schritt.OFEN_FUELLEN; // jetzt ist wieder Platz in den Öfen
 			}
 		} else {
@@ -590,14 +590,10 @@ final class Herstellen {
 			if (++ohneFortschritt >= 18) { // 3 Minuten nichts Neues
 				chat(p, "Aus den Öfen kommt seit 3 Minuten nichts mehr. Was noch fehlt, bitte selbst nachsehen.");
 				for (Map.Entry<String, Long> e : erwartet.entrySet()) {
-					if (stufe(e.getKey()) == ebene) {
-						e.setValue(0L);
-					}
+					e.setValue(0L);
 				}
 				for (Map.Entry<String, Long> e : ofenRest.entrySet()) {
-					if (stufe(e.getKey()) == ebene) {
-						e.setValue(0L);
-					}
+					e.setValue(0L);
 				}
 				ohneFortschritt = 0;
 			}
@@ -606,14 +602,89 @@ final class Herstellen {
 
 	// ---- Hilfen ------------------------------------------------------------------------------------
 
-	/** Nächstes Ding der aktuellen Stufe, von dem noch etwas zu tun ist. */
-	private String naechster(Map<String, Long> m) {
-		for (Map.Entry<String, Long> e : m.entrySet()) {
-			if (e.getValue() > 0 && stufe(e.getKey()) == ebene && !aufgegeben.contains(e.getKey())) {
-				return e.getKey();
+	/** Ist für "id" noch etwas im Ofen (noch reinzulegen oder noch abzuholen)? */
+	private boolean imOfen(String id) {
+		return !aufgegeben.contains(id) && (ofenRest.getOrDefault(id, 0L) > 0 || erwartet.getOrDefault(id, 0L) > 0);
+	}
+
+	/** Muss für diesen Werkbank-Auftrag erst noch etwas gebrannt werden (auch über Zwischenstufen)? */
+	private boolean wartetAufOfen(String id) {
+		Rezept r = REZEPTE.get(id);
+		if (r == null || r.ofen()) {
+			return false;
+		}
+		for (String z : r.zutaten().keySet()) {
+			if (imOfen(z)) {
+				return true;
+			}
+			if (craftRest.getOrDefault(z, 0L) > 0 && !aufgegeben.contains(z) && wartetAufOfen(z)) {
+				return true;
 			}
 		}
+		return false;
+	}
+
+	/** Ofen-Auftrag, dessen Material schon fertig ist (nicht erst in der Werkbank oder im Ofen gemacht werden muss). */
+	private String naechsterOfen() {
+		for (Map.Entry<String, Long> e : ofenRest.entrySet()) {
+			if (e.getValue() <= 0 || aufgegeben.contains(e.getKey())) {
+				continue;
+			}
+			String ein = REZEPTE.get(e.getKey()).ofenEin();
+			if (craftRest.getOrDefault(ein, 0L) > 0 && !aufgegeben.contains(ein) || imOfen(ein)) {
+				continue; // Material dafür muss erst noch gemacht werden
+			}
+			return e.getKey();
+		}
 		return null;
+	}
+
+	/**
+	 * Werkbank-Auftrag, der nicht auf den Ofen warten muss. Zuerst das, was danach noch in den Ofen kommt
+	 * (z. B. Tiefenschiefer-Ziegel für die rissigen Ziegel), damit die Öfen schnell wieder zu tun haben.
+	 */
+	private String naechsterCraft() {
+		String sonst = null;
+		for (Map.Entry<String, Long> e : craftRest.entrySet()) {
+			String id = e.getKey();
+			if (e.getValue() <= 0 || aufgegeben.contains(id) || wartetAufOfen(id)) {
+				continue;
+			}
+			if (fuerOfen(id)) {
+				return id;
+			}
+			if (sonst == null) {
+				sonst = id;
+			}
+		}
+		return sonst;
+	}
+
+	/** Wird "id" (auch über Zwischenstufen) für einen noch offenen Ofen-Auftrag gebraucht? */
+	private boolean fuerOfen(String id) {
+		for (Map.Entry<String, Long> e : ofenRest.entrySet()) {
+			if (e.getValue() > 0 && !aufgegeben.contains(e.getKey()) && braucht(REZEPTE.get(e.getKey()).ofenEin(), id)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** Steckt "id" in "ziel" drin (ziel selbst oder eine Zutat davon, über die Werkbank)? */
+	private static boolean braucht(String ziel, String id) {
+		if (ziel.equals(id)) {
+			return true;
+		}
+		Rezept r = REZEPTE.get(ziel);
+		if (r == null || r.ofen()) {
+			return false;
+		}
+		for (String z : r.zutaten().keySet()) {
+			if (braucht(z, id)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private void aufgeben(LocalPlayer p, String id, String grund) {

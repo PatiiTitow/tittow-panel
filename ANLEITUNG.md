@@ -219,16 +219,18 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
 ### Herstellen (Werkbank und Öfen) – passiert nach „Material prüfen“ und beim Bauen automatisch
 1. Der Bot zählt das Funk-Terminal durch und schreibt einen **Plan** in den Chat: was er in der Werkbank macht,
    was in die Öfen kommt und welche Rohstoffe im Lager **fehlen** (die musst du selbst besorgen).
-2. **Werkbank** (Virtuelle Werkbank, Slot 7): holt die Zutaten aus dem Funk-Terminal, legt sie ins Feld und nimmt
-   alles mit Shift-Klick heraus:
-   - Bruchtiefenschiefer → polierter Tiefenschiefer → Tiefenschiefer-Ziegel → Tiefenschiefer-Fliesen
-   - Andesit → polierter Andesit, Magmacreme → Magmablock, 4 Netherziegel → 1 Netherziegel-Block, 4 Leuchtsteinstaub → 1 Leuchtstein
-3. **Öfen**: sucht die Kisten mit den Schildern **„reinlegen“** (oben) und **„rausnehmen“** (unten) im Umkreis von 64 Blöcken,
-   läuft hin, verteilt das Material gleichmäßig auf die „reinlegen“-Kisten und holt das Gebrannte aus den „rausnehmen“-Kisten:
-   - Bruchstein → Stein, Tiefenschiefer-Ziegel → rissige Tiefenschiefer-Ziegel, Netherrack → Netherziegel (danach in der Werkbank zum Block)
-   - Aus den „rausnehmen“-Kisten nimmt er nur, was er gebrannt hat. Kommt 3 Minuten nichts, macht er ohne weiter.
-4. Alles Fertige legt er ins **Funk-Terminal**. Was du beim Start im Inventar hattest, bleibt drin.
-5. Am Ende steht „Fertig mit Herstellen“ im Chat, danach geht es mit dem Prüfen und Bauen weiter.
+2. **Zuerst die Öfen füllen**, weil Brennen am längsten dauert: Er sucht die Kisten mit den Schildern **„reinlegen“** (oben)
+   und **„rausnehmen“** (unten) im Umkreis von 64 Blöcken, läuft hin und verteilt alles, was schon gebrannt werden kann,
+   gleichmäßig auf die „reinlegen“-Kisten (Bruchstein → Stein, Netherrack → Netherziegel).
+3. **Dann die Werkbank** (Virtuelle Werkbank, Slot 7), während die Öfen brennen. Er holt die Zutaten aus dem Funk-Terminal,
+   legt sie ins Feld und nimmt alles mit Shift-Klick heraus:
+   - **Zuerst**, was danach noch in den Ofen muss: Bruchtiefenschiefer → polierter Tiefenschiefer → Tiefenschiefer-Ziegel.
+     Die Ziegel für die rissigen Ziegel kommen **gleich danach in die Öfen**.
+   - Dann der Rest: Tiefenschiefer-Fliesen, Andesit → polierter Andesit, Magmacreme → Magmablock, 4 Leuchtsteinstaub → 1 Leuchtstein.
+4. **Dann Gebranntes abholen** aus den „rausnehmen“-Kisten (er nimmt nur, was er gebrannt hat). Kommt 3 Minuten nichts, macht er ohne weiter.
+5. **Zum Schluss**, was aus Gebranntem gemacht wird: 4 Netherziegel → 1 Netherziegel-Block.
+6. Alles Fertige legt er ins **Funk-Terminal**. Was du beim Start im Inventar hattest, bleibt drin.
+   Am Ende steht „Fertig mit Herstellen“ im Chat.
 
 - Es wird nur so viel gemacht, wie für den Abschnitt fehlt (in der Werkbank kann es ein Stapel mehr werden).
 - Beim Laufen zu den Öfen baut Baritone nichts ab und nichts hin.
