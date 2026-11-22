@@ -275,7 +275,16 @@ final class Herstellen {
 			case OFEN_LEEREN -> ofenLeeren(mc, p);
 			case FERTIG -> {
 				stoppen(mc, null);
-				chat(p, "§aFertig mit Herstellen§r für " + titel + "." + schlussHinweis);
+				if (aufgegeben.isEmpty()) {
+					chat(p, "§aFertig mit Herstellen§r für " + titel + "." + schlussHinweis);
+				} else {
+					StringBuilder namen = new StringBuilder();
+					for (String id : aufgegeben) {
+						namen.append(namen.length() > 0 ? ", " : "").append(name(id).getString());
+					}
+					chat(p, "§eHerstellen beendet, aber übersprungen:§r " + namen
+							+ ". Klick nochmal „Material prüfen“, dann versucht er den Rest nochmal.");
+				}
 				schlussHinweis = "";
 				fertigGemeldet = true;
 			}
