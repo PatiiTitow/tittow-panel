@@ -271,7 +271,7 @@ final class FunkTerminal {
 		// auf dieser Seite keine Erde: nächste Seite suchen
 		if (seiten < 30) {
 			for (Slot s : menu.slots) {
-				if (s.container != p.getInventory() && !s.getItem().isEmpty() && istWeiter(s.getItem())) {
+				if (istWeiterKnopf(menu, p, s)) {
 					seiten++;
 					klick(mc, p, menu, s.index, ContainerInput.PICKUP);
 					warte = 10;
@@ -300,7 +300,7 @@ final class FunkTerminal {
 		boolean protokoll = gezaehlteSeiten.size() <= 2; // die ersten Seiten ins Log schreiben (zum Nachsehen, wie das Terminal aussieht)
 		for (Slot s : menu.slots) {
 			ItemStack st = s.getItem();
-			if (s.container == p.getInventory() || st.isEmpty() || istWeiter(st) || istZurueck(st)) {
+			if (s.container == p.getInventory() || st.isEmpty() || inKnopfReihe(menu, p, s)) { // unterste Reihe = Knöpfe, keine Lager-Sachen
 				continue;
 			}
 			long n = menge(st);
@@ -313,7 +313,7 @@ final class FunkTerminal {
 		}
 		if (seiten < 80) {
 			for (Slot s : menu.slots) {
-				if (s.container != p.getInventory() && !s.getItem().isEmpty() && istWeiter(s.getItem())) {
+				if (istWeiterKnopf(menu, p, s)) {
 					seiten++;
 					klick(mc, p, menu, s.index, ContainerInput.PICKUP);
 					warte = 20; // der Server braucht einen Moment für die nächste Seite
@@ -575,6 +575,26 @@ final class FunkTerminal {
 		}
 		String name = s.getHoverName().getString().toLowerCase(Locale.ROOT);
 		return name.contains("terminal") || name.contains("funk");
+	}
+
+	/** Gehört der Platz zur untersten Reihe des Terminals (Knöpfe wie Suchen, Sortieren, Weiter)? */
+	private static boolean inKnopfReihe(AbstractContainerMenu menu, LocalPlayer p, Slot s) {
+		int oben = 0;
+		for (Slot t : menu.slots) {
+			if (t.container != p.getInventory()) {
+				oben++;
+			}
+		}
+		return s.container != p.getInventory() && oben > 9 && s.index >= oben - 9;
+	}
+
+	/**
+	 * Ist das der Blätter-Knopf "weiter"? Nur in der Knopf-Reihe unten und nie ein gelagerter Gegenstand
+	 * (sonst hält er z. B. eine Schaufel mit » im Namen für den Knopf und nimmt sie heraus).
+	 */
+	private static boolean istWeiterKnopf(AbstractContainerMenu menu, LocalPlayer p, Slot s) {
+		ItemStack st = s.getItem();
+		return !st.isEmpty() && inKnopfReihe(menu, p, s) && !loreText(st).toLowerCase(Locale.ROOT).contains("im lager") && istWeiter(st);
 	}
 
 	private static boolean istWeiter(ItemStack s) {
