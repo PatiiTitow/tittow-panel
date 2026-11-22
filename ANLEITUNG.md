@@ -205,7 +205,10 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
    Die Sorte holt er **jedes Mal frisch aus dem Funk-Terminal** und legt sie in **Slot 6**. Baritone baut nur diese Sorte.
    Ist die Sorte fertig, legt er den **Rest zurück ins Funk-Terminal**, dann kommt die nächste.
    (Alles Hergestellte und Gebrannte liegt vorher schon im Funk-Terminal, das legt „Herstellen“ dort ab.)
-   - Baritone baut dabei **nichts ab** (damit nichts Fertiges kaputtgeht) und nimmt keine eigenen Blöcke zum Hochbauen.
+   - Baritone baut dabei **nichts ab** (damit nichts Fertiges kaputtgeht).
+   - **Zum Hochbauen nimmt er Erde.** Die liegt beim Bauen in **Slot 5**, die Axt kommt solange nach oben ins Inventar
+     und am Ende (oder bei „Bauen: Stopp“) wieder zurück nach Slot 5. Erde holt er sich bei Bedarf aus dem Funk-Terminal.
+   - Nach dem Abschnitt **baut er das Erd-Gerüst wieder ab** (nur Erde, wo laut Bauplan nichts hingehört).
    - Kommt Baritone 2 Minuten nicht weiter, stößt er es neu an. Nach 3 Versuchen sagt er im Chat, wie viele Blöcke
      in welcher Höhe übrig sind (selbst setzen) und macht weiter.
    - Gegner in 2 Blöcken greift er an, bei Hunger isst er.

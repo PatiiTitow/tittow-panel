@@ -13,7 +13,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -26,9 +30,14 @@ import net.minecraft.world.level.block.state.BlockState;
  * Erst mal wird nur der Sockel (Abschnitt 1) gebaut, danach ist Schluss. "Sockel weiter bauen" macht nach einem Stopp weiter.
  */
 final class BurgBau {
-	private enum Schritt { VORBEREITEN, PRUEFEN, BAUEN }
+	private enum Schritt { VORBEREITEN, PRUEFEN, BAUEN, AUFRAEUMEN }
 
-	private enum Zweck { KEINS, ZAEHLEN, HOLEN, ABLEGEN }
+	private enum Zweck { KEINS, ZAEHLEN, HOLEN, HOLEN_ERDE, ABLEGEN }
+
+	/** Slot 5 (die Axt): solange gebaut wird, liegt dort Erde zum Hochbauen. */
+	static final int GERUEST_SLOT = 4;
+	/** So weit über dem Abschnitt wird am Ende noch nach Gerüst-Erde gesucht. */
+	private static final int GERUEST_HOEHE = 6;
 
 	private final FunkTerminal terminal;
 	private final Herstellen herstellen;
@@ -54,6 +63,8 @@ final class BurgBau {
 	private int holVorher;
 	private boolean geholt;    // für diese Sorte schon aus dem Terminal geholt (nicht endlos nochmal)
 	private boolean lagerLeer; // im Terminal ist von der Sorte nichts mehr
+	private boolean erdeGeholt; // Gerüst-Erde schon geholt (nicht endlos nochmal)
+	private Item werkzeugIn5;   // was vor dem Bauen in Slot 5 lag (kommt am Ende zurück)
 	private Map<String, Integer> start = Map.of();
 	private Object altWegwerf;  // Baritones Liste der "Wegwerf-Blöcke", wird am Ende zurückgestellt
 
@@ -122,6 +133,7 @@ final class BurgBau {
 		terminal.abbrechen();
 		BaritoneRahmen.befehl("stop");
 		einstellungenZurueck();
+		werkzeugZurueck(mc, mc.player); // Axt wieder in Slot 5
 		if (grund != null && mc.player != null) {
 			chat(mc.player, grund);
 		}
@@ -159,6 +171,8 @@ final class BurgBau {
 		}
 		if (schritt == Schritt.BAUEN) {
 			bauen(mc, p);
+		} else if (schritt == Schritt.AUFRAEUMEN) {
+			aufraeumen(mc, p);
 		}
 	}
 
@@ -172,6 +186,8 @@ final class BurgBau {
 				return;
 			}
 			pruefen(mc, p);
+		} else if (z == Zweck.HOLEN_ERDE) {
+			// Erde fürs Gerüst geholt (oder keine da): weiter wie gehabt
 		} else if (z == Zweck.HOLEN) {
 			geholt = true;
 			if (FunkTerminal.anzahl(p, item) <= holVorher) {
@@ -219,7 +235,8 @@ final class BurgBau {
 		if (altWegwerf == null) {
 			altWegwerf = BaritoneRahmen.einstellungLesen("acceptableThrowawayItems");
 		}
-		BaritoneRahmen.einstellung("acceptableThrowawayItems", new ArrayList<Item>());
+		// zum Hochbauen (Gerüst) nur Erde benutzen. Die liegt in Slot 5, die Axt kommt solange nach oben ins Inventar.
+		BaritoneRahmen.einstellung("acceptableThrowawayItems", new ArrayList<Item>(List.of(Items.DIRT)));
 		if (enthaeltLava()) {
 			chat(p, "Hinweis: Die Lava im Brunnen setzt der Bot nicht, die kommt am Ende per Eimer.");
 		}
@@ -258,7 +275,11 @@ final class BurgBau {
 					zweck = Zweck.ABLEGEN;
 					Map<String, Integer> behalten = new HashMap<>(start);
 					behalten.put(FunkTerminal.schluessel(new ItemStack(item)), 100000); // das Baumaterial bleibt
+					behalten.put(FunkTerminal.schluessel(new ItemStack(Items.DIRT)), 100000); // die Gerüst-Erde auch
 					terminal.ablegen(mc, behalten);
+					return;
+				}
+				if (aufpassTicks % 40 == 0 && !geruestErde(mc, p)) {
 					return;
 				}
 				if (hab < 16 && !lagerLeer && ++aufpassTicks % 40 == 0 && rest(mc) > hab) {
@@ -297,7 +318,7 @@ final class BurgBau {
 				einstellungen.burgBauSchicht = y; // merken, wo er gerade ist
 				einstellungen.speichern();
 				if (y > bis) {
-					abschnittFertig(mc);
+					aufraeumenStarten(mc, p); // erst das Erd-Gerüst wieder weg, dann ist der Abschnitt fertig
 					return;
 				}
 				sorten = plan.sortenInSchicht(y);
@@ -317,6 +338,9 @@ final class BurgBau {
 			holen(mc, p);
 			return;
 		}
+		if (!geruestErde(mc, p)) {
+			return; // erst Erde fürs Gerüst holen
+		}
 		geholt = false;
 		lagerLeer = false;
 		versorgung.nachlegen(mc, p, item);
@@ -332,6 +356,156 @@ final class BurgBau {
 		if (sorteNr == 0 && versuch == 0) {
 			chat(p, "Höhe " + y + " (Y " + (tor.getY() + y) + "): " + sorten.size() + " Blocksorte(n).");
 		}
+	}
+
+	// ---- Erde fürs Gerüst (Hochbauen) ----------------------------------------------------------
+
+	/**
+	 * Hält Slot 5 voll mit Erde, damit Baritone sich damit hochbauen kann. Was dort lag (die Axt), kommt solange
+	 * nach oben ins Inventar und am Ende wieder zurück. false = es wird gerade Erde aus dem Funk-Terminal geholt.
+	 */
+	private boolean geruestErde(Minecraft mc, LocalPlayer p) {
+		Inventory inv = p.getInventory();
+		ItemStack in5 = inv.getItem(GERUEST_SLOT);
+		if (in5.is(Items.DIRT) && in5.getCount() >= 16) {
+			return true;
+		}
+		if (werkzeugIn5 == null && !in5.isEmpty() && !in5.is(Items.DIRT)) {
+			werkzeugIn5 = in5.getItem(); // merken, damit es am Ende zurück nach Slot 5 kommt
+		}
+		int beste = -1;
+		for (int i = Inventory.getSelectionSize(); i < 36; i++) {
+			ItemStack s = inv.getItem(i);
+			if (s.is(Items.DIRT) && (beste < 0 || s.getCount() > inv.getItem(beste).getCount())) {
+				beste = i;
+			}
+		}
+		if (beste < 0 || in5.is(Items.DIRT) && inv.getItem(beste).getCount() <= in5.getCount()) {
+			if (!erdeGeholt) { // keine Erde oben im Inventar: welche aus dem Funk-Terminal holen
+				erdeGeholt = true;
+				zweck = Zweck.HOLEN_ERDE;
+				terminal.holen(mc, Items.DIRT, 128);
+				return false;
+			}
+			return true; // keine Erde mehr da: dann eben ohne Gerüst
+		}
+		if (mc.gui.screen() != null || p.containerMenu != p.inventoryMenu || mc.gameMode == null) {
+			return true;
+		}
+		mc.gameMode.handleContainerInput(p.inventoryMenu.containerId, beste, GERUEST_SLOT, ContainerInput.SWAP, p);
+		erdeGeholt = false;
+		return true;
+	}
+
+	/** Die Axt (oder was in Slot 5 lag) wieder zurück nach Slot 5. */
+	private void werkzeugZurueck(Minecraft mc, LocalPlayer p) {
+		if (werkzeugIn5 == null || p == null || mc.gameMode == null) {
+			return;
+		}
+		Inventory inv = p.getInventory();
+		if (!inv.getItem(GERUEST_SLOT).is(werkzeugIn5)) {
+			for (int i = Inventory.getSelectionSize(); i < 36; i++) {
+				if (inv.getItem(i).is(werkzeugIn5)) {
+					if (p.containerMenu != p.inventoryMenu) {
+						p.closeContainer();
+					}
+					mc.gameMode.handleContainerInput(p.inventoryMenu.containerId, i, GERUEST_SLOT, ContainerInput.SWAP, p);
+					break;
+				}
+			}
+		}
+		werkzeugIn5 = null;
+	}
+
+	// ---- Gerüst wieder abbauen ---------------------------------------------------------------------
+
+	/** Nach der letzten Schicht: Erd-Blöcke, die nicht zum Bauplan gehören (Gerüst), wieder abbauen. */
+	private void aufraeumenStarten(Minecraft mc, LocalPlayer p) {
+		int n = geruestBloecke(mc);
+		if (n == 0) {
+			abschnittFertig(mc);
+			return;
+		}
+		chat(p, "Jetzt baut er sein Erd-Gerüst wieder ab (" + n + " Blöcke).");
+		BaritoneRahmen.einstellung("allowBreak", true);
+		if (!aufraeumenAuftrag()) {
+			abschnittFertig(mc);
+			return;
+		}
+		schritt = Schritt.AUFRAEUMEN;
+		versuch = 0;
+		aufpassTicks = 0;
+		stillstand = 0;
+		letzterRest = n;
+		warte = 40;
+	}
+
+	private void aufraeumen(Minecraft mc, LocalPlayer p) {
+		if (BaritoneRahmen.bautGerade()) {
+			if (++aufpassTicks >= 600) { // alle 30 Sekunden: wird es weniger?
+				aufpassTicks = 0;
+				int n = geruestBloecke(mc);
+				if (n < letzterRest) {
+					letzterRest = n;
+					stillstand = 0;
+				} else if (++stillstand >= 4) {
+					BaritoneRahmen.befehl("stop");
+				}
+			}
+			return;
+		}
+		int n = geruestBloecke(mc);
+		if (n > 0 && ++versuch < 3 && aufraeumenAuftrag()) {
+			warte = 40;
+			return;
+		}
+		BaritoneRahmen.einstellung("allowBreak", false);
+		if (n > 0) {
+			chat(p, n + " Erd-Blöcke vom Gerüst sind noch da – bitte selbst abbauen.");
+		}
+		abschnittFertig(mc);
+	}
+
+	/** Baritone soll alle Gerüst-Erde im Abschnitt (und ein paar Blöcke darüber) abbauen. */
+	private boolean aufraeumenAuftrag() {
+		int[] a = Burgvorschau.welt(tor, vorne, Bauplan.VERSATZ, Bauplan.VERSATZ);
+		int[] b = Burgvorschau.welt(tor, vorne, Bauplan.VERSATZ + plan.w - 1, Bauplan.VERSATZ + plan.l - 1);
+		int oben = bis + GERUEST_HOEHE;
+		BlockPos ecke = new BlockPos(Math.min(a[0], b[0]), tor.getY() + von, Math.min(a[1], b[1]));
+		int breitX = Math.abs(a[0] - b[0]) + 1, laengeZ = Math.abs(a[1] - b[1]) + 1;
+		Minecraft mc = Minecraft.getInstance();
+		BlockState luft = Blocks.AIR.defaultBlockState();
+		return BaritoneRahmen.planBauen("Tittow Gerüst weg", ecke, breitX, oben - von + 1, laengeZ, (wx, wy, wz) -> {
+			int[] m = Burgvorschau.plan(tor, vorne, wx, wz);
+			int yy = wy - tor.getY();
+			return istGeruest(mc, m[0] - Bauplan.VERSATZ, yy, m[1] - Bauplan.VERSATZ, new BlockPos(wx, wy, wz)) ? luft : null;
+		});
+	}
+
+	/** Erde an einer Stelle, wo laut Bauplan nichts hingehört = Gerüst. */
+	private boolean istGeruest(Minecraft mc, int px, int yy, int pz, BlockPos pos) {
+		if (yy < 0 || px < 0 || pz < 0 || px >= plan.w || pz >= plan.l) {
+			return false;
+		}
+		if (yy < plan.h && plan.index(px, yy, pz) != 0) {
+			return false; // da gehört etwas hin
+		}
+		return mc.level.getBlockState(pos).is(Blocks.DIRT);
+	}
+
+	private int geruestBloecke(Minecraft mc) {
+		int n = 0;
+		for (int yy = von; yy <= bis + GERUEST_HOEHE; yy++) {
+			for (int z = 0; z < plan.l; z++) {
+				for (int x = 0; x < plan.w; x++) {
+					int[] w = Burgvorschau.welt(tor, vorne, x + Bauplan.VERSATZ, z + Bauplan.VERSATZ);
+					if (mc.level.hasChunk(w[0] >> 4, w[1] >> 4) && istGeruest(mc, x, yy, z, new BlockPos(w[0], tor.getY() + yy, w[1]))) {
+						n++;
+					}
+				}
+			}
+		}
+		return n;
 	}
 
 	private void holen(Minecraft mc, LocalPlayer p) {
