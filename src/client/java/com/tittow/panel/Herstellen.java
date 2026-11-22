@@ -880,7 +880,7 @@ final class Herstellen {
 		int beste = -1, besteMenge = 0;
 		for (Slot s : menu.slots) {
 			int c = s.getContainerSlot();
-			if (s.container == p.getInventory() && (c >= Inventory.getSelectionSize() && c < 36 || c == Versorgung.ERDE_SLOT)
+			if (s.container == p.getInventory() && (c >= Inventory.getSelectionSize() && c < 36 || c == Versorgung.ERDE_SLOT || c == BurgBau.GERUEST_SLOT)
 					&& s.getItem().is(item) && s.getItem().getCount() > besteMenge) {
 				beste = s.index;
 				besteMenge = s.getItem().getCount();
@@ -1009,6 +1009,7 @@ final class Herstellen {
 							int q = inventarPlatz(menu, p, zutat);
 							if (q < 0) {
 								if (drin.isEmpty()) {
+									System.out.println("[Tittow Panel] Werkbank: keine " + r.muster()[k] + " mehr im Inventar für Feld " + feld);
 									schritt = 3; // Zutat alle
 									return false;
 								}

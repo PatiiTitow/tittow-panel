@@ -481,7 +481,7 @@ final class FunkTerminal {
 		Map<String, Integer> jetzt = inventar(p);
 		for (Slot s : menu.slots) {
 			// nur das obere Inventar (9-35) und Slot 6: die übrige Hotbar mit Schwert, Essen, Werkzeug, Werkbank, Terminal und Slot 9 bleibt
-			if (s.container != p.getInventory() || (s.getContainerSlot() < Inventory.getSelectionSize() && s.getContainerSlot() != Versorgung.ERDE_SLOT)
+			if (s.container != p.getInventory() || (s.getContainerSlot() < Inventory.getSelectionSize() && s.getContainerSlot() != Versorgung.ERDE_SLOT && s.getContainerSlot() != BurgBau.GERUEST_SLOT)
 					|| s.getContainerSlot() >= 36 || gehtNicht.contains(s.index)) {
 				continue;
 			}
