@@ -88,6 +88,7 @@ final class BurgBau {
 	private List<Integer> schichtSorten = List.of(); // alle Sorten der aktuellen Höhe
 	private boolean schichtAngesagt;        // "Höhe ..." schon in den Chat geschrieben
 	private int slotWarte;                  // Ticks gewartet, bis der Block in Slot 6 liegt
+	private int nachbessern;                // wie oft nach dem Aufräumen schon nachgebessert wurde
 	private boolean ausgewichen;   // bei dieser Sorte schon einmal ausgewichen (beim nächsten Hängen: nächste Sorte)
 	private int ausweichTicks = -1; // >= 0: weicht gerade aus (springen, ein Stück weggehen)
 	private Vec3 ausweichStart;     // wo er beim Ausweichen losging
@@ -145,7 +146,15 @@ final class BurgBau {
 		List<int[]> abschnitte = plan.abschnitte();
 		int nr = einstellungen.burgBauAbschnitt;
 		if (nr >= 1) { // erst mal wird nur der Sockel gebaut
-			return "Der Sockel ist schon fertig gebaut.";
+			// steht er wirklich ganz? Sonst (z. B. Löcher) nochmal nachbessern
+			long fehlt = summe(nochZuBauen(mc, plan, tor, vorne, abschnitte.get(0)[0], abschnitte.get(0)[1]));
+			if (fehlt == 0) {
+				return "Der Sockel ist schon fertig gebaut.";
+			}
+			chat(p, "Am Sockel fehlen noch " + zahl(fehlt) + " Blöcke (z. B. Löcher) – er bessert nach.");
+			nr = 0;
+			einstellungen.burgBauAbschnitt = 0;
+			einstellungen.speichern();
 		}
 		this.tor = tor;
 		this.vorne = vorne;
@@ -353,6 +362,7 @@ final class BurgBau {
 		erdeGeholt = false;
 		platzFehler = 0;
 		leer.clear();
+		nachbessern = 0;
 		ausgewichen = false;
 		ausweichTicks = -1;
 	}
@@ -668,7 +678,8 @@ final class BurgBau {
 			return;
 		}
 		chat(p, "Jetzt baut er sein Erd-Gerüst wieder ab (" + n + " Blöcke).");
-		BaritoneRahmen.einstellung("allowBreak", true);
+		// allowBreak bleibt aus: er darf nur Erde abbauen (allowBreakAnyway), nie den fertigen Boden aufgraben
+		BaritoneRahmen.einstellung("allowBreak", false);
 		if (!aufraeumenAuftrag()) {
 			abschnittFertig(mc);
 			return;
@@ -704,6 +715,24 @@ final class BurgBau {
 		if (n > 0) {
 			chat(p, n + " Erd-Blöcke vom Gerüst sind noch da – bitte selbst abbauen.");
 		}
+		// zur Sicherheit nochmal nachsehen: fehlt doch noch etwas (z. B. ein Loch), wird nachgebessert
+		long fehlt = summe(nochZuBauen(mc));
+		if (fehlt > 0 && nachbessern < 2) {
+			nachbessern++;
+			chat(p, "Es fehlen noch " + zahl(fehlt) + " Blöcke – er bessert nach.");
+			schritt = Schritt.BAUEN;
+			nachholRunde = 0;
+			y = von;
+			schichtSorten = plan.sortenInSchicht(y);
+			feld = null;
+			feldNr = 0;
+			runde = 0;
+			fortschrittInRunde = false;
+			schichtAngesagt = false;
+			baut = false;
+			warte = 20;
+			return;
+		}
 		abschnittFertig(mc);
 	}
 
@@ -723,9 +752,12 @@ final class BurgBau {
 		});
 	}
 
-	/** Erde an einer Stelle, wo laut Bauplan nichts hingehört = Gerüst. */
+	/**
+	 * Erde über dem Abschnitt, wo laut Bauplan nichts hingehört = Gerüst. Erde unten im hohlen Sockel (unter dem
+	 * Boden) bleibt liegen: die sieht man nicht, und um da hinzukommen, müsste er den fertigen Boden aufgraben.
+	 */
 	private boolean istGeruest(Minecraft mc, int px, int yy, int pz, BlockPos pos) {
-		if (yy < 0 || px < 0 || pz < 0 || px >= plan.w || pz >= plan.l) {
+		if (yy <= bis || px < 0 || pz < 0 || px >= plan.w || pz >= plan.l) {
 			return false;
 		}
 		if (yy < plan.h && plan.index(px, yy, pz) != 0) {

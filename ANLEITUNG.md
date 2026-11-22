@@ -228,7 +228,9 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
      zurückgestellt.
    - **Zum Hochbauen nimmt er Erde.** Die liegt beim Bauen in **Slot 5**, die Axt kommt solange nach oben ins Inventar
      und am Ende (oder bei „Bauen: Stopp“) wieder zurück nach Slot 5. Erde holt er sich bei Bedarf aus dem Funk-Terminal.
-   - Nach dem Abschnitt **baut er das Erd-Gerüst wieder ab** (nur Erde, wo laut Bauplan nichts hingehört).
+   - Nach dem Abschnitt **baut er das Erd-Gerüst wieder ab** (nur Erde, die über dem Abschnitt herausschaut und wo laut
+     Bauplan nichts hingehört). Dabei darf er **nur Erde** abbauen, nie den fertigen Boden. Erde unten im hohlen Sockel
+     bleibt liegen. Danach schaut er nochmal nach: Fehlt doch noch etwas (z. B. ein Loch), bessert er nach.
    - **Hängt er 10 Sekunden** (setzt keinen Block und läuft nicht), **springt er, geht 3–4 Blöcke zur Seite** und setzt
      mit derselben Sorte neu an. Hängt er danach wieder, lässt er diese Sorte im Feld erst mal und nimmt die nächste.
      Ist er mit allen Sorten der Höhe durch, fängt er **wieder von vorne an** (inzwischen haben die Blöcke oft Nachbarn,
@@ -240,6 +242,7 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
      nur, was noch fehlt (bis zu 3 Durchgänge). Erst was dann immer noch nicht geht, sollst du selbst setzen.
    - Alle Tiere und Monster in 3 Blöcken (auch Pump-Tiere wie das Nilpferd, nie Spieler oder Dorfbewohner) tötet er, bei Hunger isst er.
 4. Ist der Sockel fertig, steht **„Der Sockel ist fertig gebaut!“** im Chat und der Knopf heißt **„Sockel fertig ✔“**.
+   Klickst du trotzdem darauf, schaut er nach, ob wirklich alles steht. Fehlt etwas (z. B. Löcher), bessert er es aus.
    Das merkt er sich auch nach dem Neu-Joinen.
 - Nochmal klicken (**„Bauen: Stopp“**) hält an, **„Sockel weiter bauen“** macht da weiter, wo er aufgehört hat.
 - **Er merkt sich, wo er war**, auch nach dem Neu-Joinen oder Neustart: Beim Weiterbauen schaut er in der Welt nach, was schon
