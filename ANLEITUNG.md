@@ -262,10 +262,11 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
    - **Zuerst**, was danach noch in den Ofen muss: Bruchtiefenschiefer → polierter Tiefenschiefer → Tiefenschiefer-Ziegel.
      Die Ziegel für die rissigen Ziegel kommen **gleich danach in die Öfen**.
    - Dann der Rest: Tiefenschiefer-Fliesen, Andesit → polierter Andesit, Magmacreme → Magmablock, 4 Leuchtsteinstaub → 1 Leuchtstein.
-   - Für die Mauer mit Türmen außerdem: Mohn → roter Farbstoff, 1 roter Farbstoff + 4 Sand + 4 Kies → 8 rotes Betonpulver,
+   - Für die Mauer mit Türmen außerdem: 1 roter Farbstoff + 4 Sand + 4 Kies → 8 roter Trockenbeton,
      4 Amethystscherben + 1 Glas → 2 getöntes Glas. Das Glas brennt er vorher in den Öfen aus Sand.
-   - **Roter Beton:** Das Pulver macht er, **hart werden muss es im Wasser – das machst du selbst**. Im Plan und am Ende
-     steht, wie viel Pulver das ist. Rosenbüsche nimmt er (noch) nicht für den Farbstoff, nur Mohn.
+   - **Roter Beton:** Der Bot macht **roten Trockenbeton**, **in roten Beton umwandeln machst du selbst**. Im Plan und am
+     Ende steht, wie viel Trockenbeton das ist. Den roten Farbstoff nimmt er aus dem Lager. Ist keiner mehr da, macht er
+     ihn aus Mohn (Rosenbüsche nimmt er nicht).
 4. **Dann Gebranntes abholen** aus den „rausnehmen“-Kisten (er nimmt nur, was er gebrannt hat). Kommt 3 Minuten nichts, macht er ohne weiter.
 5. **Zum Schluss**, was aus Gebranntem gemacht wird: 4 Netherziegel → 1 Netherziegel-Block.
 6. Alles Fertige legt er ins **Funk-Terminal**. Was du beim Start im Inventar hattest, bleibt drin.

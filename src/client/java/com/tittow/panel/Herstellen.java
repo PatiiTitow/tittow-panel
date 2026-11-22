@@ -416,7 +416,7 @@ final class Herstellen {
 			zeile(p, " §cFehlt im Lager:§r ", e.getKey(), e.getValue(), " (bitte besorgen)");
 		}
 		for (Map.Entry<String, Long> e : beton.entrySet()) {
-			zeile(p, " §3Wasser:§r ", e.getKey(), e.getValue(), " – er macht das Pulver, ins Wasser musst du es selbst bringen");
+			zeile(p, " §3Wasser:§r ", e.getKey(), e.getValue(), " – er macht Trockenbeton daraus, in Beton umwandeln machst du selbst");
 		}
 		if (!ofenRest.isEmpty() && (rein.isEmpty() || raus.isEmpty())) {
 			chat(p, "§cKeine Ofen-Kisten gefunden§r (Schilder „reinlegen“ und „rausnehmen“ im Umkreis von 64 Blöcken). "
@@ -764,8 +764,8 @@ final class Herstellen {
 	private void betonHinweis(LocalPlayer p) {
 		for (Map.Entry<String, Long> e : beton.entrySet()) {
 			chat(p, "§3Noch selbst machen:§r " + String.format(Locale.GERMANY, "%,d", e.getValue()) + "× "
-					+ name(WASSER.get(e.getKey())).getString() + " ins Wasser bringen, dann wird es zu "
-					+ name(e.getKey()).getString() + ". Das Pulver liegt im Funk-Terminal.");
+					+ name(WASSER.get(e.getKey())).getString() + " in " + name(e.getKey()).getString()
+					+ " umwandeln. Der Trockenbeton liegt im Funk-Terminal.");
 		}
 	}
 

@@ -122,7 +122,7 @@ final class Material {
 			}
 			for (Map.Entry<String, Long> e : beton.entrySet()) {
 				zeile(p, Component.literal(" §3ℹ ").append(blockName(e.getKey())).append(Component.literal("§3: " + zahl(e.getValue())
-						+ " macht der Bot als Pulver – ins Wasser musst du es selbst bringen, dann wird es hart.")));
+						+ " macht der Bot als Trockenbeton (roter Farbstoff aus dem Lager + Sand + Kies) – in Beton umwandeln machst du selbst.")));
 			}
 			if (fehltRoh.isEmpty()) {
 				zeile(p, Component.literal("§a§lMit Herstellen und Brennen reicht alles!§r §a" + losText));
