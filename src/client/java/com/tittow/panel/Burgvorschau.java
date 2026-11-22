@@ -145,30 +145,24 @@ public final class Burgvorschau {
 		if (pruefen) {
 			return "Warte, bis „Material prüfen“ fertig ist.";
 		}
-		if (an && tor != null && sockelGeladen(mc)) {
-			teilWaehlen(mc); // Sockel, oder wenn der fertig ist: Mauer mit Türmen
-			return herstellen.starten(mc, pruefNoch, pruefTitel);
+		if (!an || tor == null) {
+			return "Erst „Burg hier setzen“.";
 		}
-		return herstellen.starten(mc, nochFuerSockel(mc), "den Sockel"); // nur was am Sockel noch fehlt
+		if (!sockelGeladen(mc)) {
+			return "Geh näher an die Burg: Ein Teil davon ist nicht geladen, dann kann er nicht nachsehen, was schon steht.";
+		}
+		teilWaehlen(mc);
+		return herstellen.starten(mc, pruefNoch, pruefTitel);
 	}
 
 	/**
-	 * Für welchen Bauteil "Material prüfen" und Herstellen rechnen: erst der Sockel; steht der, die Mauer mit Türmen
-	 * (Außenmauer, Ecktürme, Mauertürme und Tor, vom Sockel bis ganz oben). Setzt pruefNoch und die Texte.
+	 * "Material prüfen" und Herstellen rechnen nur für die Mauer mit Türmen (Außenmauer, Ecktürme, Mauertürme und Tor,
+	 * vom Sockel bis ganz oben). Der Sockel ist fertig und wird nicht mehr geprüft. Setzt pruefNoch und die Texte.
 	 */
 	private void teilWaehlen(Minecraft mc) {
 		Bauplan plan = Bauplan.laden();
-		pruefNoch = nochFuerSockel(mc);
-		if (plan == null || !pruefNoch.isEmpty()) {
-			long gesamt = 0;
-			for (long n : Material.liste().getOrDefault("sockel", Map.of()).values()) {
-				gesamt += n;
-			}
-			pruefName = "Sockel";
-			pruefWo = "Am Sockel";
-			pruefTitel = "den Sockel";
-			pruefLos = "„Sockel bauen“ kann los.";
-			pruefGesamt = gesamt;
+		if (plan == null) {
+			pruefNoch = Map.of();
 			return;
 		}
 		pruefNoch = BurgBau.nochZuBauen(mc, plan, tor, vorne, plan.sockel, plan.h - 1, true);
@@ -208,7 +202,7 @@ public final class Burgvorschau {
 			return "Erst „Burg hier setzen“, dann rechnet er nur aus, was noch fehlt.";
 		}
 		if (!sockelGeladen(mc)) {
-			return "Geh näher an die Burg: Ein Teil vom Sockel ist nicht geladen, dann kann er nicht nachsehen, was schon steht.";
+			return "Geh näher an die Burg: Ein Teil davon ist nicht geladen, dann kann er nicht nachsehen, was schon steht.";
 		}
 		teilWaehlen(mc);
 		pruefen = true;

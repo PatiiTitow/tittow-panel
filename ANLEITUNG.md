@@ -174,13 +174,13 @@ Baritone selbst darf beim Ebnen nichts im Inventar umräumen (Einstellung `allow
 - Am Ende steht „fertig geebnet“ im Chat. Nochmal klicken (**„Ebnen: Stopp“**) hält alles an. Die Linien dürfen beim Ebnen auch aus sein.
 
 ### Material prüfen
-Knopf **„Material prüfen (Funk-Terminal)“** (ganz unten im Panel). Das Panel geht zu, der Bot öffnet das Funk-Terminal
+Knopf **„Material prüfen (Mauer mit Türmen)“** (ganz unten im Panel). Das Panel geht zu, der Bot öffnet das Funk-Terminal
 (Slot 8), blättert **alle Seiten** durch und zählt, was im Lager ist. Was du im Inventar hast, zählt mit.
-Geprüft wird **der nächste Bauteil**: erst der **Sockel**. Steht der Sockel komplett, rechnet er für die
-**Mauer mit Türmen** (Außenmauer, 4 Ecktürme, die Mauertürme und das Tor, vom Sockel bis ganz oben, ca. 41.000 Blöcke).
-Oben im Bericht steht, für welchen Bauteil er rechnet. Gezählt wird **nur das, was noch fehlt**: Der Bot schaut in der Welt nach, was schon steht,
+Geprüft wird **nur die Mauer mit Türmen** (Außenmauer, 4 Ecktürme, die Mauertürme und das Tor, vom Sockel bis ganz oben,
+ca. 41.000 Blöcke). Der Sockel ist fertig und wird nicht mehr geprüft, der Knopf geht über die ganze Breite.
+Gezählt wird **nur das, was noch fehlt**: Der Bot schaut in der Welt nach, was schon steht,
 und rechnet nur den Rest (also ab da, wo das Bauen aufgehört hat). Oben im Bericht steht, wie viele Blöcke noch fehlen
-und wie viel Prozent fertig sind. Dafür muss die Burg gesetzt sein und du musst nah genug stehen, damit der ganze Sockel
+und wie viel Prozent fertig sind. Dafür muss die Burg gesetzt sein und du musst nah genug stehen, damit die ganze Burg-Fläche
 geladen ist (sonst sagt er „Geh näher an die Burg“). Danach steht im Chat jeder Block einzeln:
 - ✔ grün: davon ist genug da (z. B. „Erde: 14.200 da, noch 3.000 nötig“),
 - ✘ rot: zu wenig, mit „fehlen …“,
@@ -188,12 +188,12 @@ geladen ist (sonst sagt er „Geh näher an die Burg“). Danach steht im Chat j
 
 Darunter steht, was **auch nach dem Herstellen und Brennen** noch fehlt, also welche Rohstoffe du noch besorgen musst
 (z. B. fehlt polierter Andesit, aber genug Andesit ist da: dann ist alles gut). Steht dort „Mit Herstellen und Brennen reicht alles!“,
-kann „Sockel bauen“ los.
+ist das Material komplett.
 
 **Danach stellt der Bot gleich alles für diesen Bauteil her und brennt es** (siehe „Herstellen“ unten). Der Knopf heißt solange
-**„Herstellen: Stopp“**. Am Ende steht „Fertig mit Herstellen für den Sockel. Jetzt kannst du „Sockel bauen“ drücken.“
-Dann muss „Sockel bauen“ nichts mehr herstellen und legt sofort los. Am besten bei den Strom-Öfen neben dem Tor starten.
-Gezählt wird nur, was am Sockel **noch fehlt** (steht schon etwas, zählt es nicht mehr).
+**„Herstellen: Stopp“**. Am Ende steht „Fertig mit Herstellen für die Mauer mit Türmen.“ Alles liegt dann im Funk-Terminal.
+Am besten bei den Strom-Öfen neben dem Tor starten.
+Gezählt wird nur, was an der Mauer **noch fehlt** (steht schon etwas, zählt es nicht mehr).
 
 Die Mengen kommen aus dem Bauplan der Blutfeste (Tiefenschiefer, Hauptturm aus Schwarzstein, Netherziegel statt Rot, Leuchtstein als Licht).
 Zeigt das Lager nur einen Stapel und schreibt die echte Menge in die Beschreibung (z. B. „Menge: 1.600“), wird diese Zahl genommen.
@@ -202,8 +202,9 @@ Geht nicht, während der Bot ebnet.
 **Kamera:** Beim Ebnen, Herstellen und Bauen schaut die Kamera in die Richtung, in die der Bot läuft und baut, und dreht
 sich dabei weich mit (vorher blieb das Bild einfach stehen).
 
-### Sockel bauen
-Knopf **„Sockel bauen“** (neben „Material prüfen“). Am besten bei den Strom-Öfen neben dem Tor starten.
+### Sockel bauen (Knopf entfernt – der Sockel ist fertig)
+Den Knopf **„Sockel bauen“** gibt es nicht mehr, weil der Sockel steht. So hat der Bot gebaut; „Mauer mit Türmen bauen“
+kommt später und baut genauso. Am besten bei den Strom-Öfen neben dem Tor starten.
 Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** hergestellt und gebrannt. Der Rest der Burg kommt später.
 1. **Vorbereiten:** Der Bot schaut in der Welt nach, was am Sockel noch fehlt, und stellt alles dafür her und brennt es
    (siehe „Herstellen“ unten).
