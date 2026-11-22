@@ -1000,27 +1000,40 @@ final class Herstellen {
 						schritt = 3;
 						return false;
 					}
-					// leeres Feld (oder nicht voll) mit der passenden Zutat auffüllen
-					for (int k = 0; k < 4; k++) {
-						int feld = FELDER[k];
-						Item zutat = item(r.muster()[k]);
-						ItemStack drin = menu.getSlot(feld).getItem();
-						if (drin.isEmpty() || drin.is(zutat) && drin.getCount() < Math.min(64, mal - gemacht)) {
-							int q = inventarPlatz(menu, p, zutat);
-							if (q < 0) {
-								if (drin.isEmpty()) {
-									System.out.println("[Tittow Panel] Werkbank: keine " + r.muster()[k] + " mehr im Inventar für Feld " + feld);
-									schritt = 3; // Zutat alle
-									return false;
-								}
-								continue;
-							}
-							quelle = q;
-							klick(mc, p, menu, q, ContainerInput.PICKUP);   // Stapel an die Maus
-							klick(mc, p, menu, feld, ContainerInput.PICKUP); // ins Feld legen
-							warte = 3;
-							return false;
+					// Felder auffüllen: je Zutat einen Stapel an die Maus nehmen und GLEICHMÄSSIG auf ihre Felder verteilen
+					// (wie Ziehen mit gedrückter Maustaste). Sonst landet alles im ersten Feld und die anderen bleiben leer.
+					long sollJeFeld = Math.min(64, mal - gemacht);
+					for (Item zutat : zutatenItems()) {
+						List<Integer> felder = felderFuer(zutat);
+						boolean leeresFeld = false, mehr = false;
+						for (int feld : felder) {
+							ItemStack drin = menu.getSlot(feld).getItem();
+							leeresFeld |= drin.isEmpty();
+							mehr |= drin.isEmpty() || drin.is(zutat) && drin.getCount() < sollJeFeld;
 						}
+						if (!mehr) {
+							continue;
+						}
+						int q = inventarPlatz(menu, p, zutat);
+						if (q < 0) {
+							if (leeresFeld) {
+								System.out.println("[Tittow Panel] Werkbank: keine " + BuiltInRegistries.ITEM.getKey(zutat)
+										+ " mehr im Inventar für alle Felder");
+								schritt = 3; // Zutat alle
+								return false;
+							}
+							continue; // nicht ganz voll, aber es geht trotzdem
+						}
+						quelle = q;
+						klick(mc, p, menu, q, ContainerInput.PICKUP); // Stapel an die Maus
+						int id = menu.containerId;
+						mc.gameMode.handleContainerInput(id, -999, 0, ContainerInput.QUICK_CRAFT, p); // Verteilen beginnen
+						for (int feld : felder) {
+							mc.gameMode.handleContainerInput(id, feld, 1, ContainerInput.QUICK_CRAFT, p); // über das Feld ziehen
+						}
+						mc.gameMode.handleContainerInput(id, -999, 2, ContainerInput.QUICK_CRAFT, p); // loslassen: gleichmäßig verteilt
+						warte = 4;
+						return false;
 					}
 					// alle 4 Felder belegt: herstellen (Shift-Klick auf das Ergebnis)
 					klick(mc, p, menu, 0, ContainerInput.QUICK_MOVE);
@@ -1053,6 +1066,29 @@ final class Herstellen {
 				}
 			}
 			return false;
+		}
+
+		/** Die verschiedenen Zutaten des Rezepts (meist nur eine, z. B. 4× Andesit). */
+		private List<Item> zutatenItems() {
+			List<Item> l = new ArrayList<>();
+			for (String id : r.muster()) {
+				Item i = item(id);
+				if (!l.contains(i)) {
+					l.add(i);
+				}
+			}
+			return l;
+		}
+
+		/** Die Felder (Menü-Plätze), in die diese Zutat gehört. */
+		private List<Integer> felderFuer(Item zutat) {
+			List<Integer> l = new ArrayList<>();
+			for (int k = 0; k < 4; k++) {
+				if (item(r.muster()[k]) == zutat) {
+					l.add(FELDER[k]);
+				}
+			}
+			return l;
 		}
 
 		/** Die Werkbank: ein Werkbank-Menü (Ergebnis + 3x3-Feld + Inventar = 46 Plätze). */
