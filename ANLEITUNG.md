@@ -150,7 +150,7 @@ geebnet wird **nur innerhalb des äußeren grünen Rahmens**. Das Panel geht zu 
 
 | Slot | Was | Was der Bot damit macht |
 |---|---|---|
-| 1 | Schwert bzw. Glefe | kommt ein **Gegner näher als 2 Blöcke**, hält der Bot kurz an, nimmt die Waffe und greift an (nur Monster, nie Spieler, Tiere oder Dorfbewohner). Danach arbeitet er weiter |
+| 1 | Schwert bzw. Glefe | kommt ein **Mob näher als 2 Blöcke** (Monster und Tiere, auch die eigenen Pump-Monster und -Tiere), hält der Bot kurz an, nimmt die Waffe und tötet ihn. **Nie Spieler und nie Dorfbewohner oder Händler.** Danach arbeitet er weiter |
 | 2 | Essen (Goldene Karotten) | isst, sobald der Hunger unter 18 fällt, bis du wieder satt bist |
 | 3, 4, 5 | Schaufel, Spitzhacke, Axt | Baritone nimmt jeweils das passende Werkzeug. Die **Fähigkeit der Spitzhacke** (Rechtsklick) benutzt der Bot alle 20 Sekunden |
 | 6 | Erde | die Mod legt Erde von oben aus dem Inventar hierher nach. Baritone baut sich damit hoch (an hohe Bäume und Hügel) und stopft Löcher. Fehlt Erde (unter 32), holt der Bot etwa 8 Stacks aus dem Funk-Terminal und lässt dabei ein paar Plätze im Inventar frei |
@@ -211,7 +211,7 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
    - Nach dem Abschnitt **baut er das Erd-Gerüst wieder ab** (nur Erde, wo laut Bauplan nichts hingehört).
    - Kommt Baritone 2 Minuten nicht weiter, stößt er es neu an. Nach 3 Versuchen sagt er im Chat, wie viele Blöcke
      in welcher Höhe übrig sind (selbst setzen) und macht weiter.
-   - Gegner in 2 Blöcken greift er an, bei Hunger isst er.
+   - Mobs in 2 Blöcken (Monster und Tiere, nie Spieler oder Dorfbewohner) tötet er, bei Hunger isst er.
 4. Ist der Sockel fertig, steht **„Der Sockel ist fertig gebaut!“** im Chat und der Knopf heißt **„Sockel fertig ✔“**.
    Das merkt er sich auch nach dem Neu-Joinen.
 - Nochmal klicken (**„Bauen: Stopp“**) hält an, **„Sockel weiter bauen“** macht da weiter, wo er aufgehört hat.
@@ -253,4 +253,4 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
 - `src/main/resources/assets/tittowpanel/burg/bauplan.bin.gz` – der Bauplan (erzeugt mit `Burgen.java bauplandatei`)
 - `src/main/resources/assets/tittowpanel/burg/material.txt` – Materialliste der Blutfeste (erzeugt mit `Desktop\Burgen\generator\Burgen.java materialdatei`)
 - `src/client/java/com/tittow/panel/Versorgung.java` – beim Ebnen: aus Slot 2 essen, Erde in Slot 6 nachlegen
-- `src/client/java/com/tittow/panel/Abwehr.java` – beim Ebnen: Gegner in 2 Blöcken mit der Waffe aus Slot 1 angreifen
+- `src/client/java/com/tittow/panel/Abwehr.java` – beim Ebnen, Herstellen und Bauen: Mobs in 2 Blöcken (außer Spieler und Dorfbewohner) mit der Waffe aus Slot 1 töten

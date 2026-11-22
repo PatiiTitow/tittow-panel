@@ -9,14 +9,15 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.npc.villager.AbstractVillager;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Beim Ebnen: Kommt ein Gegner (Monster) näher als 2 Blöcke, hält der Bot Baritone kurz an, nimmt die Waffe aus
+ * Beim Ebnen, Herstellen und Bauen: Kommt ein Mob (Monster oder Tier, auch Pump-Monster/-Tiere) näher als 2 Blöcke, hält der Bot Baritone kurz an, nimmt die Waffe aus
  * Slot 1 (Schwert bzw. Glefe), schaut ihn an und schlägt zu, sobald die Waffe aufgeladen ist. Ist kein Gegner mehr
- * in der Nähe, geht es mit dem vorherigen Werkzeug weiter. Spieler, Tiere und Dorfbewohner greift er nie an.
+ * in der Nähe, geht es mit dem vorherigen Werkzeug weiter. Spieler und Dorfbewohner greift er nie an.
  */
 final class Abwehr {
 	static final int WAFFEN_SLOT = 0; // Slot 1
@@ -100,8 +101,10 @@ final class Abwehr {
 	private static Entity naechsterGegner(Minecraft mc, LocalPlayer p, double weite) {
 		Entity bester = null;
 		double besterAbstand = Double.MAX_VALUE;
+		// alles, was im Weg ist: Monster, Tiere, auch die eigenen Pump-Monster und -Tiere.
+		// Nie Spieler (sind keine "Mob"s), nie Dorfbewohner und Händler (AbstractVillager), nie Rüstungsständer.
 		for (Entity e : mc.level.getEntities(p, p.getBoundingBox().inflate(weite + 1),
-				e -> e instanceof LivingEntity && e.isAlive() && e.getType().getCategory() == MobCategory.MONSTER)) {
+				e -> e instanceof Mob && !(e instanceof AbstractVillager) && e.isAlive())) {
 			double d = abstand(p, e);
 			if (d <= weite && d < besterAbstand) {
 				bester = e;
