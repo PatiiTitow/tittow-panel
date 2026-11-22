@@ -206,7 +206,11 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
    Dann das Material (oder die Rohstoffe dafür) besorgen und **„Sockel weiter bauen“** klicken.
 3. **Bauen:** Schicht für Schicht von unten nach oben, in jeder Schicht **eine Blocksorte nach der anderen**.
    Die Sorte holt er **jedes Mal frisch aus dem Funk-Terminal** und legt sie in **Slot 6**. Baritone baut nur diese Sorte.
-   Ist die Sorte fertig, legt er den **Rest zurück ins Funk-Terminal**, dann kommt die nächste.
+   Ist die Sorte fertig (oder hängt er), legt er den **Rest zurück ins Funk-Terminal**, dann kommt die nächste.
+   - Baumaterial, das vom letzten Mal noch im Inventar liegt, legt er auch zurück. Ist das Inventar fast voll, legt er
+     **erst ab und holt dann**. So meldet er nicht mehr fälschlich „alle“, nur weil kein Platz frei war.
+   - Ist eine Sorte im Funk-Terminal **wirklich alle**, hält er nicht an, sondern baut mit den anderen Sorten weiter.
+     Am Schluss sagt er, was gefehlt hat. Dann Material besorgen und **„Sockel weiter bauen“** klicken.
    (Alles Hergestellte und Gebrannte liegt vorher schon im Funk-Terminal, das legt „Herstellen“ dort ab.)
    - Baritone baut dabei **nichts ab** (damit nichts Fertiges kaputtgeht).
    - **Zum Hochbauen nimmt er Erde.** Die liegt beim Bauen in **Slot 5**, die Axt kommt solange nach oben ins Inventar

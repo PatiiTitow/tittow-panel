@@ -573,7 +573,7 @@ final class FunkTerminal {
 	}
 
 	/** Leere Plätze im Inventar (Hotbar und oben). */
-	private static int freiePlaetze(LocalPlayer p) {
+	static int freiePlaetze(LocalPlayer p) {
 		return 36 - belegt(p);
 	}
 

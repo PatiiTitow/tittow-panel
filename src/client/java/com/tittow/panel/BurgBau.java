@@ -76,7 +76,9 @@ final class BurgBau {
 	private long startZeit;        // wann das Bauen (diesmal) losging
 	private long naechsteMeldung = Long.MAX_VALUE; // wann die nächste Fortschritts-Meldung kommt
 	private static final long MELDUNG_ALLE = 5 * 60 * 1000L; // alle 5 Minuten
-	private Map<String, Integer> start = Map.of();
+	private Map<String, Integer> start = Map.of(); // Sachen vom Start, die im Inventar bleiben (ohne Baumaterial)
+	private int platzFehler;    // wie oft hintereinander das Platzmachen nicht geholfen hat
+	private final java.util.Set<Integer> leer = new java.util.HashSet<>(); // Sorten, die im Terminal wirklich alle sind
 	private Object altWegwerf;  // Baritones Liste der "Wegwerf-Blöcke", wird am Ende zurückgestellt
 
 	BurgBau(FunkTerminal terminal, Herstellen herstellen, Versorgung versorgung, Bereich einstellungen) {
@@ -120,7 +122,12 @@ final class BurgBau {
 		an = true;
 		einstellungen.burgBauen = true;
 		einstellungen.speichern();
-		start = FunkTerminal.inventar(p);
+		// Baumaterial, das noch vom letzten Mal im Inventar liegt, zählt nicht als "eigene Sachen": das kommt
+		// beim Ablegen mit ins Terminal, sonst wird das Inventar mit der Zeit voll und er kann nichts mehr holen.
+		start = new HashMap<>(FunkTerminal.inventar(p));
+		for (BlockState s : plan.zustaende) {
+			start.remove(FunkTerminal.schluessel(new ItemStack(s.getBlock().asItem())));
+		}
 		zweck = Zweck.KEINS;
 		baut = false;
 		warte = 0;
@@ -205,13 +212,32 @@ final class BurgBau {
 			// Erde fürs Gerüst geholt (oder keine da): weiter wie gehabt
 		} else if (z == Zweck.HOLEN) {
 			geholt = true;
-			if (FunkTerminal.anzahl(p, item) <= holVorher) {
-				lagerLeer = true; // nichts mehr gekommen: nicht ständig nochmal versuchen
+			int jetzt = FunkTerminal.anzahl(p, item);
+			if (jetzt > holVorher) {
+				platzFehler = 0;
+				return;
 			}
-			if (FunkTerminal.anzahl(p, item) == 0) {
-				stoppen(mc, "§c" + new ItemStack(item).getHoverName().getString() + " ist im Funk-Terminal alle§r – Bauen angehalten. "
-						+ "Besorg mehr und klick „Sockel weiter bauen“.");
+			lagerLeer = true; // nichts mehr gekommen: nicht ständig nochmal versuchen
+			if (jetzt > 0) {
+				return; // ein Rest ist noch da, den verbaut er erst
 			}
+			if (FunkTerminal.freiePlaetze(p) <= 5) {
+				// kein Platz im Inventar: erst ablegen, dann nochmal holen
+				geholt = false;
+				lagerLeer = false;
+				platzMachen(mc);
+				return;
+			}
+			// im Terminal ist wirklich nichts mehr davon: diese Sorte auslassen und mit den anderen weiterbauen
+			leer.add(index);
+			chat(p, "§e" + new ItemStack(item).getHoverName().getString() + " ist im Funk-Terminal alle§r – er baut mit den anderen Sorten weiter.");
+			if (baut) {
+				BaritoneRahmen.befehl("stop");
+				baut = false;
+			}
+			sorteNr++;
+			geholt = false;
+			warte = 10;
 		}
 	}
 
@@ -267,6 +293,12 @@ final class BurgBau {
 		sorteNr = 0;
 		sorten = plan.sortenInSchicht(y);
 		baut = false;
+		// alles vom letzten Mal vergessen (sonst holt er für die erste Sorte nichts und Baritone hat kein Material)
+		geholt = false;
+		lagerLeer = false;
+		erdeGeholt = false;
+		platzFehler = 0;
+		leer.clear();
 	}
 
 	private boolean enthaeltLava() {
@@ -291,10 +323,7 @@ final class BurgBau {
 				int hab = FunkTerminal.anzahl(p, item);
 				if (FunkTerminal.inventarVoll(p)) {
 					zweck = Zweck.ABLEGEN;
-					Map<String, Integer> behalten = new HashMap<>(start);
-					behalten.put(FunkTerminal.schluessel(new ItemStack(item)), 100000); // das Baumaterial bleibt
-					behalten.put(FunkTerminal.schluessel(new ItemStack(Items.DIRT)), 100000); // die Gerüst-Erde auch
-					terminal.ablegen(mc, behalten);
+					terminal.ablegen(mc, behalten(item)); // das Baumaterial bleibt, die Gerüst-Erde auch
 					return;
 				}
 				if (aufpassTicks % 40 == 0 && !geruestErde(mc, p)) {
@@ -319,7 +348,7 @@ final class BurgBau {
 			if (FunkTerminal.anzahl(p, item) > 0) {
 				// Sorte fertig: was übrig ist, zurück ins Funk-Terminal (die nächste Sorte holt er sich frisch heraus)
 				zweck = Zweck.ABLEGEN;
-				terminal.ablegen(mc, start);
+				terminal.ablegen(mc, behalten(null));
 			}
 			return;
 		}
@@ -358,7 +387,14 @@ final class BurgBau {
 						fortschrittInRunde = false;
 						continue;
 					}
-					if (offenGesamt > 0) {
+					if (offenGesamt > 0 && !leer.isEmpty()) {
+						StringBuilder namen = new StringBuilder();
+						for (int i : leer) {
+							namen.append(namen.length() > 0 ? ", " : "").append(new ItemStack(plan.zustaende[i].getBlock().asItem()).getHoverName().getString());
+						}
+						chat(p, "§c" + offenGesamt + " Blöcke fehlen noch.§r Im Funk-Terminal war alle: " + namen
+								+ ". Besorg mehr und klick „Sockel weiter bauen“.");
+					} else if (offenGesamt > 0) {
 						chat(p, "§c" + offenGesamt + " Blöcke gehen auch nach 3 Nachhol-Durchgängen nicht§r – die bitte selbst setzen.");
 					}
 					aufraeumenStarten(mc, p); // erst das Erd-Gerüst wieder weg, dann ist der Abschnitt fertig
@@ -370,7 +406,7 @@ final class BurgBau {
 			}
 			index = sorten.get(sorteNr);
 			item = plan.zustaende[index].getBlock().asItem();
-			if (rest(mc) > 0) {
+			if (!leer.contains(index) && rest(mc) > 0) {
 				break;
 			}
 			sorteNr++;
@@ -554,10 +590,34 @@ final class BurgBau {
 	}
 
 	private void holen(Minecraft mc, LocalPlayer p) {
+		if (FunkTerminal.freiePlaetze(p) <= 5) {
+			platzMachen(mc); // Inventar fast voll: erst ablegen, sonst kommt nichts heraus und er denkt, es ist alle
+			return;
+		}
 		zweck = Zweck.HOLEN;
 		holVorher = FunkTerminal.anzahl(p, item);
 		int rest = rest(mc);
-		terminal.holen(mc, item, Math.min(Math.max(rest - holVorher, 64), 64 * 20));
+		terminal.holen(mc, item, Math.min(Math.max(rest - holVorher, 64), 64 * 10));
+	}
+
+	/** Alles ablegen, was nicht gebraucht wird (die aktuelle Sorte und die Gerüst-Erde bleiben). Hilft das mehrmals nicht: anhalten. */
+	private void platzMachen(Minecraft mc) {
+		if (++platzFehler > 3) {
+			stoppen(mc, "§cDas Inventar ist zu voll§r (nur eigene Sachen drin). Mach ein paar Plätze frei und klick „Sockel weiter bauen“.");
+			return;
+		}
+		zweck = Zweck.ABLEGEN;
+		terminal.ablegen(mc, behalten(item));
+	}
+
+	/** Was beim Ablegen im Inventar bleibt: die eigenen Sachen vom Start, die Gerüst-Erde und (falls angegeben) das Baumaterial. */
+	private Map<String, Integer> behalten(Item auch) {
+		Map<String, Integer> m = new HashMap<>(start);
+		m.put(FunkTerminal.schluessel(new ItemStack(Items.DIRT)), 100000);
+		if (auch != null) {
+			m.put(FunkTerminal.schluessel(new ItemStack(auch)), 100000);
+		}
+		return m;
 	}
 
 	/** Gibt Baritone die aktuelle Schicht, nur mit der aktuellen Blocksorte. */
@@ -660,6 +720,11 @@ final class BurgBau {
 		warte = 10;
 		System.out.println("[Tittow Panel] Bauen: hängt bei " + new ItemStack(item).getHoverName().getString() + " in Höhe " + y
 				+ " (noch " + rest + "), nimmt die nächste Sorte");
+		if (FunkTerminal.anzahl(p, item) > 0) {
+			// was von dieser Sorte übrig ist, zurück ins Terminal (sonst wird das Inventar mit der Zeit voll)
+			zweck = Zweck.ABLEGEN;
+			terminal.ablegen(mc, behalten(null));
+		}
 	}
 
 	// ---- Fortschritt im Chat ------------------------------------------------------------------------
