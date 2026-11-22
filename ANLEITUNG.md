@@ -215,7 +215,9 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
    - Ist eine Sorte im Funk-Terminal **wirklich alle**, hält er nicht an, sondern baut mit den anderen Sorten weiter.
      Am Schluss sagt er, was gefehlt hat. Dann Material besorgen und **„Sockel weiter bauen“** klicken.
    (Alles Hergestellte und Gebrannte liegt vorher schon im Funk-Terminal, das legt „Herstellen“ dort ab.)
-   - Baritone baut dabei **nichts ab** (damit nichts Fertiges kaputtgeht).
+   - Baritone baut dabei **nichts ab** (damit nichts Fertiges kaputtgeht). **Nur Erde darf er abbauen**, auch wenn er
+     obendrauf steht: So kommt Gerüst-Erde, die vom Hochbauen dort liegt, wo ein anderer Block hin soll, wieder weg,
+     und er setzt den richtigen Block.
    - Baritone bekommt beim Bauen **mehr Zeit zum Wegrechnen**. Ein **blauer** Weg heißt: er rechnet noch. Ein **roter**
      Weg ist fertig. So springt er seltener zwischen zwei halben Wegen hin und her. Am Ende werden die alten Zeiten
      zurückgestellt.

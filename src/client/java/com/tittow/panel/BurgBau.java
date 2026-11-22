@@ -83,11 +83,25 @@ final class BurgBau {
 	private Vec3 ausweichStart;     // wo er beim Ausweichen losging
 	private final java.util.Set<Integer> leer = new java.util.HashSet<>(); // Sorten, die im Terminal wirklich alle sind
 	private Object altWegwerf;  // Baritones Liste der "Wegwerf-Blöcke", wird am Ende zurückgestellt
-	/** Baritones Rechenzeiten für Wege beim Bauen (Millisekunden), länger als normal. */
-	private static final Map<String, Long> ZEITEN = Map.of(
-			"primaryTimeoutMS", 2000L, "failureTimeoutMS", 6000L,
-			"planAheadPrimaryTimeoutMS", 6000L, "planAheadFailureTimeoutMS", 10000L);
-	private final Map<String, Object> alteZeiten = new HashMap<>(); // die Zeiten von vorher, kommen am Ende zurück
+	private final Map<String, Object> alteZeiten = new HashMap<>(); // Baritone-Einstellungen von vorher, kommen am Ende zurück
+
+	/**
+	 * Baritone-Einstellungen, die nur beim Bauen gelten:
+	 * - Rechenzeiten für Wege (Millisekunden), länger als normal;
+	 * - falsche Erde (vom Hochbauen) darf er abbauen, auch wenn er obendrauf steht. Sonst bleibt Gerüst-Erde dort
+	 *   liegen, wo eigentlich ein anderer Block hin soll. Alles andere baut er weiterhin nicht ab.
+	 */
+	private static Map<String, Object> bauEinstellungen() {
+		Map<String, Object> m = new LinkedHashMap<>();
+		m.put("primaryTimeoutMS", 2000L);
+		m.put("failureTimeoutMS", 6000L);
+		m.put("planAheadPrimaryTimeoutMS", 6000L);
+		m.put("planAheadFailureTimeoutMS", 10000L);
+		m.put("allowBreakAnyway", new ArrayList<>(List.of(Blocks.DIRT)));
+		m.put("breakFromAbove", true);
+		m.put("goalBreakFromAbove", true);
+		return m;
+	}
 
 	BurgBau(FunkTerminal terminal, Herstellen herstellen, Versorgung versorgung, Bereich einstellungen) {
 		this.terminal = terminal;
@@ -286,9 +300,8 @@ final class BurgBau {
 		BaritoneRahmen.einstellung("allowPlace", true);
 		BaritoneRahmen.einstellung("buildInLayers", false);
 		BaritoneRahmen.einstellung("okIfWater", false);
-		// mehr Zeit zum Wegrechnen: sonst findet er auf der großen Fläche keinen ganzen Weg (rot), sondern nur
-		// halbe (blau), und springt zwischen zwei halben Wegen hin und her
-		for (Map.Entry<String, Long> e : ZEITEN.entrySet()) {
+		// mehr Zeit zum Wegrechnen (sonst nur halbe, blaue Wege und Hin und Her) und falsche Erde abbauen dürfen
+		for (Map.Entry<String, Object> e : bauEinstellungen().entrySet()) {
 			if (!alteZeiten.containsKey(e.getKey())) {
 				Object alt = BaritoneRahmen.einstellungLesen(e.getKey());
 				if (alt != null) {
