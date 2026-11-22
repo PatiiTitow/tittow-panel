@@ -78,6 +78,9 @@ final class BurgBau {
 	private static final long MELDUNG_ALLE = 5 * 60 * 1000L; // alle 5 Minuten
 	private Map<String, Integer> start = Map.of(); // Sachen vom Start, die im Inventar bleiben (ohne Baumaterial)
 	private int platzFehler;    // wie oft hintereinander das Platzmachen nicht geholfen hat
+	private boolean ausgewichen;   // bei dieser Sorte schon einmal ausgewichen (beim nächsten Hängen: nächste Sorte)
+	private int ausweichTicks = -1; // >= 0: weicht gerade aus (springen, ein Stück weggehen)
+	private Vec3 ausweichStart;     // wo er beim Ausweichen losging
 	private final java.util.Set<Integer> leer = new java.util.HashSet<>(); // Sorten, die im Terminal wirklich alle sind
 	private Object altWegwerf;  // Baritones Liste der "Wegwerf-Blöcke", wird am Ende zurückgestellt
 
@@ -147,6 +150,10 @@ final class BurgBau {
 			return;
 		}
 		an = false;
+		if (ausweichTicks >= 0) {
+			mc.options.keyJump.setDown(false); // Springen loslassen
+			ausweichTicks = -1;
+		}
 		naechsteMeldung = Long.MAX_VALUE; // keine Fortschritts-Meldungen mehr
 		herstellen.stoppen(mc, null);
 		terminal.abbrechen();
@@ -299,6 +306,8 @@ final class BurgBau {
 		erdeGeholt = false;
 		platzFehler = 0;
 		leer.clear();
+		ausgewichen = false;
+		ausweichTicks = -1;
 	}
 
 	private boolean enthaeltLava() {
@@ -317,6 +326,10 @@ final class BurgBau {
 	// ---- Bauen ---------------------------------------------------------------------------
 
 	private void bauen(Minecraft mc, LocalPlayer p) {
+		if (ausweichTicks >= 0) {
+			ausweichen(mc, p);
+			return;
+		}
 		if (baut) {
 			versorgung.nachlegen(mc, p, item);
 			if (BaritoneRahmen.bautGerade()) {
@@ -428,6 +441,7 @@ final class BurgBau {
 			return;
 		}
 		baut = true;
+		ausgewichen = false; // neue Sorte: beim nächsten Hängen darf er wieder erst ausweichen
 		aufpassTicks = 0;
 		stillstand = 0;
 		letzterRest = rest;
@@ -693,6 +707,64 @@ final class BurgBau {
 	 * erst mal lassen und mit der nächsten weitermachen (in der nächsten Runde kommt sie nochmal dran).
 	 * Läuft er nur herum, ohne etwas zu setzen, gilt er nach einer Minute auch als hängend.
 	 */
+	/**
+	 * Ausweichen nach dem Hängen: springen, dann 3-4 Blöcke weg zu einer freien Stelle gehen (höchstens 6 Sekunden)
+	 * und mit derselben Sorte neu ansetzen.
+	 */
+	private void ausweichen(Minecraft mc, LocalPlayer p) {
+		ausweichTicks++;
+		boolean springen = ausweichTicks <= 4 || (ausweichTicks >= 40 && ausweichTicks <= 44);
+		mc.options.keyJump.setDown(springen);
+		if (ausweichTicks == 8) {
+			BlockPos ziel = ausweichZiel(mc, p);
+			if (ziel != null) {
+				BaritoneRahmen.befehl("goto " + ziel.getX() + " " + ziel.getY() + " " + ziel.getZ());
+			} else { // keine freie Stelle gefunden: einfach in eine Richtung
+				double w = p.getRandom().nextInt(8) * Math.PI / 4;
+				BaritoneRahmen.befehl("goto " + (p.getBlockX() + (int) Math.round(Math.cos(w) * 4)) + " "
+						+ (p.getBlockZ() + (int) Math.round(Math.sin(w) * 4)));
+			}
+		}
+		boolean weg = ausweichTicks > 20 && p.position().distanceTo(ausweichStart) >= 3.0;
+		if (ausweichTicks < 120 && !weg) {
+			return;
+		}
+		mc.options.keyJump.setDown(false);
+		BaritoneRahmen.befehl("stop");
+		ausweichTicks = -1;
+		versorgung.nachlegen(mc, p, item);
+		if (!passStarten()) {
+			stoppen(mc, "Baritone hat den Bauplan nicht angenommen.");
+			return;
+		}
+		baut = true;
+		aufpassTicks = 0;
+		stillstand = 0;
+		letzterRest = rest(mc);
+		letztePos = p.position();
+		warte = 40;
+	}
+
+	/** Eine freie Stelle 3-4 Blöcke entfernt, auf der er stehen kann (Boden fest, Füße und Kopf frei). */
+	private BlockPos ausweichZiel(Minecraft mc, LocalPlayer p) {
+		BlockPos hier = p.blockPosition();
+		int anfang = p.getRandom().nextInt(8);
+		for (int abstand = 4; abstand >= 3; abstand--) {
+			for (int k = 0; k < 8; k++) {
+				double w = ((anfang + k) % 8) * Math.PI / 4;
+				int dx = (int) Math.round(Math.cos(w) * abstand), dz = (int) Math.round(Math.sin(w) * abstand);
+				for (int dy : new int[] { 0, 1, -1 }) {
+					BlockPos f = hier.offset(dx, dy, dz);
+					if (mc.level.getBlockState(f).isAir() && mc.level.getBlockState(f.above()).isAir()
+							&& !mc.level.getBlockState(f.below()).getCollisionShape(mc.level, f.below()).isEmpty()) {
+						return f;
+					}
+				}
+			}
+		}
+		return null;
+	}
+
 	private void aufpassen(Minecraft mc) {
 		if (++aufpassTicks % 200 != 0) {
 			return;
@@ -715,6 +787,16 @@ final class BurgBau {
 		}
 		BaritoneRahmen.befehl("stop");
 		this.baut = false;
+		if (!ausgewichen) {
+			// erst mal springen, 3-4 Blöcke zur Seite gehen und mit derselben Sorte neu ansetzen
+			ausgewichen = true;
+			ausweichTicks = 0;
+			ausweichStart = pos;
+			System.out.println("[Tittow Panel] Bauen: hängt bei " + new ItemStack(item).getHoverName().getString() + " in Höhe " + y
+					+ " (noch " + rest + "), springt, geht ein Stück weg und setzt neu an");
+			return;
+		}
+		ausgewichen = false;
 		sorteNr++;
 		geholt = false;
 		warte = 10;

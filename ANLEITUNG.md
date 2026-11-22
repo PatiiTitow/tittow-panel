@@ -216,7 +216,8 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
    - **Zum Hochbauen nimmt er Erde.** Die liegt beim Bauen in **Slot 5**, die Axt kommt solange nach oben ins Inventar
      und am Ende (oder bei „Bauen: Stopp“) wieder zurück nach Slot 5. Erde holt er sich bei Bedarf aus dem Funk-Terminal.
    - Nach dem Abschnitt **baut er das Erd-Gerüst wieder ab** (nur Erde, wo laut Bauplan nichts hingehört).
-   - **Hängt er 10 Sekunden** (setzt keinen Block und läuft nicht), lässt er diese Sorte erst mal und nimmt die nächste.
+   - **Hängt er 10 Sekunden** (setzt keinen Block und läuft nicht), **springt er, geht 3–4 Blöcke zur Seite** und setzt
+     mit derselben Sorte neu an. Hängt er danach wieder, lässt er diese Sorte erst mal und nimmt die nächste.
      Ist er mit allen Sorten der Höhe durch, fängt er **wieder von vorne an** (inzwischen haben die Blöcke oft Nachbarn,
      an die er sie setzen kann). Bringt eine ganze Runde nichts mehr, macht er erst mit der nächsten Höhe weiter.
    - **Fortschritt:** Beim Losbauen und dann **alle 5 Minuten** steht im Chat, wie viel Prozent vom Sockel fertig sind und
