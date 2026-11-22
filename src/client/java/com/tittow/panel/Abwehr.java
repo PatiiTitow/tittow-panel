@@ -9,22 +9,26 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.Interaction;
+import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.npc.villager.AbstractVillager;
+import net.minecraft.world.entity.player.Player;
+import java.util.HashSet;
+import java.util.Set;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Beim Ebnen, Herstellen und Bauen: Kommt ein Mob (Monster oder Tier, auch Pump-Monster/-Tiere) näher als 2 Blöcke, hält der Bot Baritone kurz an, nimmt die Waffe aus
+ * Beim Ebnen, Herstellen und Bauen: Kommt irgendein Tier oder Monster (auch Pump-Monster/-Tiere wie das Nilpferd) näher als 3 Blöcke, hält der Bot Baritone kurz an, nimmt die Waffe aus
  * Slot 1 (Schwert bzw. Glefe), schaut ihn an und schlägt zu, sobald die Waffe aufgeladen ist. Ist kein Gegner mehr
  * in der Nähe, geht es mit dem vorherigen Werkzeug weiter. Spieler und Dorfbewohner greift er nie an.
  */
 final class Abwehr {
 	static final int WAFFEN_SLOT = 0; // Slot 1
 	/** Ab dieser Nähe (Blöcke bis zum Gegner) wird angegriffen. */
-	private static final double RADIUS = 2.0;
+	private static final double RADIUS = 3.0;
 	/** So weit weg darf er wieder sein, bevor der Kampf vorbei ist. */
-	private static final double LOSLASSEN = 3.0;
+	private static final double LOSLASSEN = 3.5;
 
 	private Entity ziel;
 	private int alterSlot;
@@ -102,9 +106,13 @@ final class Abwehr {
 		Entity bester = null;
 		double besterAbstand = Double.MAX_VALUE;
 		// alles, was im Weg ist: Monster, Tiere, auch die eigenen Pump-Monster und -Tiere.
-		// Nie Spieler (sind keine "Mob"s), nie Dorfbewohner und Händler (AbstractVillager), nie Rüstungsständer.
-		for (Entity e : mc.level.getEntities(p, p.getBoundingBox().inflate(weite + 1),
-				e -> e instanceof Mob && !(e instanceof AbstractVillager) && e.isAlive())) {
+		for (Entity e : mc.level.getEntities(p, p.getBoundingBox().inflate(weite + 1), e -> e.isAlive())) {
+			if (!istGegner(p, e)) {
+				if (abstand(p, e) <= weite && GEMELDET.add(e.getType().toString())) {
+					System.out.println("[Tittow Panel] Abwehr: lässt " + e.getType() + " in Ruhe");
+				}
+				continue;
+			}
 			double d = abstand(p, e);
 			if (d <= weite && d < besterAbstand) {
 				bester = e;
@@ -112,6 +120,27 @@ final class Abwehr {
 			}
 		}
 		return bester;
+	}
+
+	/** Welche Sorten er schon als "in Ruhe gelassen" ins Log geschrieben hat (nur einmal je Sorte). */
+	private static final Set<String> GEMELDET = new HashSet<>();
+
+	/**
+	 * Wird angegriffen? Alles, was lebt (Monster, Tiere, Pump-Tiere wie das Nilpferd, auch zahme), und die
+	 * unsichtbaren Treffer-Kästen ("Interaction"), mit denen der Server seine eigenen Tiere baut.
+	 * Nie: Spieler, Dorfbewohner und Händler, Rüstungsständer, das Reittier, auf dem du sitzt.
+	 */
+	private static boolean istGegner(LocalPlayer p, Entity e) {
+		if (e instanceof Player || e instanceof AbstractVillager || e instanceof ArmorStand) {
+			return false;
+		}
+		if (e == p.getVehicle() || e.hasPassenger(p)) {
+			return false;
+		}
+		if (e instanceof Interaction i) {
+			return i.getBbWidth() >= 0.4f && i.getBbHeight() >= 0.4f; // kleine Klick-Kästen (Knöpfe, Möbel-Teile) nicht
+		}
+		return e instanceof LivingEntity;
 	}
 
 	/** Abstand von deinen Augen bis zur nächsten Stelle am Gegner. */

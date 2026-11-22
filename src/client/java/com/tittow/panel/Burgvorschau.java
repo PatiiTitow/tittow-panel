@@ -639,7 +639,7 @@ public final class Burgvorschau {
 		}
 		if (bautGerade()) {
 			if (!bau.imMenue() && mc.gui.screen() == null) {
-				if (abwehr.tick(mc, mc.player)) { // Gegner näher als 2 Blöcke: erst den angreifen
+				if (abwehr.tick(mc, mc.player)) { // Tier oder Monster näher als 3 Blöcke: erst das angreifen
 					return;
 				}
 				if (versorgung.essen(mc, mc.player)) { // Hunger: Goldene Karotten aus Slot 2
@@ -651,7 +651,7 @@ public final class Burgvorschau {
 		}
 		if (herstellen.laeuft()) {
 			if (!herstellen.imMenue() && mc.gui.screen() == null) {
-				if (abwehr.tick(mc, mc.player)) { // Gegner näher als 2 Blöcke: erst den angreifen
+				if (abwehr.tick(mc, mc.player)) { // Tier oder Monster näher als 3 Blöcke: erst das angreifen
 					return;
 				}
 				if (versorgung.essen(mc, mc.player)) { // Hunger: Goldene Karotten aus Slot 2
@@ -690,7 +690,7 @@ public final class Burgvorschau {
 			}
 			return;
 		}
-		if (abwehr.tick(mc, mc.player)) { // Gegner näher als 2 Blöcke: erst den angreifen
+		if (abwehr.tick(mc, mc.player)) { // Tier oder Monster näher als 3 Blöcke: erst das angreifen
 			return;
 		}
 		if (versorgung.essen(mc, mc.player)) { // Hunger: erst Goldene Karotten aus Slot 2 essen

@@ -150,7 +150,7 @@ geebnet wird **nur innerhalb des äußeren grünen Rahmens**. Das Panel geht zu 
 
 | Slot | Was | Was der Bot damit macht |
 |---|---|---|
-| 1 | Schwert bzw. Glefe | kommt ein **Mob näher als 2 Blöcke** (Monster und Tiere, auch die eigenen Pump-Monster und -Tiere), hält der Bot kurz an, nimmt die Waffe und tötet ihn. **Nie Spieler und nie Dorfbewohner oder Händler.** Danach arbeitet er weiter |
+| 1 | Schwert bzw. Glefe | kommt **irgendein Tier oder Monster näher als 3 Blöcke** (alles: Monster, Tiere, auch zahme, die eigenen Pump-Monster und -Tiere wie das Nilpferd), hält der Bot kurz an, nimmt die Waffe und tötet es. **Nie Spieler, nie Dorfbewohner oder Händler, nie Rüstungsständer.** Danach arbeitet er weiter |
 | 2 | Essen (Goldene Karotten) | isst, sobald der Hunger unter 18 fällt, bis du wieder satt bist |
 | 3, 4, 5 | Schaufel, Spitzhacke, Axt | Baritone nimmt jeweils das passende Werkzeug. Die **Fähigkeit der Spitzhacke** (Rechtsklick) benutzt der Bot alle 20 Sekunden |
 | 6 | Erde | die Mod legt Erde von oben aus dem Inventar hierher nach. Baritone baut sich damit hoch (an hohe Bäume und Hügel) und stopft Löcher. Fehlt Erde (unter 32), holt der Bot höchstens 5 Stacks aus dem Funk-Terminal und lässt dabei ein paar Plätze im Inventar frei |
@@ -238,7 +238,7 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
      Die Restzeit rechnet er aus dem bisherigen Tempo aus.
    - **Am Schluss holt er alles Übersprungene nach:** Oben angekommen, geht er die Höhen nochmal von unten durch und baut
      nur, was noch fehlt (bis zu 3 Durchgänge). Erst was dann immer noch nicht geht, sollst du selbst setzen.
-   - Mobs in 2 Blöcken (Monster und Tiere, nie Spieler oder Dorfbewohner) tötet er, bei Hunger isst er.
+   - Alle Tiere und Monster in 3 Blöcken (auch Pump-Tiere wie das Nilpferd, nie Spieler oder Dorfbewohner) tötet er, bei Hunger isst er.
 4. Ist der Sockel fertig, steht **„Der Sockel ist fertig gebaut!“** im Chat und der Knopf heißt **„Sockel fertig ✔“**.
    Das merkt er sich auch nach dem Neu-Joinen.
 - Nochmal klicken (**„Bauen: Stopp“**) hält an, **„Sockel weiter bauen“** macht da weiter, wo er aufgehört hat.
@@ -280,4 +280,4 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
 - `src/main/resources/assets/tittowpanel/burg/bauplan.bin.gz` – der Bauplan (erzeugt mit `Burgen.java bauplandatei`)
 - `src/main/resources/assets/tittowpanel/burg/material.txt` – Materialliste der Blutfeste (erzeugt mit `Desktop\Burgen\generator\Burgen.java materialdatei`)
 - `src/client/java/com/tittow/panel/Versorgung.java` – beim Ebnen: aus Slot 2 essen, Erde in Slot 6 nachlegen
-- `src/client/java/com/tittow/panel/Abwehr.java` – beim Ebnen, Herstellen und Bauen: Mobs in 2 Blöcken (außer Spieler und Dorfbewohner) mit der Waffe aus Slot 1 töten
+- `src/client/java/com/tittow/panel/Abwehr.java` – beim Ebnen, Herstellen und Bauen: alle Tiere und Monster in 3 Blöcken (außer Spieler und Dorfbewohner) mit der Waffe aus Slot 1 töten
