@@ -101,6 +101,15 @@ final class FunkTerminal {
 		beginnen(mc, false, Map.of());
 	}
 
+	/**
+	 * Nach oben in den Himmel schauen: Funk-Terminal und Virtuelle Werkbank öffnen sich nur mit einem Rechtsklick
+	 * in die Luft. Zielt man dabei auf einen Block (Boden, Ofen, Kiste), passiert nichts.
+	 */
+	static void inDieLuftSchauen(LocalPlayer p) {
+		p.setXRot(-90f);
+		p.xRotO = -90f;
+	}
+
 	/** Wie viele von dieser Sorte im Inventar sind (Hotbar und oben). */
 	static int anzahl(LocalPlayer p, Item item) {
 		int n = 0;
@@ -222,6 +231,7 @@ final class FunkTerminal {
 			return;
 		}
 		inv.setSelectedSlot(slot);
+		inDieLuftSchauen(p); // sonst zählt der Server den Rechtsklick als Klick auf einen Block und das Terminal geht nicht auf
 		mc.gameMode.useItem(p, InteractionHand.MAIN_HAND); // wie Rechtsklick in die Luft
 		schritt = 2;
 		warte = 60;

@@ -954,6 +954,7 @@ final class Herstellen {
 						return zu(p);
 					}
 					p.getInventory().setSelectedSlot(WERKBANK_SLOT);
+					FunkTerminal.inDieLuftSchauen(p); // nur ein Klick in die Luft öffnet die Werkbank (nicht auf einen Block zielen)
 					mc.gameMode.useItem(p, InteractionHand.MAIN_HAND);
 					schritt = 1;
 					warte = 60;
