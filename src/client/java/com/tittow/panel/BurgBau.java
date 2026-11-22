@@ -673,8 +673,7 @@ final class BurgBau {
 		fertigBeimStart = gesamt - summe(nochZuBauen(mc));
 		startZeit = System.currentTimeMillis();
 		naechsteMeldung = startZeit + MELDUNG_ALLE;
-		chat(p, "Sockel: " + prozent(fertigBeimStart) + " % fertig (" + zahl(fertigBeimStart) + " von " + zahl(gesamt)
-				+ " Blöcken). Alle 5 Minuten kommt hier der Stand.");
+		chat(p, "§eSockel: " + prozent(fertigBeimStart) + " % geschafft§r – die Restzeit kommt in 5 Minuten.");
 	}
 
 	/** Alle 5 Minuten: Prozent fertig und wie lange es (bei dem bisherigen Tempo) noch dauert. */
@@ -691,10 +690,9 @@ final class BurgBau {
 			restzeit = "Restzeit wird noch berechnet";
 		} else {
 			double msJeBlock = (double) (jetzt - startZeit) / gebaut;
-			restzeit = "noch etwa " + dauer((long) (msJeBlock * noch));
+			restzeit = "braucht noch " + dauer((long) (msJeBlock * noch));
 		}
-		chat(p, "§eSockel: " + prozent(fertig) + " % fertig§r (" + zahl(fertig) + " von " + zahl(gesamt) + " Blöcken, Höhe " + y
-				+ ") – " + restzeit + ".");
+		chat(p, "§eSockel: " + prozent(fertig) + " % geschafft§r – " + restzeit + ".");
 	}
 
 	private int prozent(long fertig) {
@@ -716,7 +714,7 @@ final class BurgBau {
 	/** z. B. "1 Std. 20 Min." oder "35 Min." */
 	private static String dauer(long ms) {
 		long min = Math.max(1, Math.round(ms / 60000.0));
-		return min >= 60 ? (min / 60) + " Std. " + (min % 60) + " Min." : min + " Min.";
+		return min >= 60 ? (min / 60) + " Stunden " + (min % 60) + " Minuten" : min + " Minuten";
 	}
 
 	/** Wie viele Blöcke in der aktuellen Schicht (alle Sorten) noch fehlen. */

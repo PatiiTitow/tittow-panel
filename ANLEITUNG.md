@@ -216,7 +216,7 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
      Ist er mit allen Sorten der Höhe durch, fängt er **wieder von vorne an** (inzwischen haben die Blöcke oft Nachbarn,
      an die er sie setzen kann). Bringt eine ganze Runde nichts mehr, macht er erst mit der nächsten Höhe weiter.
    - **Fortschritt:** Beim Losbauen und dann **alle 5 Minuten** steht im Chat, wie viel Prozent vom Sockel fertig sind und
-     wie lange es noch etwa dauert, z. B. „Sockel: 62 % fertig (19.640 von 31.688 Blöcken, Höhe 3) – noch etwa 1 Std. 20 Min.“
+     wie lange es noch dauert, z. B. „Sockel: 62 % geschafft – braucht noch 1 Stunden 20 Minuten“.
      Die Restzeit rechnet er aus dem bisherigen Tempo aus.
    - **Am Schluss holt er alles Übersprungene nach:** Oben angekommen, geht er die Höhen nochmal von unten durch und baut
      nur, was noch fehlt (bis zu 3 Durchgänge). Erst was dann immer noch nicht geht, sollst du selbst setzen.
