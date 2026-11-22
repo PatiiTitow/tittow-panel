@@ -153,7 +153,7 @@ geebnet wird **nur innerhalb des äußeren grünen Rahmens**. Das Panel geht zu 
 | 1 | Schwert bzw. Glefe | kommt ein **Mob näher als 2 Blöcke** (Monster und Tiere, auch die eigenen Pump-Monster und -Tiere), hält der Bot kurz an, nimmt die Waffe und tötet ihn. **Nie Spieler und nie Dorfbewohner oder Händler.** Danach arbeitet er weiter |
 | 2 | Essen (Goldene Karotten) | isst, sobald der Hunger unter 18 fällt, bis du wieder satt bist |
 | 3, 4, 5 | Schaufel, Spitzhacke, Axt | Baritone nimmt jeweils das passende Werkzeug. Die **Fähigkeit der Spitzhacke** (Rechtsklick) benutzt der Bot alle 20 Sekunden |
-| 6 | Erde | die Mod legt Erde von oben aus dem Inventar hierher nach. Baritone baut sich damit hoch (an hohe Bäume und Hügel) und stopft Löcher. Fehlt Erde (unter 32), holt der Bot etwa 8 Stacks aus dem Funk-Terminal und lässt dabei ein paar Plätze im Inventar frei |
+| 6 | Erde | die Mod legt Erde von oben aus dem Inventar hierher nach. Baritone baut sich damit hoch (an hohe Bäume und Hügel) und stopft Löcher. Fehlt Erde (unter 32), holt der Bot höchstens 5 Stacks aus dem Funk-Terminal und lässt dabei ein paar Plätze im Inventar frei |
 | 7 | Virtuelle Werkbank (Rechtsklick in die Luft öffnet die Werkbank, wird nicht aufgestellt) | bleibt liegen (fürs Ebnen nicht nötig) |
 | 8 | Funk-Terminal | zum Erde holen und Sachen ablegen |
 | 9 | (deins) | wird **nie** angefasst |
@@ -169,7 +169,7 @@ Baritone selbst darf beim Ebnen nichts im Inventar umräumen (Einstellung `allow
   - Ausgeräumt wird **nur das obere Inventar**, die Hotbar (Slot 1 bis 9) bleibt immer, wie sie ist.
   - **Was du beim Start des Ebnens dabei hattest, bleibt im Inventar.** Das merkt er sich auch beim „weitermachen“
     nach dem Neu-Joinen.
-  - Bis zu 10 Stacks Erde behält er immer, fürs Löcherstopfen (mehr, als er auf einmal holt, damit er sie nicht gleich wieder reinlegt).
+  - Bis zu 5 Stacks Erde behält er, fürs Löcherstopfen. Mehr legt er zurück.
   - Geht nichts hinein (z. B. Lager voll), steht das im Chat und er versucht es nach einer Minute nochmal.
 - Am Ende steht „fertig geebnet“ im Chat. Nochmal klicken (**„Ebnen: Stopp“**) hält alles an. Die Linien dürfen beim Ebnen auch aus sein.
 
@@ -206,7 +206,7 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
    Dann das Material (oder die Rohstoffe dafür) besorgen und **„Sockel weiter bauen“** klicken.
 3. **Bauen:** Schicht für Schicht von unten nach oben, in jeder Schicht **eine Blocksorte nach der anderen**.
    Die Sorte holt er **jedes Mal frisch aus dem Funk-Terminal** und legt sie in **Slot 6**. Baritone baut nur diese Sorte.
-   Ist die Sorte fertig (oder hängt er), legt er den **Rest zurück ins Funk-Terminal**, dann kommt die nächste.
+   Er nimmt **höchstens 5 Stapel auf einmal** heraus. Ist die Sorte fertig (oder hängt er), legt er den **Rest zurück ins Funk-Terminal**, dann kommt die nächste.
    - Baumaterial, das vom letzten Mal noch im Inventar liegt, legt er auch zurück. Ist das Inventar fast voll, legt er
      **erst ab und holt dann**. So meldet er nicht mehr fälschlich „alle“, nur weil kein Platz frei war.
    - Ist eine Sorte im Funk-Terminal **wirklich alle**, hält er nicht an, sondern baut mit den anderen Sorten weiter.

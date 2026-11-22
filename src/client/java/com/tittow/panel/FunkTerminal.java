@@ -36,9 +36,9 @@ final class FunkTerminal {
 	/** Slot 8 in der Hotbar (gezählt ab 0). */
 	private static final int TERMINAL_SLOT = 7;
 	/** So viel Erde bleibt beim Ablegen im Inventar, für das Löcherstopfen. */
-	private static final int ERDE_BEHALTEN = 640;
+	private static final int ERDE_BEHALTEN = 320;
 	/** Beim Holen nur bis zu dieser Menge Erde nehmen (weniger als beim Ablegen bleibt, sonst legt er sie gleich wieder rein). */
-	private static final int ERDE_HOLEN_BIS = 512;
+	private static final int ERDE_HOLEN_BIS = 320;
 	/** Beim Holen immer so viele Plätze im Inventar frei lassen (für Sachen, die beim Abbauen dazukommen). */
 	private static final int FREI_LASSEN = 3;
 	private static final String[] WEITER = {"weiter", "nächste", "naechste", "next", "→", "»", ">>"};

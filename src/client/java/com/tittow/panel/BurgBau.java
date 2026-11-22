@@ -597,7 +597,7 @@ final class BurgBau {
 		zweck = Zweck.HOLEN;
 		holVorher = FunkTerminal.anzahl(p, item);
 		int rest = rest(mc);
-		terminal.holen(mc, item, Math.min(Math.max(rest - holVorher, 64), 64 * 10));
+		terminal.holen(mc, item, Math.min(Math.max(rest - holVorher, 64), 64 * 5)); // höchstens 5 Stapel auf einmal
 	}
 
 	/** Alles ablegen, was nicht gebraucht wird (die aktuelle Sorte und die Gerüst-Erde bleiben). Hilft das mehrmals nicht: anhalten. */

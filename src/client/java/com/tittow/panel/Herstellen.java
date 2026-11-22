@@ -456,7 +456,7 @@ final class Herstellen {
 			// Zutaten holen: jede Zutat bekommt gleich viel Platz im Inventar
 			int frei = freiePlaetze(p) - 3;
 			int sorten = r.zutaten().size();
-			int stapelJe = Math.max(1, Math.min(16, frei / sorten));
+			int stapelJe = Math.max(1, Math.min(5, frei / sorten));
 			for (Map.Entry<String, Integer> z : r.zutaten().entrySet()) {
 				int hab = FunkTerminal.anzahl(p, item(z.getKey()));
 				if (hab >= z.getValue()) {
@@ -719,7 +719,7 @@ final class Herstellen {
 		zweck = TerminalZweck.HOLEN;
 		holtGerade = id;
 		holVorher = FunkTerminal.anzahl(p, item(id));
-		terminal.holen(mc, item(id), (int) Math.min(menge, 64L * 27));
+		terminal.holen(mc, item(id), (int) Math.min(menge, 64L * 5)); // höchstens 5 Stapel auf einmal
 	}
 
 	private void ablegen(Minecraft mc) {
