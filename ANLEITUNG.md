@@ -214,8 +214,9 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
    - Nach dem Abschnitt **baut er das Erd-Gerüst wieder ab** (nur Erde, wo laut Bauplan nichts hingehört).
    - **Hängt er 10 Sekunden** (setzt keinen Block und läuft nicht), lässt er diese Sorte erst mal und nimmt die nächste.
      Ist er mit allen Sorten der Höhe durch, fängt er **wieder von vorne an** (inzwischen haben die Blöcke oft Nachbarn,
-     an die er sie setzen kann). Erst wenn eine ganze Runde nichts mehr bringt, sagt er, wie viele Blöcke übrig sind
-     (selbst setzen), und macht mit der nächsten Höhe weiter.
+     an die er sie setzen kann). Bringt eine ganze Runde nichts mehr, macht er erst mit der nächsten Höhe weiter.
+   - **Am Schluss holt er alles Übersprungene nach:** Oben angekommen, geht er die Höhen nochmal von unten durch und baut
+     nur, was noch fehlt (bis zu 3 Durchgänge). Erst was dann immer noch nicht geht, sollst du selbst setzen.
    - Mobs in 2 Blöcken (Monster und Tiere, nie Spieler oder Dorfbewohner) tötet er, bei Hunger isst er.
 4. Ist der Sockel fertig, steht **„Der Sockel ist fertig gebaut!“** im Chat und der Knopf heißt **„Sockel fertig ✔“**.
    Das merkt er sich auch nach dem Neu-Joinen.

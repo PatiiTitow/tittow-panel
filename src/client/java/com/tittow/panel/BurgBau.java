@@ -69,6 +69,7 @@ final class BurgBau {
 	private int passStartRest;  // wie viele von der Sorte beim Start des Auftrags fehlten
 	private boolean fortschrittInRunde; // hat die aktuelle Runde durch die Sorten etwas gebracht?
 	private int runde;          // wievielte Runde in dieser Schicht
+	private int nachholRunde;   // wie oft er am Schluss schon nachgeholt hat, was übersprungen wurde
 	private Vec3 letztePos;     // wo er beim letzten Nachsehen stand (läuft er noch?)
 	private Map<String, Integer> start = Map.of();
 	private Object altWegwerf;  // Baritones Liste der "Wegwerf-Blöcke", wird am Ende zurückgestellt
@@ -248,6 +249,7 @@ final class BurgBau {
 		}
 		schritt = Schritt.BAUEN;
 		// fertige Schichten überspringt er von selbst (er schaut in der Welt nach, was schon steht)
+		nachholRunde = 0;
 		y = von;
 		if (einstellungen.burgBauSchicht > von) {
 			chat(p, "Er macht da weiter, wo er aufgehört hat (zuletzt Höhe " + einstellungen.burgBauSchicht + "). Was schon steht, überspringt er.");
@@ -323,8 +325,7 @@ final class BurgBau {
 					continue;
 				}
 				if (offen > 0) {
-					chat(p, "§cIn Höhe " + y + " bleiben " + offen + " Blöcke übrig§r (er kommt nicht hin) – bitte selbst setzen. "
-							+ "Weiter mit der nächsten Höhe.");
+					chat(p, "In Höhe " + y + " fehlen noch " + offen + " Blöcke, da kommt er gerade nicht hin – die holt er am Schluss nach.");
 				}
 				runde = 0;
 				fortschrittInRunde = false;
@@ -332,6 +333,24 @@ final class BurgBau {
 				einstellungen.burgBauSchicht = y; // merken, wo er gerade ist
 				einstellungen.speichern();
 				if (y > bis) {
+					// oben angekommen: was übersprungen wurde, jetzt nachholen (bis zu 3 Durchgänge von unten nach oben)
+					long offenGesamt = 0;
+					for (long n : nochZuBauen(mc).values()) {
+						offenGesamt += n;
+					}
+					if (offenGesamt > 0 && nachholRunde < 3) {
+						nachholRunde++;
+						chat(p, "Jetzt macht er fertig, was er übersprungen hat (" + offenGesamt + " Blöcke, Durchgang " + nachholRunde + " von 3).");
+						y = von;
+						sorten = plan.sortenInSchicht(y);
+						sorteNr = 0;
+						runde = 0;
+						fortschrittInRunde = false;
+						continue;
+					}
+					if (offenGesamt > 0) {
+						chat(p, "§c" + offenGesamt + " Blöcke gehen auch nach 3 Nachhol-Durchgängen nicht§r – die bitte selbst setzen.");
+					}
 					aufraeumenStarten(mc, p); // erst das Erd-Gerüst wieder weg, dann ist der Abschnitt fertig
 					return;
 				}
