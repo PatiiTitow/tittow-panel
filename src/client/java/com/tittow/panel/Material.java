@@ -71,6 +71,18 @@ final class Material {
 			return;
 		}
 		zeile(p, Component.literal("§d[Burg]§r Material-Check für den Sockel (Funk-Terminal + dein Inventar):"));
+		long gesamt = 0, noch = 0;
+		for (long n : liste().getOrDefault("sockel", Map.of()).values()) {
+			gesamt += n;
+		}
+		for (long n : sockel.values()) {
+			noch += n;
+		}
+		if (gesamt > 0 && noch < gesamt) {
+			zeile(p, Component.literal("§7Was schon steht, zählt nicht mehr: Am Sockel fehlen noch §f" + zahl(noch) + "§7 von "
+					+ zahl(gesamt) + " Blöcken (" + Math.round(100.0 * (gesamt - noch) / gesamt) + " % fertig). "
+					+ "Die Zahlen unten gelten nur für diesen Rest."));
+		}
 		for (Map.Entry<String, Map<String, Long>> teil : l.entrySet()) {
 			if (!teil.getKey().equals("sockel")) {
 				continue; // nur der Sockel
@@ -93,9 +105,9 @@ final class Material {
 				long hab = da.getOrDefault(e.getKey(), 0L);
 				Component block = blockName(e.getKey());
 				if (hab >= noetig) {
-					zeile(p, Component.literal(" §a✔ ").append(block).append(Component.literal("§a: " + zahl(hab) + " da, " + zahl(noetig) + " nötig")));
+					zeile(p, Component.literal(" §a✔ ").append(block).append(Component.literal("§a: " + zahl(hab) + " da, noch " + zahl(noetig) + " nötig")));
 				} else {
-					zeile(p, Component.literal(" §c✘ ").append(block).append(Component.literal("§7: " + zahl(hab) + " da, " + zahl(noetig)
+					zeile(p, Component.literal(" §c✘ ").append(block).append(Component.literal("§7: " + zahl(hab) + " da, noch " + zahl(noetig)
 							+ " nötig – §cfehlen " + zahl(noetig - hab))));
 				}
 			}

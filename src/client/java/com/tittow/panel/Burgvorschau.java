@@ -117,6 +117,9 @@ public final class Burgvorschau {
 		if (pruefen || herstellen.laeuft()) {
 			return "Warte, bis „Material prüfen“ bzw. Herstellen fertig ist.";
 		}
+		if (!sockelGeladen(mc)) {
+			return "Geh näher an die Burg: Ein Teil vom Sockel ist nicht geladen, dann kann er nicht nachsehen, was schon steht.";
+		}
 		if (bau == null) {
 			bau = new BurgBau(terminal, herstellen, versorgung, einstellungen);
 		}
@@ -142,7 +145,7 @@ public final class Burgvorschau {
 		if (pruefen) {
 			return "Warte, bis „Material prüfen“ fertig ist.";
 		}
-		return herstellen.starten(mc);
+		return herstellen.starten(mc, nochFuerSockel(mc), "den Sockel"); // nur was am Sockel noch fehlt
 	}
 
 	/**
@@ -163,14 +166,46 @@ public final class Burgvorschau {
 		if (bautGerade() || herstellen.laeuft()) {
 			return "Geht nicht, während der Bot baut oder herstellt.";
 		}
-		// was am Sockel noch gebaut werden muss (steht schon etwas, zählt das nicht mehr)
-		Bauplan plan = Bauplan.laden();
-		pruefNoch = plan != null && an && tor != null
-				? BurgBau.nochZuBauen(mc, plan, tor, vorne, 0, plan.sockel - 1)
-				: Material.liste().getOrDefault("sockel", Map.of());
+		if (!an || tor == null) {
+			return "Erst „Burg hier setzen“, dann rechnet er nur aus, was noch fehlt.";
+		}
+		if (!sockelGeladen(mc)) {
+			return "Geh näher an die Burg: Ein Teil vom Sockel ist nicht geladen, dann kann er nicht nachsehen, was schon steht.";
+		}
+		pruefNoch = nochFuerSockel(mc);
 		pruefen = true;
 		terminal.zaehlen(mc);
 		return "Prüfe Material im Funk-Terminal …";
+	}
+
+	/**
+	 * Was am Sockel noch gebaut werden muss: schaut in der Welt nach, was schon steht, und zählt nur den Rest
+	 * (also ab da, wo das Bauen aufgehört hat). Ist keine Burg gesetzt: die ganze Sockel-Liste.
+	 */
+	private Map<String, Long> nochFuerSockel(Minecraft mc) {
+		Bauplan plan = Bauplan.laden();
+		if (plan == null || !an || tor == null) {
+			return Material.liste().getOrDefault("sockel", Map.of());
+		}
+		return BurgBau.nochZuBauen(mc, plan, tor, vorne, 0, plan.sockel - 1);
+	}
+
+	/** Ist die ganze Sockel-Fläche geladen? (Nicht geladene Stellen würden sonst als "fehlt noch" zählen.) */
+	private boolean sockelGeladen(Minecraft mc) {
+		Bauplan plan = Bauplan.laden();
+		if (plan == null || mc.level == null) {
+			return false;
+		}
+		int[] a = welt(tor, vorne, Bauplan.VERSATZ, Bauplan.VERSATZ);
+		int[] b = welt(tor, vorne, Bauplan.VERSATZ + plan.w - 1, Bauplan.VERSATZ + plan.l - 1);
+		for (int cx = Math.min(a[0], b[0]) >> 4; cx <= Math.max(a[0], b[0]) >> 4; cx++) {
+			for (int cz = Math.min(a[1], b[1]) >> 4; cz <= Math.max(a[1], b[1]) >> 4; cz++) {
+				if (!mc.level.hasChunk(cx, cz)) {
+					return false;
+				}
+			}
+		}
+		return true;
 	}
 
 	/** Was am Sockel noch fehlt (beim letzten "Material prüfen" ausgerechnet). */

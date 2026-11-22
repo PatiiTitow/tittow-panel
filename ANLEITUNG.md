@@ -176,8 +176,11 @@ Baritone selbst darf beim Ebnen nichts im Inventar umräumen (Einstellung `allow
 ### Material prüfen
 Knopf **„Material prüfen (Funk-Terminal)“** (ganz unten im Panel). Das Panel geht zu, der Bot öffnet das Funk-Terminal
 (Slot 8), blättert **alle Seiten** durch und zählt, was im Lager ist. Was du im Inventar hast, zählt mit.
-Geprüft wird **nur der Sockel**. Danach steht im Chat jeder Block einzeln:
-- ✔ grün: davon ist genug da (z. B. „Erde: 14.200 da, 13.924 nötig“),
+Geprüft wird **nur der Sockel**, und zwar **nur das, was noch fehlt**: Der Bot schaut in der Welt nach, was schon steht,
+und rechnet nur den Rest (also ab da, wo das Bauen aufgehört hat). Oben im Bericht steht, wie viele Blöcke noch fehlen
+und wie viel Prozent fertig sind. Dafür muss die Burg gesetzt sein und du musst nah genug stehen, damit der ganze Sockel
+geladen ist (sonst sagt er „Geh näher an die Burg“). Danach steht im Chat jeder Block einzeln:
+- ✔ grün: davon ist genug da (z. B. „Erde: 14.200 da, noch 3.000 nötig“),
 - ✘ rot: zu wenig, mit „fehlen …“,
 - oben drüber: wie viele Sorten schon reichen und wie viele Blöcke zusammen noch fehlen.
 
