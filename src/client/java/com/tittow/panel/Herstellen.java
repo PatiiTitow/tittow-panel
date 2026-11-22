@@ -140,6 +140,7 @@ final class Herstellen {
 	private boolean fertigGemeldet;
 	private String schlussHinweis = "";
 	private int reinFehler;
+	private int werkbankZu; // wie oft die Werkbank hintereinander nicht aufging
 	private int platzFehler;
 	private Werkbank werkbank;
 	private KistenArbeit kiste;
@@ -465,10 +466,6 @@ final class Herstellen {
 			}
 			return;
 		}
-		if (freiePlaetze(p) < 2) {
-			platzMachen(mc);
-			return;
-		}
 		platzFehler = 0;
 		vorher.put(aus, FunkTerminal.anzahl(p, item(aus)));
 		werkbank = new Werkbank(r, Math.min(moeglich, rest));
@@ -483,6 +480,18 @@ final class Herstellen {
 		if (w.fehler != null) {
 			chat(p, w.fehler);
 		}
+		System.out.println("[Tittow Panel] Werkbank fertig: " + gemacht + "× " + aus + " hergestellt");
+		if (w.nichtAuf && gemacht <= 0) {
+			// nicht aufgegangen: das heißt nicht, dass es nicht geht. 10 Sekunden warten, dann nochmal.
+			if (++werkbankZu >= 6) {
+				werkbankZu = 0;
+				aufgeben(p, aus, "die Virtuelle Werkbank geht nicht auf");
+				return;
+			}
+			warte = 200;
+			return;
+		}
+		werkbankZu = 0;
 		if (gemacht <= 0) {
 			if (++werkbankFehler >= 3) {
 				werkbankFehler = 0;
@@ -693,6 +702,10 @@ final class Herstellen {
 	}
 
 	private void holen(Minecraft mc, LocalPlayer p, String id, long menge) {
+		if (freiePlaetze(p) <= 4) {
+			platzMachen(mc); // Inventar fast voll: erst ablegen, sonst kommt nichts heraus und er denkt, das Lager ist leer
+			return;
+		}
 		zweck = TerminalZweck.HOLEN;
 		holtGerade = id;
 		holVorher = FunkTerminal.anzahl(p, item(id));
@@ -889,6 +902,7 @@ final class Herstellen {
 		final Rezept r;
 		final long mal;
 		String fehler;
+		boolean nichtAuf; // gar nicht aufgegangen: kein Grund aufzugeben, später nochmal
 		private int schritt; // 0 öffnen, 1 warten, 2 füllen/herstellen, 3 leeren, 4 zu
 		private int warte;
 		private int versuche;
@@ -907,11 +921,17 @@ final class Herstellen {
 			if (warte > 0) {
 				warte--;
 				if (schritt == 1 && warte == 0) {
-					if (++versuche >= 3) {
-						fehler = "Die Virtuelle Werkbank (Slot 7) geht nicht auf.";
+					System.out.println("[Tittow Panel] Werkbank: nicht aufgegangen (Versuch " + (versuche + 1) + "), offen ist: "
+							+ (p.containerMenu == p.inventoryMenu ? "nichts" : p.containerMenu.getClass().getSimpleName()
+									+ " mit " + p.containerMenu.slots.size() + " Plätzen"));
+					if (++versuche >= 5) {
+						fehler = "Die Virtuelle Werkbank (Slot 7) geht gerade nicht auf – ich versuche es gleich nochmal.";
+						nichtAuf = true;
 						return zu(p);
 					}
 					schritt = 0;
+					warte = 20; // kurz warten, manche Sachen haben eine Abklingzeit
+					return false;
 				}
 				if (schritt != 1) {
 					return false;
@@ -939,15 +959,18 @@ final class Herstellen {
 					warte = 60;
 				}
 				case 1 -> {
-					if (p.containerMenu instanceof CraftingMenu && menueOffen(mc, p)) {
+					if (istWerkbank(p.containerMenu) && menueOffen(mc, p)) {
 						schritt = 2;
 						warte = 8;
 						ausVorher = FunkTerminal.anzahl(p, item(r.aus()));
+						System.out.println("[Tittow Panel] Werkbank offen (" + p.containerMenu.getClass().getSimpleName() + ", "
+								+ p.containerMenu.slots.size() + " Plätze), stelle " + mal + "× " + r.aus() + " her");
 					}
 				}
 				case 2 -> {
 					AbstractContainerMenu menu = p.containerMenu;
-					if (!(menu instanceof CraftingMenu)) {
+					if (!istWerkbank(menu)) {
+						System.out.println("[Tittow Panel] Werkbank: Menü ist plötzlich zu");
 						return zu(p);
 					}
 					// hängt etwas an der Maus? zurück an seinen Platz bzw. in einen leeren Platz
@@ -963,7 +986,7 @@ final class Herstellen {
 						return false;
 					}
 					long gemacht = (FunkTerminal.anzahl(p, item(r.aus())) - ausVorher) / r.ausMenge();
-					if (gemacht >= mal || runden > 40 || freiePlaetze(p) < 1) {
+					if (gemacht >= mal || runden > 40) { // Platz ist kein Problem: was ins Feld kommt, macht im Inventar Platz für das Ergebnis
 						schritt = 3;
 						return false;
 					}
@@ -995,7 +1018,7 @@ final class Herstellen {
 				}
 				case 3 -> {
 					AbstractContainerMenu menu = p.containerMenu;
-					if (menu instanceof CraftingMenu) {
+					if (istWerkbank(menu)) {
 						if (!menu.getCarried().isEmpty()) {
 							int ziel = leererPlatz(menu, p);
 							if (ziel >= 0) {
@@ -1019,6 +1042,11 @@ final class Herstellen {
 				}
 			}
 			return false;
+		}
+
+		/** Die Werkbank: ein Werkbank-Menü (Ergebnis + 3x3-Feld + Inventar = 46 Plätze). */
+		private static boolean istWerkbank(AbstractContainerMenu menu) {
+			return menu instanceof CraftingMenu || menu.slots.size() == 46;
 		}
 
 		private boolean zu(LocalPlayer p) {
