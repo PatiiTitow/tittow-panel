@@ -71,6 +71,11 @@ final class BurgBau {
 	private int runde;          // wievielte Runde in dieser Schicht
 	private int nachholRunde;   // wie oft er am Schluss schon nachgeholt hat, was übersprungen wurde
 	private Vec3 letztePos;     // wo er beim letzten Nachsehen stand (läuft er noch?)
+	private long gesamt;          // Blöcke im ganzen Abschnitt (Sockel)
+	private long fertigBeimStart;  // davon fertig, als das Bauen (diesmal) losging
+	private long startZeit;        // wann das Bauen (diesmal) losging
+	private long naechsteMeldung = Long.MAX_VALUE; // wann die nächste Fortschritts-Meldung kommt
+	private static final long MELDUNG_ALLE = 5 * 60 * 1000L; // alle 5 Minuten
 	private Map<String, Integer> start = Map.of();
 	private Object altWegwerf;  // Baritones Liste der "Wegwerf-Blöcke", wird am Ende zurückgestellt
 
@@ -135,6 +140,7 @@ final class BurgBau {
 			return;
 		}
 		an = false;
+		naechsteMeldung = Long.MAX_VALUE; // keine Fortschritts-Meldungen mehr
 		herstellen.stoppen(mc, null);
 		terminal.abbrechen();
 		BaritoneRahmen.befehl("stop");
@@ -170,6 +176,9 @@ final class BurgBau {
 				nachTerminal(mc, p, m);
 			}
 			return;
+		}
+		if ((schritt == Schritt.BAUEN || schritt == Schritt.AUFRAEUMEN) && System.currentTimeMillis() >= naechsteMeldung) {
+			fortschrittMelden(mc, p); // alle 5 Minuten: wie viel Prozent fertig, wie lange noch
 		}
 		if (warte > 0) {
 			warte--;
@@ -248,6 +257,7 @@ final class BurgBau {
 			chat(p, "Hinweis: Die Lava im Brunnen setzt der Bot nicht, die kommt am Ende per Eimer.");
 		}
 		schritt = Schritt.BAUEN;
+		fortschrittStarten(mc, p);
 		// fertige Schichten überspringt er von selbst (er schaut in der Welt nach, was schon steht)
 		nachholRunde = 0;
 		y = von;
@@ -650,6 +660,63 @@ final class BurgBau {
 		warte = 10;
 		System.out.println("[Tittow Panel] Bauen: hängt bei " + new ItemStack(item).getHoverName().getString() + " in Höhe " + y
 				+ " (noch " + rest + "), nimmt die nächste Sorte");
+	}
+
+	// ---- Fortschritt im Chat ------------------------------------------------------------------------
+
+	/** Beim Losbauen: merken, wie viel schon steht, und gleich einmal den Stand melden. */
+	private void fortschrittStarten(Minecraft mc, LocalPlayer p) {
+		gesamt = 0;
+		for (long n : plan.material(von, bis).values()) {
+			gesamt += n;
+		}
+		fertigBeimStart = gesamt - summe(nochZuBauen(mc));
+		startZeit = System.currentTimeMillis();
+		naechsteMeldung = startZeit + MELDUNG_ALLE;
+		chat(p, "Sockel: " + prozent(fertigBeimStart) + " % fertig (" + zahl(fertigBeimStart) + " von " + zahl(gesamt)
+				+ " Blöcken). Alle 5 Minuten kommt hier der Stand.");
+	}
+
+	/** Alle 5 Minuten: Prozent fertig und wie lange es (bei dem bisherigen Tempo) noch dauert. */
+	private void fortschrittMelden(Minecraft mc, LocalPlayer p) {
+		long jetzt = System.currentTimeMillis();
+		naechsteMeldung = jetzt + MELDUNG_ALLE;
+		long noch = summe(nochZuBauen(mc));
+		long fertig = gesamt - noch;
+		long gebaut = fertig - fertigBeimStart;
+		String restzeit;
+		if (noch == 0) {
+			restzeit = "gleich fertig";
+		} else if (gebaut <= 0) {
+			restzeit = "Restzeit wird noch berechnet";
+		} else {
+			double msJeBlock = (double) (jetzt - startZeit) / gebaut;
+			restzeit = "noch etwa " + dauer((long) (msJeBlock * noch));
+		}
+		chat(p, "§eSockel: " + prozent(fertig) + " % fertig§r (" + zahl(fertig) + " von " + zahl(gesamt) + " Blöcken, Höhe " + y
+				+ ") – " + restzeit + ".");
+	}
+
+	private int prozent(long fertig) {
+		return gesamt <= 0 ? 100 : (int) Math.floor(100.0 * fertig / gesamt);
+	}
+
+	private static long summe(Map<String, Long> m) {
+		long s = 0;
+		for (long n : m.values()) {
+			s += n;
+		}
+		return s;
+	}
+
+	private static String zahl(long n) {
+		return String.format(Locale.GERMANY, "%,d", n);
+	}
+
+	/** z. B. "1 Std. 20 Min." oder "35 Min." */
+	private static String dauer(long ms) {
+		long min = Math.max(1, Math.round(ms / 60000.0));
+		return min >= 60 ? (min / 60) + " Std. " + (min % 60) + " Min." : min + " Min.";
 	}
 
 	/** Wie viele Blöcke in der aktuellen Schicht (alle Sorten) noch fehlen. */
