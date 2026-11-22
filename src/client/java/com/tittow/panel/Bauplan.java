@@ -88,6 +88,36 @@ final class Bauplan {
 		return !id.equals("minecraft:air") && !id.equals("minecraft:lava") && !id.equals("minecraft:water");
 	}
 
+	/** Die Kästen der Türme (im Vorschau-Plan, {x0, z0, x1, z1}): Ecktürme, Torturm, Torhaus und Mauertürme. */
+	private static final List<int[]> TURM_KAESTEN = new ArrayList<>();
+
+	static {
+		TURM_KAESTEN.addAll(List.of(new int[] {14, 14, 24, 24}, new int[] {125, 14, 135, 24}, new int[] {14, 125, 24, 135},
+				new int[] {125, 125, 135, 135}, new int[] {60, 125, 68, 135}, new int[] {82, 125, 90, 135}, new int[] {69, 125, 81, 135}));
+		for (int m : new int[] {38, 56, 75, 94, 112}) {
+			TURM_KAESTEN.add(new int[] {m - 3, 14, m + 3, 22});
+			TURM_KAESTEN.add(new int[] {14, m - 3, 22, m + 3});
+			TURM_KAESTEN.add(new int[] {127, m - 3, 135, m + 3});
+			if (m == 38 || m == 112) {
+				TURM_KAESTEN.add(new int[] {m - 3, 127, m + 3, 135});
+			}
+		}
+	}
+
+	/** Gehört diese Plan-Stelle (x, z) zur Mauer mit Türmen (Außenmauer, Ecktürme, Mauertürme, Tor)? */
+	static boolean mauerRing(int x, int z) {
+		int mx = x + VERSATZ, mz = z + VERSATZ;
+		if (mx <= 20 || mx >= 129 || mz <= 20 || mz >= 129) {
+			return true;
+		}
+		for (int[] b : TURM_KAESTEN) {
+			if (mx >= b[0] && mx <= b[2] && mz >= b[1] && mz <= b[3]) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	/** Abschnitte als {von y, bis y}: zuerst der Sockel, dann je 6 Blöcke hoch (leere oben weg). */
 	List<int[]> abschnitte() {
 		List<int[]> a = new ArrayList<>();

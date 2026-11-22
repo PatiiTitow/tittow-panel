@@ -864,12 +864,21 @@ final class BurgBau {
 
 	/** Was in den Höhen von..bis noch gebaut werden muss (Block-Id -> Anzahl), schaut in der Welt nach. */
 	static Map<String, Long> nochZuBauen(Minecraft mc, Bauplan plan, BlockPos tor, Direction vorne, int von, int bis) {
+		return nochZuBauen(mc, plan, tor, vorne, von, bis, false);
+	}
+
+	/** Wie oben; nurMauer = nur die Mauer mit Türmen zählen (Bauplan.mauerRing). mc = null: nicht in der Welt nachsehen. */
+	static Map<String, Long> nochZuBauen(Minecraft mc, Bauplan plan, BlockPos tor, Direction vorne, int von, int bis, boolean nurMauer) {
 		long[] n = new long[plan.ids.length];
 		for (int yy = von; yy <= bis; yy++) {
 			for (int z = 0; z < plan.l; z++) {
 				for (int x = 0; x < plan.w; x++) {
 					int i = plan.index(x, yy, z);
-					if (!plan.setzbar(i)) {
+					if (!plan.setzbar(i) || nurMauer && !Bauplan.mauerRing(x, z)) {
+						continue;
+					}
+					if (mc == null) {
+						n[i]++;
 						continue;
 					}
 					int[] w = Burgvorschau.welt(tor, vorne, x + Bauplan.VERSATZ, z + Bauplan.VERSATZ);
@@ -880,11 +889,16 @@ final class BurgBau {
 				}
 			}
 		}
-		Map<String, Long> m = new LinkedHashMap<>();
+		List<Integer> reihe = new ArrayList<>();
 		for (int i = 0; i < n.length; i++) {
 			if (n[i] > 0) {
-				m.put(plan.ids[i], n[i]);
+				reihe.add(i);
 			}
+		}
+		reihe.sort((a, b) -> Long.compare(n[b], n[a])); // die meisten zuerst
+		Map<String, Long> m = new LinkedHashMap<>();
+		for (int i : reihe) {
+			m.put(plan.ids[i], n[i]);
 		}
 		return m;
 	}

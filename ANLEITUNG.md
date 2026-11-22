@@ -176,7 +176,9 @@ Baritone selbst darf beim Ebnen nichts im Inventar umräumen (Einstellung `allow
 ### Material prüfen
 Knopf **„Material prüfen (Funk-Terminal)“** (ganz unten im Panel). Das Panel geht zu, der Bot öffnet das Funk-Terminal
 (Slot 8), blättert **alle Seiten** durch und zählt, was im Lager ist. Was du im Inventar hast, zählt mit.
-Geprüft wird **nur der Sockel**, und zwar **nur das, was noch fehlt**: Der Bot schaut in der Welt nach, was schon steht,
+Geprüft wird **der nächste Bauteil**: erst der **Sockel**. Steht der Sockel komplett, rechnet er für die
+**Mauer mit Türmen** (Außenmauer, 4 Ecktürme, die Mauertürme und das Tor, vom Sockel bis ganz oben, ca. 41.000 Blöcke).
+Oben im Bericht steht, für welchen Bauteil er rechnet. Gezählt wird **nur das, was noch fehlt**: Der Bot schaut in der Welt nach, was schon steht,
 und rechnet nur den Rest (also ab da, wo das Bauen aufgehört hat). Oben im Bericht steht, wie viele Blöcke noch fehlen
 und wie viel Prozent fertig sind. Dafür muss die Burg gesetzt sein und du musst nah genug stehen, damit der ganze Sockel
 geladen ist (sonst sagt er „Geh näher an die Burg“). Danach steht im Chat jeder Block einzeln:
@@ -188,7 +190,7 @@ Darunter steht, was **auch nach dem Herstellen und Brennen** noch fehlt, also we
 (z. B. fehlt polierter Andesit, aber genug Andesit ist da: dann ist alles gut). Steht dort „Mit Herstellen und Brennen reicht alles!“,
 kann „Sockel bauen“ los.
 
-**Danach stellt der Bot gleich alles für den Sockel her und brennt es** (siehe „Herstellen“ unten). Der Knopf heißt solange
+**Danach stellt der Bot gleich alles für diesen Bauteil her und brennt es** (siehe „Herstellen“ unten). Der Knopf heißt solange
 **„Herstellen: Stopp“**. Am Ende steht „Fertig mit Herstellen für den Sockel. Jetzt kannst du „Sockel bauen“ drücken.“
 Dann muss „Sockel bauen“ nichts mehr herstellen und legt sofort los. Am besten bei den Strom-Öfen neben dem Tor starten.
 Gezählt wird nur, was am Sockel **noch fehlt** (steht schon etwas, zählt es nicht mehr).
@@ -254,12 +256,16 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
    was in die Öfen kommt und welche Rohstoffe im Lager **fehlen** (die musst du selbst besorgen).
 2. **Zuerst die Öfen füllen**, weil Brennen am längsten dauert: Er sucht die Kisten mit den Schildern **„reinlegen“** (oben)
    und **„rausnehmen“** (unten) im Umkreis von 64 Blöcken, läuft hin und verteilt alles, was schon gebrannt werden kann,
-   gleichmäßig auf die „reinlegen“-Kisten (Bruchstein → Stein, Netherrack → Netherziegel).
+   gleichmäßig auf die „reinlegen“-Kisten (Bruchstein → Stein, Netherrack → Netherziegel, Sand → Glas).
 3. **Dann die Werkbank** (Virtuelle Werkbank, Slot 7), während die Öfen brennen. Er holt die Zutaten aus dem Funk-Terminal,
    legt sie ins Feld und nimmt alles mit Shift-Klick heraus:
    - **Zuerst**, was danach noch in den Ofen muss: Bruchtiefenschiefer → polierter Tiefenschiefer → Tiefenschiefer-Ziegel.
      Die Ziegel für die rissigen Ziegel kommen **gleich danach in die Öfen**.
    - Dann der Rest: Tiefenschiefer-Fliesen, Andesit → polierter Andesit, Magmacreme → Magmablock, 4 Leuchtsteinstaub → 1 Leuchtstein.
+   - Für die Mauer mit Türmen außerdem: Mohn → roter Farbstoff, 1 roter Farbstoff + 4 Sand + 4 Kies → 8 rotes Betonpulver,
+     4 Amethystscherben + 1 Glas → 2 getöntes Glas. Das Glas brennt er vorher in den Öfen aus Sand.
+   - **Roter Beton:** Das Pulver macht er, **hart werden muss es im Wasser – das machst du selbst**. Im Plan und am Ende
+     steht, wie viel Pulver das ist. Rosenbüsche nimmt er (noch) nicht für den Farbstoff, nur Mohn.
 4. **Dann Gebranntes abholen** aus den „rausnehmen“-Kisten (er nimmt nur, was er gebrannt hat). Kommt 3 Minuten nichts, macht er ohne weiter.
 5. **Zum Schluss**, was aus Gebranntem gemacht wird: 4 Netherziegel → 1 Netherziegel-Block.
 6. Alles Fertige legt er ins **Funk-Terminal**. Was du beim Start im Inventar hattest, bleibt drin.

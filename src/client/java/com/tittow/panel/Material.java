@@ -53,6 +53,19 @@ final class Material {
 	/** Schreibt in den Chat: für Sockel und ganze Burg je Block "da / nötig" und was fehlt. */
 	/** sockel = was am Sockel noch gebaut werden muss (Block-Id -> Anzahl). */
 	static void bericht(LocalPlayer p, Map<String, Long> lager, Map<String, Long> sockel) {
+		long gesamt = 0;
+		for (long n : liste().getOrDefault("sockel", Map.of()).values()) {
+			gesamt += n;
+		}
+		bericht(p, lager, sockel, "Sockel", "Am Sockel", gesamt, "„Sockel bauen“ kann los.");
+	}
+
+	/**
+	 * Bericht für einen Bauteil: name z. B. "Mauer mit Türmen", wo z. B. "An der Mauer", gesamt = Blöcke im ganzen Bauteil,
+	 * noch = was davon noch gebaut werden muss.
+	 */
+	static void bericht(LocalPlayer p, Map<String, Long> lager, Map<String, Long> sockel, String name, String wo, long gesamt,
+			String losText) {
 		Map<String, Long> da = new HashMap<>(lager);
 		for (int i = 0; i < 36; i++) { // was du selbst dabei hast, zählt mit
 			ItemStack s = p.getInventory().getItem(i);
@@ -61,33 +74,22 @@ final class Material {
 			}
 		}
 		Map<String, Map<String, Long>> l = new LinkedHashMap<>();
-		l.put("sockel", sockel);
+		l.put(name, sockel);
 		if (sockel.isEmpty()) {
-			zeile(p, Component.literal("§d[Burg]§r §aAm Sockel fehlt nichts mehr – er steht schon.§r"));
+			zeile(p, Component.literal("§d[Burg]§r §a" + wo + " fehlt nichts mehr – steht schon.§r"));
 			return;
 		}
-		if (l.isEmpty()) {
-			zeile(p, Component.literal("§cMaterialliste fehlt in der Mod."));
-			return;
-		}
-		zeile(p, Component.literal("§d[Burg]§r Material-Check für den Sockel (Funk-Terminal + dein Inventar):"));
-		long gesamt = 0, noch = 0;
-		for (long n : liste().getOrDefault("sockel", Map.of()).values()) {
-			gesamt += n;
-		}
+		zeile(p, Component.literal("§d[Burg]§r Material-Check für: §l" + name + "§r (Funk-Terminal + dein Inventar):"));
+		long noch = 0;
 		for (long n : sockel.values()) {
 			noch += n;
 		}
 		if (gesamt > 0 && noch < gesamt) {
-			zeile(p, Component.literal("§7Was schon steht, zählt nicht mehr: Am Sockel fehlen noch §f" + zahl(noch) + "§7 von "
+			zeile(p, Component.literal("§7Was schon steht, zählt nicht mehr: " + wo + " fehlen noch §f" + zahl(noch) + "§7 von "
 					+ zahl(gesamt) + " Blöcken (" + Math.round(100.0 * (gesamt - noch) / gesamt) + " % fertig). "
 					+ "Die Zahlen unten gelten nur für diesen Rest."));
 		}
 		for (Map.Entry<String, Map<String, Long>> teil : l.entrySet()) {
-			if (!teil.getKey().equals("sockel")) {
-				continue; // nur der Sockel
-			}
-			String name = "Sockel";
 			int reicht = 0;
 			long fehltSumme = 0;
 			for (Map.Entry<String, Long> e : teil.getValue().entrySet()) {
@@ -114,11 +116,16 @@ final class Material {
 			// was nach dem Herstellen und Brennen (aus den Rohstoffen im Lager) wirklich noch fehlt
 			Map<String, Long> rechnung = new HashMap<>(da);
 			Map<String, Long> fehltRoh = new LinkedHashMap<>();
-			for (Map.Entry<String, Long> e : teil.getValue().entrySet()) {
+			Map<String, Long> beton = new LinkedHashMap<>();
+			for (Map.Entry<String, Long> e : Herstellen.mitPulver(teil.getValue(), da, beton).entrySet()) {
 				Herstellen.aufloesen(e.getKey(), e.getValue(), rechnung, new HashMap<>(), new HashMap<>(), fehltRoh);
 			}
+			for (Map.Entry<String, Long> e : beton.entrySet()) {
+				zeile(p, Component.literal(" §3ℹ ").append(blockName(e.getKey())).append(Component.literal("§3: " + zahl(e.getValue())
+						+ " macht der Bot als Pulver – ins Wasser musst du es selbst bringen, dann wird es hart.")));
+			}
 			if (fehltRoh.isEmpty()) {
-				zeile(p, Component.literal("§a§lMit Herstellen und Brennen reicht alles!§r §a„Sockel bauen“ kann los."));
+				zeile(p, Component.literal("§a§lMit Herstellen und Brennen reicht alles!§r §a" + losText));
 			} else {
 				zeile(p, Component.literal("§e§lAuch wenn der Bot alles herstellt und brennt, fehlen noch diese Rohstoffe:"));
 				for (Map.Entry<String, Long> e : fehltRoh.entrySet()) {

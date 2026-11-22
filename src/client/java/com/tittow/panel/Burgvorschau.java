@@ -145,8 +145,46 @@ public final class Burgvorschau {
 		if (pruefen) {
 			return "Warte, bis „Material prüfen“ fertig ist.";
 		}
+		if (an && tor != null && sockelGeladen(mc)) {
+			teilWaehlen(mc); // Sockel, oder wenn der fertig ist: Mauer mit Türmen
+			return herstellen.starten(mc, pruefNoch, pruefTitel);
+		}
 		return herstellen.starten(mc, nochFuerSockel(mc), "den Sockel"); // nur was am Sockel noch fehlt
 	}
+
+	/**
+	 * Für welchen Bauteil "Material prüfen" und Herstellen rechnen: erst der Sockel; steht der, die Mauer mit Türmen
+	 * (Außenmauer, Ecktürme, Mauertürme und Tor, vom Sockel bis ganz oben). Setzt pruefNoch und die Texte.
+	 */
+	private void teilWaehlen(Minecraft mc) {
+		Bauplan plan = Bauplan.laden();
+		pruefNoch = nochFuerSockel(mc);
+		if (plan == null || !pruefNoch.isEmpty()) {
+			long gesamt = 0;
+			for (long n : Material.liste().getOrDefault("sockel", Map.of()).values()) {
+				gesamt += n;
+			}
+			pruefName = "Sockel";
+			pruefWo = "Am Sockel";
+			pruefTitel = "den Sockel";
+			pruefLos = "„Sockel bauen“ kann los.";
+			pruefGesamt = gesamt;
+			return;
+		}
+		pruefNoch = BurgBau.nochZuBauen(mc, plan, tor, vorne, plan.sockel, plan.h - 1, true);
+		long gesamt = 0;
+		for (long n : BurgBau.nochZuBauen(null, plan, tor, vorne, plan.sockel, plan.h - 1, true).values()) {
+			gesamt += n;
+		}
+		pruefName = "Mauer mit Türmen";
+		pruefWo = "An der Mauer mit Türmen";
+		pruefTitel = "die Mauer mit Türmen";
+		pruefLos = "Das Material für die Mauer mit Türmen ist komplett.";
+		pruefGesamt = gesamt;
+	}
+
+	private String pruefName = "Sockel", pruefWo = "Am Sockel", pruefTitel = "den Sockel", pruefLos = "";
+	private long pruefGesamt;
 
 	/**
 	 * Material prüfen: zählt alles im Funk-Terminal (alle Seiten) und im Inventar und schreibt in den Chat,
@@ -172,10 +210,10 @@ public final class Burgvorschau {
 		if (!sockelGeladen(mc)) {
 			return "Geh näher an die Burg: Ein Teil vom Sockel ist nicht geladen, dann kann er nicht nachsehen, was schon steht.";
 		}
-		pruefNoch = nochFuerSockel(mc);
+		teilWaehlen(mc);
 		pruefen = true;
 		terminal.zaehlen(mc);
-		return "Prüfe Material im Funk-Terminal …";
+		return "Prüfe Material für " + pruefTitel + " im Funk-Terminal …";
 	}
 
 	/**
@@ -666,10 +704,11 @@ public final class Burgvorschau {
 			if (meldung != null) {
 				pruefen = false;
 				if (meldung.startsWith("OK")) {
-					Material.bericht(mc.player, terminal.bestand(), pruefNoch);
-					if (!pruefNoch.isEmpty()) { // gleich alles für den Sockel herstellen und brennen
-						chat(mc.player, "Jetzt stellt der Bot alles für den Sockel her und brennt es (Plan folgt) …");
-						herstellen.starten(mc, pruefNoch, "den Sockel", " Jetzt kannst du „Sockel bauen“ drücken.");
+					Material.bericht(mc.player, terminal.bestand(), pruefNoch, pruefName, pruefWo, pruefGesamt, pruefLos);
+					if (!pruefNoch.isEmpty()) { // gleich alles herstellen und brennen, was dafür fehlt
+						chat(mc.player, "Jetzt stellt der Bot alles für " + pruefTitel + " her und brennt es (Plan folgt) …");
+						herstellen.starten(mc, pruefNoch, pruefTitel,
+								pruefName.equals("Sockel") ? " Jetzt kannst du „Sockel bauen“ drücken." : "");
 					}
 				} else {
 					chat(mc.player, meldung);

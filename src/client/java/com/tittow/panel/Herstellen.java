@@ -44,7 +44,10 @@ import net.minecraft.world.phys.Vec3;
  * Alles Fertige legt er ins Funk-Terminal. Was beim Start im Inventar war, bleibt im Inventar.
  */
 final class Herstellen {
-	/** Werkbank: 2x2-Muster in den Feldern oben links (Menü-Plätze 1, 2, 4, 5). Ofen: 1 rein, 1 raus. */
+	/**
+	 * Werkbank: 2x2-Muster in den Feldern oben links (Menü-Plätze 1, 2, 4, 5) oder 3x3-Muster (Plätze 1..9),
+	 * null = Feld bleibt leer. Ofen: 1 rein, 1 raus.
+	 */
 	record Rezept(String aus, int ausMenge, String[] muster, String ofenEin) {
 		boolean ofen() {
 			return ofenEin != null;
@@ -57,7 +60,9 @@ final class Herstellen {
 				z.put(ofenEin, 1);
 			} else {
 				for (String m : muster) {
-					z.merge(m, 1, Integer::sum);
+					if (m != null) {
+						z.merge(m, 1, Integer::sum);
+					}
 				}
 			}
 			return z;
@@ -66,6 +71,8 @@ final class Herstellen {
 
 	private static final int[] FELDER = {1, 2, 4, 5};
 	private static final Map<String, Rezept> REZEPTE = new HashMap<>();
+	/** Beton: Pulver wird erst im Wasser hart. Das macht der Bot (noch) nicht, er stellt nur das Pulver her. */
+	static final Map<String, String> WASSER = Map.of("minecraft:red_concrete", "minecraft:red_concrete_powder");
 
 	static {
 		werkbank("polished_deepslate", 4, "cobbled_deepslate", "cobbled_deepslate", "cobbled_deepslate", "cobbled_deepslate");
@@ -78,6 +85,46 @@ final class Herstellen {
 		ofen("stone", "cobblestone");
 		ofen("cracked_deepslate_bricks", "deepslate_bricks");
 		ofen("nether_brick", "netherrack");
+		// für die Mauer mit Türmen
+		ofen("glass", "sand");
+		REZEPTE.put("minecraft:red_dye", new Rezept("minecraft:red_dye", 1, muster("poppy", null, null, null), null)); // Mohn -> Rot
+		REZEPTE.put("minecraft:tinted_glass", new Rezept("minecraft:tinted_glass", 2, muster( // 4 Amethystscherben um 1 Glas
+				null, "amethyst_shard", null,
+				"amethyst_shard", "glass", "amethyst_shard",
+				null, "amethyst_shard", null), null));
+		REZEPTE.put("minecraft:red_concrete_powder", new Rezept("minecraft:red_concrete_powder", 8, muster( // 1 Farbe, 4 Sand, 4 Kies
+				"sand", "gravel", "sand",
+				"gravel", "red_dye", "gravel",
+				"sand", "gravel", "sand"), null));
+	}
+
+	private static String[] muster(String... namen) {
+		String[] m = new String[namen.length];
+		for (int i = 0; i < namen.length; i++) {
+			m[i] = namen[i] == null ? null : "minecraft:" + namen[i];
+		}
+		return m;
+	}
+
+	/**
+	 * Beton kann er nicht selbst hart machen: statt Beton wird Betonpulver gebraucht (was an Beton schon da ist,
+	 * wird abgezogen). beton bekommt, wie viel Beton noch aus Pulver werden muss.
+	 */
+	static Map<String, Long> mitPulver(Map<String, Long> ziel, Map<String, Long> lager, Map<String, Long> beton) {
+		Map<String, Long> m = new LinkedHashMap<>();
+		for (Map.Entry<String, Long> e : ziel.entrySet()) {
+			String pulver = WASSER.get(e.getKey());
+			if (pulver == null) {
+				m.merge(e.getKey(), e.getValue(), Long::sum);
+				continue;
+			}
+			long noch = e.getValue() - lager.getOrDefault(e.getKey(), 0L);
+			if (noch > 0) {
+				m.merge(pulver, noch, Long::sum);
+				beton.merge(e.getKey(), noch, Long::sum);
+			}
+		}
+		return m;
 	}
 
 	private static void werkbank(String aus, int menge, String a, String b, String c, String d) {
@@ -145,6 +192,8 @@ final class Herstellen {
 	private Werkbank werkbank;
 	private KistenArbeit kiste;
 	private final Map<String, Integer> vorher = new HashMap<>();
+	/** Beton, der noch aus Pulver im Wasser werden muss (Block-Id -> Anzahl). */
+	private final Map<String, Long> beton = new LinkedHashMap<>();
 
 	Herstellen(FunkTerminal terminal) {
 		this.terminal = terminal;
@@ -278,6 +327,7 @@ final class Herstellen {
 				stoppen(mc, null);
 				if (aufgegeben.isEmpty()) {
 					chat(p, "§aFertig mit Herstellen§r für " + titel + "." + schlussHinweis);
+					betonHinweis(p);
 				} else {
 					StringBuilder namen = new StringBuilder();
 					for (String id : aufgegeben) {
@@ -285,6 +335,7 @@ final class Herstellen {
 					}
 					chat(p, "§eHerstellen beendet, aber übersprungen:§r " + namen
 							+ ". Klick nochmal „Material prüfen“, dann versucht er den Rest nochmal.");
+					betonHinweis(p);
 				}
 				schlussHinweis = "";
 				fertigGemeldet = true;
@@ -327,7 +378,8 @@ final class Herstellen {
 				lager.merge(BuiltInRegistries.ITEM.getKey(s.getItem()).toString(), (long) s.getCount(), Long::sum);
 			}
 		}
-		Map<String, Long> sockel = ziel;
+		beton.clear();
+		Map<String, Long> sockel = mitPulver(ziel, lager, beton);
 		for (Map.Entry<String, Long> e : sockel.entrySet()) {
 			String id = e.getKey();
 			long noetig = e.getValue();
@@ -362,6 +414,9 @@ final class Herstellen {
 		}
 		for (Map.Entry<String, Long> e : fehltRoh.entrySet()) {
 			zeile(p, " §cFehlt im Lager:§r ", e.getKey(), e.getValue(), " (bitte besorgen)");
+		}
+		for (Map.Entry<String, Long> e : beton.entrySet()) {
+			zeile(p, " §3Wasser:§r ", e.getKey(), e.getValue(), " – er macht das Pulver, ins Wasser musst du es selbst bringen");
 		}
 		if (!ofenRest.isEmpty() && (rein.isEmpty() || raus.isEmpty())) {
 			chat(p, "§cKeine Ofen-Kisten gefunden§r (Schilder „reinlegen“ und „rausnehmen“ im Umkreis von 64 Blöcken). "
@@ -704,6 +759,14 @@ final class Herstellen {
 			}
 		}
 		return false;
+	}
+
+	private void betonHinweis(LocalPlayer p) {
+		for (Map.Entry<String, Long> e : beton.entrySet()) {
+			chat(p, "§3Noch selbst machen:§r " + String.format(Locale.GERMANY, "%,d", e.getValue()) + "× "
+					+ name(WASSER.get(e.getKey())).getString() + " ins Wasser bringen, dann wird es zu "
+					+ name(e.getKey()).getString() + ". Das Pulver liegt im Funk-Terminal.");
+		}
 	}
 
 	private void aufgeben(LocalPlayer p, String id, String grund) {
@@ -1073,6 +1136,9 @@ final class Herstellen {
 		private List<Item> zutatenItems() {
 			List<Item> l = new ArrayList<>();
 			for (String id : r.muster()) {
+				if (id == null) {
+					continue;
+				}
 				Item i = item(id);
 				if (!l.contains(i)) {
 					l.add(i);
@@ -1084,9 +1150,10 @@ final class Herstellen {
 		/** Die Felder (Menü-Plätze), in die diese Zutat gehört. */
 		private List<Integer> felderFuer(Item zutat) {
 			List<Integer> l = new ArrayList<>();
-			for (int k = 0; k < 4; k++) {
-				if (item(r.muster()[k]) == zutat) {
-					l.add(FELDER[k]);
+			String[] m = r.muster();
+			for (int k = 0; k < m.length; k++) {
+				if (m[k] != null && item(m[k]) == zutat) {
+					l.add(m.length == 4 ? FELDER[k] : k + 1); // 3x3: Plätze 1..9
 				}
 			}
 			return l;
