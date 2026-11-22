@@ -198,6 +198,7 @@ final class Herstellen {
 		oefenSuchen(mc);
 		// beim Laufen zu den Öfen nichts abbauen und nichts hinbauen
 		BaritoneRahmen.einstellung("allowBreak", false);
+		BaritoneRahmen.kameraFolgen(); // Kamera schaut, wohin er läuft
 		BaritoneRahmen.einstellung("allowPlace", false);
 		schritt = Schritt.ZAEHLEN;
 		zweck = TerminalZweck.ZAEHLEN;

@@ -228,6 +228,7 @@ final class BurgBau {
 		chat(p, "§aAlles da.§r Jetzt wird gebaut, Schicht für Schicht.");
 		// Baritone: nichts abbauen (sonst reißt es Fertiges wieder ein), keine eigenen Blöcke zum Hochbauen benutzen
 		BaritoneRahmen.einstellung("allowInventory", false);
+		BaritoneRahmen.kameraFolgen(); // Kamera schaut, wohin er läuft und baut
 		BaritoneRahmen.einstellung("allowBreak", false);
 		BaritoneRahmen.einstellung("allowPlace", true);
 		BaritoneRahmen.einstellung("buildInLayers", false);

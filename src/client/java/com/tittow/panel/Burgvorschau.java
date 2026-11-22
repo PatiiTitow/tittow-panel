@@ -384,6 +384,7 @@ public final class Burgvorschau {
 		einstellungen.speichern();
 		// Baritone darf nichts im Inventar umräumen (sonst landen Sachen auf Slot 1 und 9). Erde legt Versorgung in Slot 6 nach.
 		BaritoneRahmen.einstellung("allowInventory", false);
+		BaritoneRahmen.kameraFolgen(); // Kamera schaut, wohin er läuft
 		BaritoneRahmen.einstellung("allowBreak", true); // falls Herstellen das abgeschaltet hatte
 		BaritoneRahmen.einstellung("allowPlace", true);
 		// Wasser meiden, fertigen Boden (auch frisch gestopfte Erde) nicht wieder abbauen, nicht nach unten graben

@@ -194,6 +194,9 @@ Die Mengen kommen aus dem Bauplan der Blutfeste (Tiefenschiefer, Hauptturm aus S
 Zeigt das Lager nur einen Stapel und schreibt die echte Menge in die Beschreibung (z. B. „Menge: 1.600“), wird diese Zahl genommen.
 Geht nicht, während der Bot ebnet.
 
+**Kamera:** Beim Ebnen, Herstellen und Bauen schaut die Kamera in die Richtung, in die der Bot läuft und baut, und dreht
+sich dabei weich mit (vorher blieb das Bild einfach stehen).
+
 ### Sockel bauen
 Knopf **„Sockel bauen“** (neben „Material prüfen“). Am besten bei den Strom-Öfen neben dem Tor starten.
 Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** hergestellt und gebrannt. Der Rest der Burg kommt später.

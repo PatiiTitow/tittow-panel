@@ -176,6 +176,20 @@ final class BaritoneRahmen {
 		}
 	}
 
+	/**
+	 * Kamera schön mitführen: Normalerweise läuft Baritone, ohne die Kamera zu drehen ("freeLook"), dann bleibt
+	 * das Bild einfach stehen. So schaut die Kamera in die Richtung, in die der Bot läuft und baut, und dreht
+	 * sich weich (über ein paar Ticks) statt ruckartig.
+	 */
+	static void kameraFolgen() {
+		einstellung("freeLook", false);
+		einstellung("blockFreeLook", false);
+		einstellung("smoothLook", true);
+		einstellung("smoothLookTicks", 8);
+		einstellung("randomLooking", 0.0);
+		einstellung("randomLooking113", 0.0);
+	}
+
 	/** Eine Baritone-Einstellung lesen (null, wenn es sie nicht gibt). */
 	static Object einstellungLesen(String name) {
 		if (!vorhanden()) {
