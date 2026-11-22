@@ -963,7 +963,7 @@ final class Herstellen {
 						return zu(p);
 					}
 					p.getInventory().setSelectedSlot(WERKBANK_SLOT);
-					FunkTerminal.inDieLuftSchauen(p); // nur ein Klick in die Luft öffnet die Werkbank (nicht auf einen Block zielen)
+					FunkTerminal.nichtAufKistenZielen(mc, p); // nicht auf Ofen, Kiste usw. zielen, sonst geht das auf statt der Werkbank
 					mc.gameMode.useItem(p, InteractionHand.MAIN_HAND);
 					schritt = 1;
 					warte = 60;

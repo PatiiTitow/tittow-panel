@@ -12,6 +12,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -102,12 +104,31 @@ final class FunkTerminal {
 	}
 
 	/**
-	 * Nach oben in den Himmel schauen: Funk-Terminal und Virtuelle Werkbank öffnen sich nur mit einem Rechtsklick
-	 * in die Luft. Zielt man dabei auf einen Block (Boden, Ofen, Kiste), passiert nichts.
+	 * Vor dem Rechtsklick (Funk-Terminal, Virtuelle Werkbank): Zielt der Bot gerade auf etwas, das man öffnen kann
+	 * (Ofen, Kiste, Fass, Trichter, Schild, Werkbank …), würde das aufgehen statt dem Gegenstand. Dann schaut er
+	 * auf den Boden, und wenn auch da so etwas ist, dreht er sich, bis vor ihm nichts zum Öffnen ist.
 	 */
-	static void inDieLuftSchauen(LocalPlayer p) {
-		p.setXRot(-90f);
-		p.xRotO = -90f;
+	static void nichtAufKistenZielen(Minecraft mc, LocalPlayer p) {
+		if (!zieltAufOeffenbares(mc, p)) {
+			return; // passt so
+		}
+		p.setXRot(90f); // auf den Boden
+		p.xRotO = 90f;
+		for (int i = 0; i < 8 && zieltAufOeffenbares(mc, p); i++) {
+			p.setXRot(i < 4 ? 0f : 60f);
+			p.xRotO = p.getXRot();
+			p.setYRot(p.getYRot() + 90f);
+			p.yRotO = p.getYRot();
+		}
+	}
+
+	private static boolean zieltAufOeffenbares(Minecraft mc, LocalPlayer p) {
+		HitResult h = p.pick(6.0, 1.0f, false);
+		if (h.getType() != HitResult.Type.BLOCK || !(h instanceof BlockHitResult b) || mc.level == null) {
+			return false;
+		}
+		return mc.level.getBlockEntity(b.getBlockPos()) != null
+				|| mc.level.getBlockState(b.getBlockPos()).getMenuProvider(mc.level, b.getBlockPos()) != null;
 	}
 
 	/** Wie viele von dieser Sorte im Inventar sind (Hotbar und oben). */
@@ -231,7 +252,7 @@ final class FunkTerminal {
 			return;
 		}
 		inv.setSelectedSlot(slot);
-		inDieLuftSchauen(p); // sonst zählt der Server den Rechtsklick als Klick auf einen Block und das Terminal geht nicht auf
+		nichtAufKistenZielen(mc, p); // sonst geht der Ofen oder die Kiste auf statt dem Terminal
 		mc.gameMode.useItem(p, InteractionHand.MAIN_HAND); // wie Rechtsklick in die Luft
 		schritt = 2;
 		warte = 60;
