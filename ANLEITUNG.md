@@ -207,7 +207,10 @@ Knopf **„Mauer bauen“** (unten im Panel, rechts neben „Material prüfen“
 Gebaut werden die Außenmauer, die 4 Ecktürme, die Mauertürme und das Tor, von Höhe 4 bis Höhe 54 (ca. 41.000 Blöcke).
 **Das Innere der Burg bleibt frei.**
 1. **Vorbereiten:** Er schaut nach, was noch fehlt, stellt es her und brennt es. Fehlt danach noch Material, hält er an und sagt, was.
-2. **Bauen:** Höhe für Höhe einmal rundherum, in 28 Feldern. Die Blöcke holt er selbst aus dem Funk-Terminal.
+2. **Bauen, Höhe 4 bis 19 (Mauer mit Zinnen):** Höhe für Höhe einmal rundherum, in 28 Feldern. Er läuft oben auf der Mauer
+   und steigt jede Runde einen Block höher. Die Blöcke holt er selbst aus dem Funk-Terminal.
+   **Ab Höhe 20 (die 23 Türme):** Er baut **einen Turm komplett bis zur Spitze**, oben auf dem Rand steigt er mit.
+   Danach geht er über eine **Erd-Treppe** zurück auf die Mauer und zum nächsten Turm. So baut er sich pro Turm nur einmal hoch.
    Zum Hochkommen benutzt er Erde (Slot 5). Alle 5 Minuten steht im Chat, wie viel Prozent fertig sind und wie lange es noch dauert.
 3. **Nachholen:** Was er nicht erreicht hat, versucht er oben angekommen nochmal (bis zu 3 Durchgänge).
 4. **Aufräumen:** Zum Schluss baut er seine Gerüst-Erde wieder ab und bessert Löcher nach.

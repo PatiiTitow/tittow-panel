@@ -118,6 +118,57 @@ final class Bauplan {
 		return false;
 	}
 
+	/** Bis Höhe 19 geht die Mauer mit Zinnen rundherum, ab hier stehen nur noch die einzelnen Türme. */
+	static final int TURM_AB = 20;
+
+	/** Die einzelnen Türme ab Höhe TURM_AB als Kästen {x0, z0, x1, z1}, einmal im Kreis um die Burg sortiert. */
+	List<int[]> mauerTuerme() {
+		boolean[] voll = new boolean[w * l];
+		for (int y = TURM_AB; y < h; y++) {
+			for (int z = 0; z < l; z++) {
+				for (int x = 0; x < w; x++) {
+					if (mauerRing(x, z) && setzbar(index(x, y, z))) {
+						voll[z * w + x] = true;
+					}
+				}
+			}
+		}
+		boolean[] gesehen = new boolean[w * l];
+		List<int[]> tuerme = new ArrayList<>();
+		for (int z = 0; z < l; z++) {
+			for (int x = 0; x < w; x++) {
+				if (!voll[z * w + x] || gesehen[z * w + x]) {
+					continue;
+				}
+				int[] k = {x, z, x, z};
+				java.util.ArrayDeque<int[]> offen = new java.util.ArrayDeque<>();
+				offen.add(new int[] {x, z});
+				gesehen[z * w + x] = true;
+				while (!offen.isEmpty()) {
+					int[] p = offen.poll();
+					k[0] = Math.min(k[0], p[0]);
+					k[1] = Math.min(k[1], p[1]);
+					k[2] = Math.max(k[2], p[0]);
+					k[3] = Math.max(k[3], p[1]);
+					for (int dz = -1; dz <= 1; dz++) {
+						for (int dx = -1; dx <= 1; dx++) {
+							int xx = p[0] + dx, zz = p[1] + dz;
+							if (xx >= 0 && zz >= 0 && xx < w && zz < l && voll[zz * w + xx] && !gesehen[zz * w + xx]) {
+								gesehen[zz * w + xx] = true;
+								offen.add(new int[] {xx, zz});
+							}
+						}
+					}
+				}
+				tuerme.add(k);
+			}
+		}
+		double cx = (w - 1) / 2.0, cz = (l - 1) / 2.0;
+		tuerme.sort((a, b) -> Double.compare(Math.atan2((a[1] + a[3]) / 2.0 - cz, (a[0] + a[2]) / 2.0 - cx),
+				Math.atan2((b[1] + b[3]) / 2.0 - cz, (b[0] + b[2]) / 2.0 - cx)));
+		return tuerme;
+	}
+
 	/** Die oberste Höhe, in der die Mauer mit Türmen noch Blöcke hat. */
 	int mauerOben() {
 		for (int y = h - 1; y >= sockel; y--) {
