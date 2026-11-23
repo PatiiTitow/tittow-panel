@@ -244,6 +244,8 @@ final class BurgBau {
 		for (BlockState s : plan.zustaende) {
 			start.remove(FunkTerminal.schluessel(new ItemStack(s.getBlock().asItem())));
 		}
+		start.remove(FunkTerminal.schluessel(new ItemStack(Items.DIRT))); // Erde über 5 Stapel darf ins Funk-Terminal
+		platzFehler = 0;
 		zweck = Zweck.KEINS;
 		baut = false;
 		warte = 0;
@@ -473,6 +475,10 @@ final class BurgBau {
 				return;
 			}
 			pruefen(mc, p);
+		} else if (z == Zweck.ABLEGEN) {
+			if (meldung.startsWith("OK")) {
+				platzFehler = 0; // es ist wieder Platz im Inventar
+			}
 		} else if (z == Zweck.HOLEN_ERDE) {
 			// Erde fürs Gerüst geholt (oder keine da): weiter wie gehabt
 		} else if (z == Zweck.HOLEN) {
@@ -650,8 +656,7 @@ final class BurgBau {
 			if (BaritoneRahmen.bautGerade()) {
 				int hab = FunkTerminal.anzahl(p, item);
 				if (FunkTerminal.inventarVoll(p)) {
-					zweck = Zweck.ABLEGEN;
-					terminal.ablegen(mc, behalten(item)); // das Baumaterial bleibt, die Gerüst-Erde auch
+					platzMachen(mc); // ins Funk-Terminal: das Baumaterial bleibt, 5 Stapel Gerüst-Erde auch
 					return;
 				}
 				if (aufpassTicks % 40 == 0 && !geruestErde(mc, p)) {
@@ -1170,6 +1175,10 @@ final class BurgBau {
 	}
 
 	private void aufraeumen(Minecraft mc, LocalPlayer p) {
+		if (FunkTerminal.inventarVoll(p)) {
+			platzMachen(mc); // die abgebaute Erde ins Funk-Terminal, sonst bleibt sie am Boden liegen
+			return;
+		}
 		if (BaritoneRahmen.bautGerade()) {
 			if (++aufpassTicks >= 600) { // alle 30 Sekunden: wird es weniger?
 				aufpassTicks = 0;
@@ -1316,13 +1325,13 @@ final class BurgBau {
 			return;
 		}
 		zweck = Zweck.ABLEGEN;
-		terminal.ablegen(mc, behalten(item));
+		terminal.ablegen(mc, behalten(schritt == Schritt.AUFRAEUMEN ? null : item));
 	}
 
 	/** Was beim Ablegen im Inventar bleibt: die eigenen Sachen vom Start, die Gerüst-Erde und (falls angegeben) das Baumaterial. */
 	private Map<String, Integer> behalten(Item auch) {
 		Map<String, Integer> m = new HashMap<>(start);
-		m.put(FunkTerminal.schluessel(new ItemStack(Items.DIRT)), 100000);
+		m.put(FunkTerminal.schluessel(new ItemStack(Items.DIRT)), nurMauer ? 320 : 100000); // bei der Mauer: 5 Stapel, der Rest ins Lager
 		if (auch != null) {
 			m.put(FunkTerminal.schluessel(new ItemStack(auch)), 100000);
 		}

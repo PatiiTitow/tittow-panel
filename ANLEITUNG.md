@@ -222,6 +222,11 @@ Die Liste steht in `config/tittowpanel-geruest.txt` und übersteht einen Neustar
 - Sind es nach 3 Minuten immer noch 4 Herzen oder weniger, hält er an und sagt Bescheid.
 - **Stirbst du**, hält er sofort an und schreibt in den Chat, wo das war. Hol deine Sachen und klick „Mauer weiter“.
 
+**Funk-Terminal beim Bauen:** Er benutzt es jederzeit von dort, wo er gerade steht. Er holt Blöcke, sobald sie knapp werden.
+Ist das Inventar voll, legt er alles hinein, was nicht gebraucht wird (auch beim Aufräumen), und baut sofort weiter.
+Er behält die aktuelle Blocksorte, 5 Stapel Gerüst-Erde und deine eigenen Sachen vom Start. Nach jeder Höhe räumt er auch auf.
+Geht trotzdem nichts mehr hinein, hält er an und sagt Bescheid.
+
 - **Anhalten:** Numpad 8 und **„Mauer: Stopp“**. Weiter geht es mit **„Mauer weiter“**: Was schon steht, überspringt er.
 - Verlässt du die Welt, hält er an. Danach einfach „Mauer weiter“ drücken.
 - Beim Start schaltet er die Beton-Farm aus, damit nicht beides gleichzeitig klickt.
