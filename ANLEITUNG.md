@@ -210,8 +210,17 @@ Gebaut werden die Außenmauer, die 4 Ecktürme, die Mauertürme und das Tor, von
 2. **Bauen:** Höhe für Höhe einmal rundherum, in 28 Feldern. Die Blöcke holt er selbst aus dem Funk-Terminal.
    Zum Hochkommen benutzt er Erde (Slot 5). Alle 5 Minuten steht im Chat, wie viel Prozent fertig sind und wie lange es noch dauert.
 3. **Nachholen:** Was er nicht erreicht hat, versucht er oben angekommen nochmal (bis zu 3 Durchgänge).
-4. **Aufräumen:** Zum Schluss baut er seine Gerüst-Erde an der Mauer wieder ab und bessert Löcher nach.
-   Erde **außerhalb** der Burgfläche lässt er stehen, damit er keinen Hügel anschneidet. Falls dort etwas von ihm steht, bitte selbst abbauen.
+4. **Aufräumen:** Zum Schluss baut er seine Gerüst-Erde wieder ab und bessert Löcher nach.
+
+**Gerüst:** Steht er außen an der Burg, geht er vor dem nächsten Mauerstück erst auf die Innenseite, damit die Erde möglichst
+innen landet. Ganz verhindern lässt sich Erde außen nicht, weil Baritone selbst entscheidet. Der Bot merkt sich aber jeden
+Erdblock, den er selbst setzt, auch außerhalb der Burg, und baut genau diese am Ende wieder ab. Natürliche Erde und Hügel bleiben.
+Die Liste steht in `config/tittowpanel-geruest.txt` und übersteht einen Neustart.
+
+**Schutz:** Normal isst er ganz wie immer (Goldene Karotten aus Slot 2).
+- Bei **4 Herzen oder weniger** hört er kurz auf, baut sich mit Erde ein, isst dort und wartet. Ab **7 Herzen** baut er weiter.
+- Sind es nach 3 Minuten immer noch 4 Herzen oder weniger, hält er an und sagt Bescheid.
+- **Stirbst du**, hält er sofort an und schreibt in den Chat, wo das war. Hol deine Sachen und klick „Mauer weiter“.
 
 - **Anhalten:** Numpad 8 und **„Mauer: Stopp“**. Weiter geht es mit **„Mauer weiter“**: Was schon steht, überspringt er.
 - Verlässt du die Welt, hält er an. Danach einfach „Mauer weiter“ drücken.

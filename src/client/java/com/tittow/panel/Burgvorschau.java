@@ -708,8 +708,26 @@ public final class Burgvorschau {
 			wiederherstellen(mc);
 		}
 		if (bautGerade()) {
+			if (bau.todPruefen(mc)) { // gestorben: sofort anhalten und sagen, wo
+				versorgung.abbrechen(mc);
+				abwehr.abbrechen();
+				return;
+			}
 			if (!bau.imMenue() && mc.gui.screen() == null) {
 				if (abwehr.tick(mc, mc.player)) { // Tier oder Monster näher als 3 Blöcke: erst das angreifen
+					return;
+				}
+				if (versorgung.isstGerade()) { // angefangenes Essen erst zu Ende essen
+					versorgung.essen(mc, mc.player);
+					return;
+				}
+				if (bau.schutzTick(mc, mc.player)) { // 4 Herzen oder weniger: einbauen, dort essen und heilen
+					if (bau.schutzSteht()) {
+						versorgung.essen(mc, mc.player);
+					}
+					return;
+				}
+				if (!bautGerade()) {
 					return;
 				}
 				if (versorgung.essen(mc, mc.player)) { // Hunger: Goldene Karotten aus Slot 2

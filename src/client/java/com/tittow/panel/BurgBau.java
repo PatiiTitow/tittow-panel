@@ -13,6 +13,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.Item;
@@ -20,6 +21,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -92,6 +94,18 @@ final class BurgBau {
 	private int[] laufFeld;                 // läuft gerade zu diesem Feld, weil es nicht geladen ist
 	private int laufTicks;
 	private boolean[] mauerNah;             // Stellen an der Mauer: nur dort sucht er nach Gerüst-Erde
+	private BlockPos innenZiel;             // steht er außen: erst hierhin, auf die Innenseite
+	private int innenTicks;
+	private Vec3 innenPos;
+	private int speicherTicks;
+	/** Ab so wenig Leben sucht er Schutz (8 = 4 Herzen). */
+	private static final float SCHUTZ_AB = 8f;
+	/** Ab so viel Leben baut er weiter (14 = 7 Herzen). */
+	private static final float WIEDER_FIT = 14f;
+	private int schutz;                     // 0 = aus, 1 = baut sich ein, 2 = wartet und heilt
+	private int schutzTicks;
+	private List<BlockPos> schutzPlaetze = List.of();
+	private int schutzNr, schutzRunde;
 	private boolean schichtAngesagt;        // "Höhe ..." schon in den Chat geschrieben
 	private int slotWarte;                  // Ticks gewartet, bis der Block in Slot 6 liegt
 	private int nachbessern;                // wie oft nach dem Aufräumen schon nachgebessert wurde
@@ -117,6 +131,7 @@ final class BurgBau {
 		m.put("allowBreakAnyway", new ArrayList<>(List.of(Blocks.DIRT)));
 		m.put("breakFromAbove", true);
 		m.put("goalBreakFromAbove", true);
+		m.put("blockPlacementPenalty", 40.0); // lieber ein Stück laufen, als neue Gerüst-Erde zu setzen
 		return m;
 	}
 
@@ -211,13 +226,18 @@ final class BurgBau {
 		this.vorne = vorne;
 		von = plan.sockel;
 		bis = plan.mauerOben();
+		schutz = 0;
+		innenZiel = null;
+		Erdspur.fuerBurg(tor);
+		mauerNahMachen();
 		Map<String, Long> noch = nochZuBauen(mc);
-		if (noch.isEmpty()) {
+		if (noch.isEmpty() && geruestBloecke(mc) == 0) { // steht noch Gerüst, läuft er durch und räumt es weg
 			einstellungen.burgBauen = false;
 			einstellungen.speichern();
 			return "Die Mauer mit Türmen steht schon komplett.";
 		}
 		an = true;
+		Erdspur.aktiv(true);
 		einstellungen.burgBauen = true;
 		einstellungen.speichern();
 		start = new HashMap<>(FunkTerminal.inventar(p));
@@ -244,6 +264,9 @@ final class BurgBau {
 		}
 		an = false;
 		laufFeld = null;
+		innenZiel = null;
+		schutz = 0;
+		Erdspur.aktiv(false);
 		if (ausweichTicks >= 0) {
 			mc.options.keyJump.setDown(false); // Springen loslassen
 			ausweichTicks = -1;
@@ -259,10 +282,151 @@ final class BurgBau {
 		}
 	}
 
+	// ---- Schutz: gestorben oder wenig Leben -----------------------------------------------------
+
+	/** Gestorben? Dann sofort anhalten und sagen, wo die Sachen liegen. */
+	boolean todPruefen(Minecraft mc) {
+		LocalPlayer p = mc.player;
+		if (!an || p == null || p.isAlive() && p.getHealth() > 0) {
+			return false;
+		}
+		BlockPos wo = p.blockPosition();
+		stoppen(mc, "§cDu bist gestorben bei " + wo.getX() + " " + wo.getY() + " " + wo.getZ()
+				+ ".§r Bauen angehalten. Hol deine Sachen und klick dann " + weiterKnopf() + ".");
+		return true;
+	}
+
+	/** Steht der Schutz schon (dann darf er essen)? */
+	boolean schutzSteht() {
+		return schutz == 2;
+	}
+
+	/** Bei 4 Herzen oder weniger: einbauen und warten, bis er wieder fit ist. true = solange nicht weiterbauen. */
+	boolean schutzTick(Minecraft mc, LocalPlayer p) {
+		if (!an || mc.gameMode == null || mc.level == null) {
+			return false;
+		}
+		if (schutz == 0) {
+			if (p.getHealth() > SCHUTZ_AB || schritt != Schritt.BAUEN && schritt != Schritt.AUFRAEUMEN || imMenue()) {
+				return false;
+			}
+			BaritoneRahmen.befehl("stop");
+			if (ausweichTicks >= 0) {
+				mc.options.keyJump.setDown(false);
+				ausweichTicks = -1;
+			}
+			baut = false;
+			laufFeld = null;
+			innenZiel = null;
+			schutz = 1;
+			schutzTicks = 0;
+			schutzPlaetze = List.of();
+			schutzNr = 0;
+			schutzRunde = 0;
+			chat(p, "§eNur noch " + herzen(p) + " Herzen:§r Er baut sich einen Schutz aus Erde und wartet, bis er wieder fit ist.");
+			return true;
+		}
+		schutzTicks++;
+		if (schutz == 1) {
+			if (p.onGround() || schutzTicks >= 40) { // erst landen, dann einbauen
+				if (schutzTicks % 2 == 0) {
+					schutzSetzen(mc, p);
+				}
+			}
+			return true;
+		}
+		float leben = p.getHealth();
+		if (leben >= WIEDER_FIT || schutzTicks > 20 * 180 && leben > SCHUTZ_AB) {
+			schutz = 0;
+			chat(p, "Wieder " + herzen(p) + " Herzen: Er baut weiter.");
+			warte = 10;
+			if (schritt == Schritt.AUFRAEUMEN && aufraeumenAuftrag()) {
+				warte = 40;
+			}
+			return false;
+		}
+		if (schutzTicks > 20 * 180) {
+			stoppen(mc, "§cNach 3 Minuten im Schutz immer noch nur " + herzen(p) + " Herzen.§r Bauen angehalten, sieh bitte nach. "
+					+ weiterKnopf() + " macht danach weiter.");
+			return true;
+		}
+		return true;
+	}
+
+	private static String herzen(LocalPlayer p) {
+		return String.format(Locale.GERMANY, "%.1f", p.getHealth() / 2f).replace(",0", "");
+	}
+
+	/** Setzt rund um ihn Erde: 4 Seiten an den Füßen, 4 am Kopf, 1 oben drauf. */
+	private void schutzSetzen(Minecraft mc, LocalPlayer p) {
+		if (schutzPlaetze.isEmpty()) {
+			BlockPos f = p.blockPosition();
+			List<BlockPos> l = new ArrayList<>();
+			for (BlockPos ebene : List.of(f, f.above())) {
+				for (Direction d : Direction.Plane.HORIZONTAL) {
+					l.add(ebene.relative(d));
+				}
+			}
+			l.add(f.above(2));
+			schutzPlaetze = l;
+		}
+		if (schutzNr >= schutzPlaetze.size()) {
+			if (++schutzRunde >= 2) { // zweite Runde: was vorher noch keinen Nachbarn hatte
+				schutz = 2;
+				schutzTicks = 0;
+				return;
+			}
+			schutzNr = 0;
+		}
+		int slot = erdeInHotbar(p);
+		if (slot < 0) {
+			chat(p, "Keine Erde in der Hotbar: Er bleibt stehen und wartet ohne Schutz.");
+			schutz = 2;
+			schutzTicks = 0;
+			return;
+		}
+		BlockPos pos = schutzPlaetze.get(schutzNr++);
+		if (!mc.level.getBlockState(pos).canBeReplaced()
+				|| p.getBoundingBox().intersects(pos.getX(), pos.getY(), pos.getZ(), pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1)) {
+			return;
+		}
+		for (Direction d : Direction.values()) {
+			BlockPos n = pos.relative(d);
+			if (mc.level.getBlockState(n).getCollisionShape(mc.level, n).isEmpty() || mc.level.getBlockEntity(n) != null) {
+				continue;
+			}
+			Direction seite = d.getOpposite();
+			Vec3 klick = Vec3.atCenterOf(n).add(seite.getStepX() * 0.5, seite.getStepY() * 0.5, seite.getStepZ() * 0.5);
+			int alt = p.getInventory().getSelectedSlot();
+			p.getInventory().setSelectedSlot(slot);
+			mc.gameMode.useItemOn(p, InteractionHand.MAIN_HAND, new BlockHitResult(klick, seite, n, false));
+			p.getInventory().setSelectedSlot(alt);
+			return;
+		}
+	}
+
+	/** Slot 5, sonst Slot 6, sonst eine andere Stelle in der Hotbar mit Erde (nie Slot 9). -1 = keine. */
+	private static int erdeInHotbar(LocalPlayer p) {
+		Inventory inv = p.getInventory();
+		if (inv.getItem(GERUEST_SLOT).is(Items.DIRT)) {
+			return GERUEST_SLOT;
+		}
+		for (int i = 0; i < 8; i++) {
+			if (inv.getItem(i).is(Items.DIRT)) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
 	void tick(Minecraft mc) {
 		LocalPlayer p = mc.player;
 		if (!an || p == null || mc.level == null) {
 			return;
+		}
+		if (nurMauer && ++speicherTicks >= 600) { // alle 30 Sekunden die Gerüst-Liste sichern
+			speicherTicks = 0;
+			Erdspur.speichern();
 		}
 		if (schritt == Schritt.VORBEREITEN) {
 			if (herstellen.laeuft()) {
@@ -466,6 +630,21 @@ final class BurgBau {
 			}
 			return;
 		}
+		if (innenZiel != null) { // stand außen: erst auf die Innenseite, damit das Gerüst innen entsteht
+			innenTicks++;
+			boolean da = p.position().distanceTo(Vec3.atBottomCenterOf(innenZiel)) < 1.5;
+			boolean steht = false;
+			if (innenTicks % 40 == 0) {
+				steht = p.position().distanceTo(innenPos) < 0.5;
+				innenPos = p.position();
+			}
+			if (da || steht || innenTicks > 20 * 20) {
+				BaritoneRahmen.befehl("stop");
+				innenZiel = null;
+				warte = 5;
+			}
+			return;
+		}
 		if (baut) {
 			versorgung.nachlegen(mc, p, item);
 			if (BaritoneRahmen.bautGerade()) {
@@ -530,6 +709,8 @@ final class BurgBau {
 				fortschrittImFeld = false;
 				if (sorten.isEmpty()) { // in diesem Feld steht schon alles
 					feldVerlassen(mc);
+				} else if (nurMauer && nachInnen(mc, p, feld)) {
+					return;
 				}
 				continue;
 			}
@@ -755,6 +936,55 @@ final class BurgBau {
 		BaritoneRahmen.befehl("goto " + w[0] + " " + w[1]);
 	}
 
+	/** Steht er außen an der Burg? Dann erst zur Innenseite des Felds gehen. true = er läuft jetzt los. */
+	private boolean nachInnen(Minecraft mc, LocalPlayer p, int[] f) {
+		int[] m = Burgvorschau.plan(tor, vorne, p.getBlockX(), p.getBlockZ());
+		int px = m[0] - Bauplan.VERSATZ, pz = m[1] - Bauplan.VERSATZ;
+		if (px >= 2 && pz >= 2 && px < plan.w - 2 && pz < plan.l - 2) {
+			return false; // steht schon auf der Mauer oder innen
+		}
+		BlockPos ziel = innenPlatz(mc, f);
+		if (ziel == null || p.position().distanceTo(Vec3.atBottomCenterOf(ziel)) < 3) {
+			return false;
+		}
+		innenZiel = ziel;
+		innenTicks = 0;
+		innenPos = p.position();
+		BaritoneRahmen.befehl("goto " + ziel.getX() + " " + ziel.getY() + " " + ziel.getZ());
+		return true;
+	}
+
+	/** Der freie Stehplatz im Feld, der am nächsten an der Burgmitte liegt (auf dem Boden oder oben auf der Mauer). */
+	private BlockPos innenPlatz(Minecraft mc, int[] f) {
+		double cx = (plan.w - 1) / 2.0, cz = (plan.l - 1) / 2.0;
+		for (int yy = y; yy <= y + 1; yy++) {
+			BlockPos beste = null;
+			double besteWeite = Double.MAX_VALUE;
+			for (int z = f[1]; z <= f[3]; z++) {
+				for (int x = f[0]; x <= f[2]; x++) {
+					double weite = Math.max(Math.abs(x - cx), Math.abs(z - cz));
+					if (weite >= besteWeite) {
+						continue;
+					}
+					int[] w = Burgvorschau.welt(tor, vorne, x + Bauplan.VERSATZ, z + Bauplan.VERSATZ);
+					BlockPos fuss = new BlockPos(w[0], tor.getY() + yy, w[1]);
+					if (frei(mc, fuss) && frei(mc, fuss.above()) && !frei(mc, fuss.below())) {
+						beste = fuss;
+						besteWeite = weite;
+					}
+				}
+			}
+			if (beste != null) {
+				return beste;
+			}
+		}
+		return null;
+	}
+
+	private static boolean frei(Minecraft mc, BlockPos b) {
+		return mc.level.getBlockState(b).getCollisionShape(mc.level, b).isEmpty() && mc.level.getFluidState(b).isEmpty();
+	}
+
 	/** Die Sorten der Höhe yy, bei der Mauer nur die, die in der Mauer vorkommen. */
 	private List<Integer> sortenDerSchicht(int yy) {
 		List<Integer> alle = plan.sortenInSchicht(yy);
@@ -890,6 +1120,10 @@ final class BurgBau {
 
 	/** Die Axt (oder was in Slot 5 lag) wieder zurück nach Slot 5. */
 	private void werkzeugZurueck(Minecraft mc, LocalPlayer p) {
+		if (p != null && !p.isAlive()) {
+			werkzeugIn5 = null; // gestorben: die Sachen liegen am Boden, nichts tauschen
+			return;
+		}
 		if (werkzeugIn5 == null || p == null || mc.gameMode == null) {
 			return;
 		}
@@ -912,6 +1146,9 @@ final class BurgBau {
 
 	/** Nach der letzten Schicht: Erd-Blöcke, die nicht zum Bauplan gehören (Gerüst), wieder abbauen. */
 	private void aufraeumenStarten(Minecraft mc, LocalPlayer p) {
+		if (nurMauer) {
+			Erdspur.aufraeumen(mc.level); // Stellen vergessen, an denen inzwischen keine Erde mehr steht
+		}
 		int n = geruestBloecke(mc);
 		if (n == 0) {
 			abschnittFertig(mc);
@@ -980,12 +1217,23 @@ final class BurgBau {
 	private boolean aufraeumenAuftrag() {
 		int[] a = Burgvorschau.welt(tor, vorne, Bauplan.VERSATZ, Bauplan.VERSATZ);
 		int[] b = Burgvorschau.welt(tor, vorne, Bauplan.VERSATZ + plan.w - 1, Bauplan.VERSATZ + plan.l - 1);
-		int oben = bis + GERUEST_HOEHE;
-		BlockPos ecke = new BlockPos(Math.min(a[0], b[0]), tor.getY() + von, Math.min(a[1], b[1]));
-		int breitX = Math.abs(a[0] - b[0]) + 1, laengeZ = Math.abs(a[1] - b[1]) + 1;
+		int oben = bis + GERUEST_HOEHE, unten = von;
+		int x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]), z0 = Math.min(a[1], b[1]), z1 = Math.max(a[1], b[1]);
+		if (nurMauer) { // auch die Erde, die er außerhalb der Burg gesetzt hat
+			for (BlockPos e : Erdspur.alle()) {
+				x0 = Math.min(x0, e.getX());
+				x1 = Math.max(x1, e.getX());
+				z0 = Math.min(z0, e.getZ());
+				z1 = Math.max(z1, e.getZ());
+				unten = Math.min(unten, e.getY() - tor.getY());
+				oben = Math.max(oben, e.getY() - tor.getY());
+			}
+		}
+		BlockPos ecke = new BlockPos(x0, tor.getY() + unten, z0);
+		int breitX = x1 - x0 + 1, laengeZ = z1 - z0 + 1;
 		Minecraft mc = Minecraft.getInstance();
 		BlockState luft = Blocks.AIR.defaultBlockState();
-		return BaritoneRahmen.planBauen("Tittow Gerüst weg", ecke, breitX, oben - von + 1, laengeZ, (wx, wy, wz) -> {
+		return BaritoneRahmen.planBauen("Tittow Gerüst weg", ecke, breitX, oben - unten + 1, laengeZ, (wx, wy, wz) -> {
 			int[] m = Burgvorschau.plan(tor, vorne, wx, wz);
 			int yy = wy - tor.getY();
 			return istGeruest(mc, m[0] - Bauplan.VERSATZ, yy, m[1] - Bauplan.VERSATZ, new BlockPos(wx, wy, wz)) ? luft : null;
@@ -997,6 +1245,10 @@ final class BurgBau {
 	 * Boden) bleibt liegen: die sieht man nicht, und um da hinzukommen, müsste er den fertigen Boden aufgraben.
 	 */
 	private boolean istGeruest(Minecraft mc, int px, int yy, int pz, BlockPos pos) {
+		if (nurMauer && Erdspur.enthaelt(pos)) { // die hat er nachweislich selbst gesetzt, auch außerhalb der Burg
+			boolean mauerHier = Bauplan.mauerRing(px, pz) && plan.index(px, yy, pz) != 0;
+			return !mauerHier && mc.level.getBlockState(pos).is(Blocks.DIRT);
+		}
 		if (px < 0 || pz < 0 || px >= plan.w || pz >= plan.l) {
 			return false;
 		}
@@ -1022,10 +1274,24 @@ final class BurgBau {
 		for (int yy = von; yy <= bis + GERUEST_HOEHE; yy++) {
 			for (int z = 0; z < plan.l; z++) {
 				for (int x = 0; x < plan.w; x++) {
+					if (nurMauer && !mauerNah[z * plan.w + x]) {
+						continue; // weit weg von der Mauer: da hat er nichts gebaut
+					}
 					int[] w = Burgvorschau.welt(tor, vorne, x + Bauplan.VERSATZ, z + Bauplan.VERSATZ);
 					if (mc.level.hasChunk(w[0] >> 4, w[1] >> 4) && istGeruest(mc, x, yy, z, new BlockPos(w[0], tor.getY() + yy, w[1]))) {
 						n++;
 					}
+				}
+			}
+		}
+		if (nurMauer) { // dazu die eigene Erde, die oben nicht mitgezählt wurde (außerhalb der Burg oder tiefer)
+			for (BlockPos e : Erdspur.alle()) {
+				int[] m = Burgvorschau.plan(tor, vorne, e.getX(), e.getZ());
+				int px = m[0] - Bauplan.VERSATZ, pz = m[1] - Bauplan.VERSATZ, yy = e.getY() - tor.getY();
+				boolean schonGezaehlt = px >= 0 && pz >= 0 && px < plan.w && pz < plan.l && mauerNah[pz * plan.w + px]
+						&& yy >= von && yy <= bis + GERUEST_HOEHE;
+				if (!schonGezaehlt && mc.level.hasChunk(e.getX() >> 4, e.getZ() >> 4) && istGeruest(mc, px, yy, pz, e)) {
+					n++;
 				}
 			}
 		}
@@ -1333,6 +1599,7 @@ final class BurgBau {
 	private void abschnittFertig(Minecraft mc) {
 		if (nurMauer) {
 			long offen = feldOffen != null ? offenGesamt(mc) : summe(nochZuBauen(mc));
+			Erdspur.aufraeumen(mc.level);
 			einstellungen.burgBauen = offen > 0; // fehlt noch etwas, heißt der Knopf weiter „Mauer weiter“
 			einstellungen.burgBauSchicht = 0;
 			einstellungen.speichern();
