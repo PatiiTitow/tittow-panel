@@ -118,6 +118,20 @@ final class Bauplan {
 		return false;
 	}
 
+	/** Die oberste Höhe, in der die Mauer mit Türmen noch Blöcke hat. */
+	int mauerOben() {
+		for (int y = h - 1; y >= sockel; y--) {
+			for (int z = 0; z < l; z++) {
+				for (int x = 0; x < w; x++) {
+					if (setzbar(index(x, y, z)) && mauerRing(x, z)) {
+						return y;
+					}
+				}
+			}
+		}
+		return sockel;
+	}
+
 	/** Abschnitte als {von y, bis y}: zuerst der Sockel, dann je 6 Blöcke hoch (leere oben weg). */
 	List<int[]> abschnitte() {
 		List<int[]> a = new ArrayList<>();

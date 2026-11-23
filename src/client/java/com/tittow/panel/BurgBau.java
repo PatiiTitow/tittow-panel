@@ -86,6 +86,12 @@ final class BurgBau {
 	private int feldRunde;                  // wievielte Runde im aktuellen Feld
 	private boolean fortschrittImFeld;      // hat die Runde im Feld etwas gebracht?
 	private List<Integer> schichtSorten = List.of(); // alle Sorten der aktuellen Höhe
+	private boolean nurMauer;               // baut nur die Mauer mit Türmen (das Innere bleibt frei)
+	private String teilName = "Sockel";     // für die Meldungen im Chat
+	private int[][] feldOffen;              // [Höhe - von][Feld]: wie viele Blöcke dort zuletzt noch fehlten
+	private int[] laufFeld;                 // läuft gerade zu diesem Feld, weil es nicht geladen ist
+	private int laufTicks;
+	private boolean[] mauerNah;             // Stellen an der Mauer: nur dort sucht er nach Gerüst-Erde
 	private boolean schichtAngesagt;        // "Höhe ..." schon in den Chat geschrieben
 	private int slotWarte;                  // Ticks gewartet, bis der Block in Slot 6 liegt
 	private int nachbessern;                // wie oft nach dem Aufräumen schon nachgebessert wurde
@@ -143,6 +149,10 @@ final class BurgBau {
 		if (plan == null) {
 			return "Der Bauplan fehlt in der Mod.";
 		}
+		nurMauer = false;
+		teilName = "Sockel";
+		feldOffen = null;
+		laufFeld = null;
 		List<int[]> abschnitte = plan.abschnitte();
 		int nr = einstellungen.burgBauAbschnitt;
 		if (nr >= 1) { // erst mal wird nur der Sockel gebaut
@@ -183,11 +193,57 @@ final class BurgBau {
 		return "Sockel bauen läuft.";
 	}
 
+	/** Baut die Mauer mit Türmen (Außenmauer, Ecktürme, Mauertürme, Tor) vom Sockel bis ganz oben. Das Innere bleibt frei. */
+	String mauerStarten(Minecraft mc, BlockPos tor, Direction vorne) {
+		LocalPlayer p = mc.player;
+		if (p == null || mc.level == null) {
+			return "";
+		}
+		plan = Bauplan.laden();
+		if (plan == null) {
+			return "Der Bauplan fehlt in der Mod.";
+		}
+		nurMauer = true;
+		teilName = "Mauer mit Türmen";
+		feldOffen = null;
+		laufFeld = null;
+		this.tor = tor;
+		this.vorne = vorne;
+		von = plan.sockel;
+		bis = plan.mauerOben();
+		Map<String, Long> noch = nochZuBauen(mc);
+		if (noch.isEmpty()) {
+			einstellungen.burgBauen = false;
+			einstellungen.speichern();
+			return "Die Mauer mit Türmen steht schon komplett.";
+		}
+		an = true;
+		einstellungen.burgBauen = true;
+		einstellungen.speichern();
+		start = new HashMap<>(FunkTerminal.inventar(p));
+		for (BlockState s : plan.zustaende) {
+			start.remove(FunkTerminal.schluessel(new ItemStack(s.getBlock().asItem())));
+		}
+		zweck = Zweck.KEINS;
+		baut = false;
+		warte = 0;
+		chat(p, "Mauer mit Türmen: Er prüft das Material, stellt her, was noch fehlt, und baut dann Höhe für Höhe rundherum.");
+		schritt = Schritt.VORBEREITEN;
+		herstellen.starten(mc, noch, "die Mauer mit Türmen");
+		return "Mauer bauen läuft.";
+	}
+
+	/** Der Knopf, mit dem es nach einem Stopp weitergeht (für die Chat-Meldungen). */
+	private String weiterKnopf() {
+		return nurMauer ? "„Mauer weiter“" : "„Sockel weiter bauen“";
+	}
+
 	void stoppen(Minecraft mc, String grund) {
 		if (!an) {
 			return;
 		}
 		an = false;
+		laufFeld = null;
 		if (ausweichTicks >= 0) {
 			mc.options.keyJump.setDown(false); // Springen loslassen
 			ausweichTicks = -1;
@@ -214,7 +270,7 @@ final class BurgBau {
 				return;
 			}
 			if (!herstellen.zuEndeGelaufen()) {
-				stoppen(mc, "Herstellen wurde abgebrochen – Bauen angehalten. „Sockel weiter bauen“ startet neu.");
+				stoppen(mc, "Herstellen wurde abgebrochen – Bauen angehalten. " + weiterKnopf() + " startet neu.");
 				return;
 			}
 			schritt = Schritt.PRUEFEN;
@@ -303,12 +359,12 @@ final class BurgBau {
 			}
 		}
 		if (!fehlt.isEmpty()) {
-			chat(p, "§cFür den Sockel fehlt noch Material:§r");
+			chat(p, "§cFür " + (nurMauer ? "die Mauer mit Türmen" : "den Sockel") + " fehlt noch Material:§r");
 			for (Map.Entry<String, Long> e : fehlt.entrySet()) {
 				p.sendSystemMessage(Component.literal(" §c✘ ").append(new ItemStack(Herstellen.item(e.getKey())).getHoverName())
 						.append(Component.literal("§7: fehlen " + String.format(Locale.GERMANY, "%,d", e.getValue()))));
 			}
-			stoppen(mc, "Bauen angehalten. Besorg das Material (oder die Rohstoffe dafür) und klick „Sockel weiter bauen“.");
+			stoppen(mc, "Bauen angehalten. Besorg das Material (oder die Rohstoffe dafür) und klick " + weiterKnopf() + ".");
 			return;
 		}
 		chat(p, "§aAlles da.§r Jetzt wird gebaut, Schicht für Schicht.");
@@ -347,8 +403,19 @@ final class BurgBau {
 		}
 		sorteNr = 0;
 		sorten = List.of();
-		schichtSorten = plan.sortenInSchicht(y);
-		felder = felderMachen();
+		felder = nurMauer ? mauerFelder() : felderMachen();
+		if (nurMauer) {
+			feldOffen = new int[bis - von + 1][felder.size()];
+			for (int yy = von; yy <= bis; yy++) {
+				for (int nr = 0; nr < felder.size(); nr++) {
+					feldOffen[yy - von][nr] = feldZaehlen(null, yy, felder.get(nr)); // erst mal: alles fehlt
+					feldRest(mc, yy, nr);                                            // was geladen ist: nachsehen
+				}
+			}
+			y = Math.min(bis, ersteOffeneSchicht(mc, von));
+			mauerNahMachen();
+		}
+		schichtSorten = sortenDerSchicht(y);
 		feldNr = 0;
 		feld = null;
 		schichtAngesagt = false;
@@ -371,7 +438,7 @@ final class BurgBau {
 		for (int yy = von; yy <= bis; yy++) {
 			for (int z = 0; z < plan.l; z++) {
 				for (int x = 0; x < plan.w; x++) {
-					if (plan.ids[plan.index(x, yy, z)].equals("minecraft:lava")) {
+					if ((!nurMauer || Bauplan.mauerRing(x, z)) && plan.ids[plan.index(x, yy, z)].equals("minecraft:lava")) {
 						return true;
 					}
 				}
@@ -385,6 +452,18 @@ final class BurgBau {
 	private void bauen(Minecraft mc, LocalPlayer p) {
 		if (ausweichTicks >= 0) {
 			ausweichen(mc, p);
+			return;
+		}
+		if (laufFeld != null) { // unterwegs zu einem Feld, das noch nicht geladen ist
+			boolean da = feldGeladen(mc, laufFeld);
+			if (da || ++laufTicks > 20 * 60) {
+				BaritoneRahmen.befehl("stop");
+				laufFeld = null;
+				if (!da) {
+					feldNr++; // kommt nicht hin: das holt er in der nächsten Runde nach
+				}
+				warte = 10;
+			}
 			return;
 		}
 		if (baut) {
@@ -436,14 +515,21 @@ final class BurgBau {
 					naechsteSchicht(mc, p);
 					return;
 				}
+				if (nurMauer && !feldGeladen(mc, felder.get(feldNr))) {
+					if (feldOffen[y - von][feldNr] == 0) { // weit weg, aber dort steht schon alles
+						feldNr++;
+						continue;
+					}
+					zumFeldLaufen(felder.get(feldNr));
+					return;
+				}
 				feld = felder.get(feldNr);
 				sorten = sortenImFeld(mc);
 				sorteNr = 0;
 				feldRunde = 0;
 				fortschrittImFeld = false;
 				if (sorten.isEmpty()) { // in diesem Feld steht schon alles
-					feld = null;
-					feldNr++;
+					feldVerlassen(mc);
 				}
 				continue;
 			}
@@ -457,8 +543,7 @@ final class BurgBau {
 					fortschrittImFeld = false;
 					continue;
 				}
-				feld = null;
-				feldNr++;
+				feldVerlassen(mc);
 				continue;
 			}
 			index = sorten.get(sorteNr);
@@ -522,19 +607,19 @@ final class BurgBau {
 		feldNr = 0;
 		schichtAngesagt = false;
 		y++;
+		if (nurMauer) {
+			y = ersteOffeneSchicht(mc, y); // fertige Höhen überspringen
+		}
 		einstellungen.burgBauSchicht = y; // merken, wo er gerade ist
 		einstellungen.speichern();
 		if (y > bis) {
 			// oben angekommen: was übersprungen wurde, jetzt nachholen (bis zu 3 Durchgänge von unten nach oben)
-			long offenGesamt = 0;
-			for (long n : nochZuBauen(mc).values()) {
-				offenGesamt += n;
-			}
+			long offenGesamt = offenGesamt(mc);
 			if (offenGesamt > 0 && nachholRunde < 3) {
 				nachholRunde++;
 				chat(p, "Jetzt macht er fertig, was er übersprungen hat (" + offenGesamt + " Blöcke, Durchgang " + nachholRunde + " von 3).");
-				y = von;
-				schichtSorten = plan.sortenInSchicht(y);
+				y = nurMauer ? Math.min(bis, ersteOffeneSchicht(mc, von)) : von;
+				schichtSorten = sortenDerSchicht(y);
 				restAblegen(mc);
 				return;
 			}
@@ -544,15 +629,170 @@ final class BurgBau {
 					namen.append(namen.length() > 0 ? ", " : "").append(new ItemStack(plan.zustaende[i].getBlock().asItem()).getHoverName().getString());
 				}
 				chat(p, "§c" + offenGesamt + " Blöcke fehlen noch.§r Im Funk-Terminal war alle: " + namen
-						+ ". Besorg mehr und klick „Sockel weiter bauen“.");
+						+ ". Besorg mehr und klick " + weiterKnopf() + ".");
 			} else if (offenGesamt > 0) {
 				chat(p, "§c" + offenGesamt + " Blöcke gehen auch nach 3 Nachhol-Durchgängen nicht§r – die bitte selbst setzen.");
 			}
 			aufraeumenStarten(mc, p); // erst das Erd-Gerüst wieder weg, dann ist der Abschnitt fertig
 			return;
 		}
-		schichtSorten = plan.sortenInSchicht(y);
+		schichtSorten = sortenDerSchicht(y);
 		restAblegen(mc);
+	}
+
+	// ---- Nur die Mauer mit Türmen -------------------------------------------------------------
+
+	/** Die Felder, in denen Mauer steht, einmal im Kreis herum. Die letzte Reihe liegt am Rand, so passt jeder Turm hinein. */
+	private List<int[]> mauerFelder() {
+		List<Integer> xs = feldGrenzen(plan.w), zs = feldGrenzen(plan.l);
+		List<int[]> f = new ArrayList<>();
+		for (int zi = 0; zi < zs.size() - 1; zi++) {
+			for (int xi = 0; xi < xs.size() - 1; xi++) {
+				int[] k = { xs.get(xi), zs.get(zi), xs.get(xi + 1) - 1, zs.get(zi + 1) - 1 };
+				for (int yy = von; yy <= bis; yy++) {
+					if (feldZaehlen(null, yy, k) > 0) {
+						f.add(k);
+						break;
+					}
+				}
+			}
+		}
+		double cx = (plan.w - 1) / 2.0, cz = (plan.l - 1) / 2.0;
+		f.sort((a, b) -> Double.compare(Math.atan2((a[1] + a[3]) / 2.0 - cz, (a[0] + a[2]) / 2.0 - cx),
+				Math.atan2((b[1] + b[3]) / 2.0 - cz, (b[0] + b[2]) / 2.0 - cx)));
+		return f;
+	}
+
+	private static List<Integer> feldGrenzen(int n) {
+		List<Integer> g = new ArrayList<>();
+		for (int v = 0; v < n - FELD; v += FELD) {
+			g.add(v);
+		}
+		g.add(n - FELD);
+		g.add(n);
+		return g;
+	}
+
+	/** Wie viele Mauer-Blöcke in Höhe yy im Feld f noch fehlen. mc = null: wie viele dort laut Plan hingehören. */
+	private int feldZaehlen(Minecraft mc, int yy, int[] f) {
+		int n = 0;
+		for (int z = f[1]; z <= f[3]; z++) {
+			for (int x = f[0]; x <= f[2]; x++) {
+				int i = plan.index(x, yy, z);
+				if (!plan.setzbar(i) || !Bauplan.mauerRing(x, z)) {
+					continue;
+				}
+				if (mc == null) {
+					n++;
+					continue;
+				}
+				int[] w = Burgvorschau.welt(tor, vorne, x + Bauplan.VERSATZ, z + Bauplan.VERSATZ);
+				if (!mc.level.getBlockState(new BlockPos(w[0], tor.getY() + yy, w[1])).is(plan.zustaende[i].getBlock())) {
+					n++;
+				}
+			}
+		}
+		return n;
+	}
+
+	private boolean feldGeladen(Minecraft mc, int[] f) {
+		for (int[] e : new int[][] { { f[0], f[1] }, { f[2], f[1] }, { f[0], f[3] }, { f[2], f[3] } }) {
+			int[] w = Burgvorschau.welt(tor, vorne, e[0] + Bauplan.VERSATZ, e[1] + Bauplan.VERSATZ);
+			if (!mc.level.hasChunk(w[0] >> 4, w[1] >> 4)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** Was im Feld noch fehlt. Ist es gerade nicht geladen, gilt der letzte bekannte Stand. */
+	private int feldRest(Minecraft mc, int yy, int nr) {
+		int[] f = felder.get(nr);
+		if (feldGeladen(mc, f)) {
+			feldOffen[yy - von][nr] = feldZaehlen(mc, yy, f);
+		}
+		return feldOffen[yy - von][nr];
+	}
+
+	/** Die erste Höhe ab "ab", in der an der Mauer noch etwas fehlt (bis + 1 = alles fertig). */
+	private int ersteOffeneSchicht(Minecraft mc, int ab) {
+		for (int yy = ab; yy <= bis; yy++) {
+			for (int nr = 0; nr < felder.size(); nr++) {
+				if (feldRest(mc, yy, nr) > 0) {
+					return yy;
+				}
+			}
+		}
+		return bis + 1;
+	}
+
+	/** Wie viele Blöcke im ganzen Bauabschnitt noch fehlen. */
+	private long offenGesamt(Minecraft mc) {
+		if (!nurMauer || feldOffen == null) {
+			return summe(nochZuBauen(mc));
+		}
+		long n = 0;
+		for (int yy = von; yy <= bis; yy++) {
+			for (int nr = 0; nr < felder.size(); nr++) {
+				n += feldRest(mc, yy, nr);
+			}
+		}
+		return n;
+	}
+
+	private void feldVerlassen(Minecraft mc) {
+		if (nurMauer) {
+			feldRest(mc, y, feldNr);
+		}
+		feld = null;
+		feldNr++;
+	}
+
+	private void zumFeldLaufen(int[] f) {
+		int[] w = Burgvorschau.welt(tor, vorne, Bauplan.VERSATZ + (f[0] + f[2]) / 2, Bauplan.VERSATZ + (f[1] + f[3]) / 2);
+		laufFeld = f;
+		laufTicks = 0;
+		BaritoneRahmen.befehl("goto " + w[0] + " " + w[1]);
+	}
+
+	/** Die Sorten der Höhe yy, bei der Mauer nur die, die in der Mauer vorkommen. */
+	private List<Integer> sortenDerSchicht(int yy) {
+		List<Integer> alle = plan.sortenInSchicht(yy);
+		if (!nurMauer) {
+			return alle;
+		}
+		boolean[] drin = new boolean[plan.ids.length];
+		for (int z = 0; z < plan.l; z++) {
+			for (int x = 0; x < plan.w; x++) {
+				if (Bauplan.mauerRing(x, z)) {
+					drin[plan.index(x, yy, z)] = true;
+				}
+			}
+		}
+		List<Integer> r = new ArrayList<>();
+		for (int i : alle) {
+			if (drin[i]) {
+				r.add(i);
+			}
+		}
+		return r;
+	}
+
+	/** Merkt sich die Stellen bis 5 Blöcke neben der Mauer: nur dort kann Gerüst-Erde von ihm stehen. */
+	private void mauerNahMachen() {
+		mauerNah = new boolean[plan.w * plan.l];
+		for (int z = 0; z < plan.l; z++) {
+			for (int x = 0; x < plan.w; x++) {
+				boolean nah = false;
+				for (int dz = -5; dz <= 5 && !nah; dz += 5) {
+					for (int dx = -5; dx <= 5 && !nah; dx += 5) {
+						int xx = x + dx, zz = z + dz;
+						nah = xx >= 0 && zz >= 0 && xx < plan.w && zz < plan.l && Bauplan.mauerRing(xx, zz);
+					}
+				}
+				mauerNah[z * plan.w + x] = nah;
+			}
+		}
 	}
 
 	/** Am Ende einer Höhe: übriges Baumaterial zurück ins Funk-Terminal (die Gerüst-Erde bleibt). */
@@ -588,7 +828,7 @@ final class BurgBau {
 		for (int z = feld[1]; z <= feld[3]; z++) {
 			for (int x = feld[0]; x <= feld[2]; x++) {
 				int i = plan.index(x, y, z);
-				if (!fehlt[i] && plan.setzbar(i) && !stimmt(mc, x, z, i)) {
+				if (!fehlt[i] && plan.setzbar(i) && (!nurMauer || Bauplan.mauerRing(x, z)) && !stimmt(mc, x, z, i)) {
 					fehlt[i] = true;
 				}
 			}
@@ -716,14 +956,14 @@ final class BurgBau {
 			chat(p, n + " Erd-Blöcke vom Gerüst sind noch da – bitte selbst abbauen.");
 		}
 		// zur Sicherheit nochmal nachsehen: fehlt doch noch etwas (z. B. ein Loch), wird nachgebessert
-		long fehlt = summe(nochZuBauen(mc));
+		long fehlt = offenGesamt(mc);
 		if (fehlt > 0 && nachbessern < 2) {
 			nachbessern++;
 			chat(p, "Es fehlen noch " + zahl(fehlt) + " Blöcke – er bessert nach.");
 			schritt = Schritt.BAUEN;
 			nachholRunde = 0;
-			y = von;
-			schichtSorten = plan.sortenInSchicht(y);
+			y = nurMauer ? Math.min(bis, ersteOffeneSchicht(mc, von)) : von;
+			schichtSorten = sortenDerSchicht(y);
 			feld = null;
 			feldNr = 0;
 			runde = 0;
@@ -757,7 +997,18 @@ final class BurgBau {
 	 * Boden) bleibt liegen: die sieht man nicht, und um da hinzukommen, müsste er den fertigen Boden aufgraben.
 	 */
 	private boolean istGeruest(Minecraft mc, int px, int yy, int pz, BlockPos pos) {
-		if (yy <= bis || px < 0 || pz < 0 || px >= plan.w || pz >= plan.l) {
+		if (px < 0 || pz < 0 || px >= plan.w || pz >= plan.l) {
+			return false;
+		}
+		if (nurMauer) {
+			// über dem Sockel, an der Mauer: Erde ist dort immer sein Gerüst (außer wo die Mauer selbst hingehört)
+			if (yy < von || mauerNah == null || !mauerNah[pz * plan.w + px]
+					|| Bauplan.mauerRing(px, pz) && plan.index(px, yy, pz) != 0) {
+				return false;
+			}
+			return mc.level.getBlockState(pos).is(Blocks.DIRT);
+		}
+		if (yy <= bis) {
 			return false;
 		}
 		if (yy < plan.h && plan.index(px, yy, pz) != 0) {
@@ -795,7 +1046,7 @@ final class BurgBau {
 	/** Alles ablegen, was nicht gebraucht wird (die aktuelle Sorte und die Gerüst-Erde bleiben). Hilft das mehrmals nicht: anhalten. */
 	private void platzMachen(Minecraft mc) {
 		if (++platzFehler > 3) {
-			stoppen(mc, "§cDas Inventar ist zu voll§r (nur eigene Sachen drin). Mach ein paar Plätze frei und klick „Sockel weiter bauen“.");
+			stoppen(mc, "§cDas Inventar ist zu voll§r (nur eigene Sachen drin). Mach ein paar Plätze frei und klick " + weiterKnopf() + ".");
 			return;
 		}
 		zweck = Zweck.ABLEGEN;
@@ -831,6 +1082,9 @@ final class BurgBau {
 			if (px < f[0] || px > f[2] || pz < f[1] || pz > f[3]) {
 				return null;
 			}
+			if (nurMauer && !Bauplan.mauerRing(px, pz)) {
+				return null; // das Innere der Burg bleibt frei
+			}
 			return plan.index(px, schicht, pz) == sorte ? soll : null;
 		});
 	}
@@ -848,7 +1102,7 @@ final class BurgBau {
 		for (int z = z0; z <= z1; z++) {
 			for (int x = x0; x <= x1; x++) {
 				int i = plan.index(x, y, z);
-				if ((sorte >= 0 ? i != sorte : !plan.setzbar(i)) || stimmt(mc, x, z, i)) {
+				if ((sorte >= 0 ? i != sorte : !plan.setzbar(i)) || nurMauer && !Bauplan.mauerRing(x, z) || stimmt(mc, x, z, i)) {
 					continue;
 				}
 				n++;
@@ -859,7 +1113,7 @@ final class BurgBau {
 
 	/** Was im aktuellen Abschnitt noch gebaut werden muss (Block-Id -> Anzahl), schaut in der Welt nach. */
 	private Map<String, Long> nochZuBauen(Minecraft mc) {
-		return nochZuBauen(mc, plan, tor, vorne, von, bis);
+		return nochZuBauen(mc, plan, tor, vorne, von, bis, nurMauer);
 	}
 
 	/** Was in den Höhen von..bis noch gebaut werden muss (Block-Id -> Anzahl), schaut in der Welt nach. */
@@ -1011,21 +1265,23 @@ final class BurgBau {
 
 	/** Beim Losbauen: merken, wie viel schon steht, und gleich einmal den Stand melden. */
 	private void fortschrittStarten(Minecraft mc, LocalPlayer p) {
-		gesamt = 0;
-		for (long n : plan.material(von, bis).values()) {
-			gesamt += n;
+		gesamt = nurMauer ? summe(nochZuBauen(null, plan, tor, vorne, von, bis, true)) : 0;
+		if (!nurMauer) {
+			for (long n : plan.material(von, bis).values()) {
+				gesamt += n;
+			}
 		}
 		fertigBeimStart = gesamt - summe(nochZuBauen(mc));
 		startZeit = System.currentTimeMillis();
 		naechsteMeldung = startZeit + MELDUNG_ALLE;
-		chat(p, "§eSockel: " + prozent(fertigBeimStart) + " % geschafft§r – die Restzeit kommt in 5 Minuten.");
+		chat(p, "§e" + teilName + ": " + prozent(fertigBeimStart) + " % geschafft§r – die Restzeit kommt in 5 Minuten.");
 	}
 
 	/** Alle 5 Minuten: Prozent fertig und wie lange es (bei dem bisherigen Tempo) noch dauert. */
 	private void fortschrittMelden(Minecraft mc, LocalPlayer p) {
 		long jetzt = System.currentTimeMillis();
 		naechsteMeldung = jetzt + MELDUNG_ALLE;
-		long noch = summe(nochZuBauen(mc));
+		long noch = offenGesamt(mc);
 		long fertig = gesamt - noch;
 		long gebaut = fertig - fertigBeimStart;
 		String restzeit;
@@ -1037,7 +1293,7 @@ final class BurgBau {
 			double msJeBlock = (double) (jetzt - startZeit) / gebaut;
 			restzeit = "braucht noch " + dauer((long) (msJeBlock * noch));
 		}
-		chat(p, "§eSockel: " + prozent(fertig) + " % geschafft§r – " + restzeit + ".");
+		chat(p, "§e" + teilName + ": " + prozent(fertig) + " % geschafft§r – " + restzeit + ".");
 	}
 
 	private int prozent(long fertig) {
@@ -1064,10 +1320,27 @@ final class BurgBau {
 
 	/** Wie viele Blöcke in der aktuellen Schicht (alle Sorten) noch fehlen. */
 	private int schichtRest(Minecraft mc) {
+		if (nurMauer) {
+			int n = 0;
+			for (int nr = 0; nr < felder.size(); nr++) {
+				n += feldRest(mc, y, nr);
+			}
+			return n;
+		}
 		return fehlen(mc, -1, null);
 	}
 
 	private void abschnittFertig(Minecraft mc) {
+		if (nurMauer) {
+			long offen = feldOffen != null ? offenGesamt(mc) : summe(nochZuBauen(mc));
+			einstellungen.burgBauen = offen > 0; // fehlt noch etwas, heißt der Knopf weiter „Mauer weiter“
+			einstellungen.burgBauSchicht = 0;
+			einstellungen.speichern();
+			stoppen(mc, offen > 0
+					? "§eDie Mauer steht bis auf " + zahl(offen) + " Blöcke.§r „Mauer weiter“ versucht den Rest nochmal."
+					: "§aDie Mauer mit Türmen ist fertig gebaut!§r");
+			return;
+		}
 		int nr = einstellungen.burgBauAbschnitt;
 		einstellungen.burgBauAbschnitt = nr + 1;
 		einstellungen.burgBauSchicht = 0;

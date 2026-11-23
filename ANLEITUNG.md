@@ -174,10 +174,10 @@ Baritone selbst darf beim Ebnen nichts im Inventar umräumen (Einstellung `allow
 - Am Ende steht „fertig geebnet“ im Chat. Nochmal klicken (**„Ebnen: Stopp“**) hält alles an. Die Linien dürfen beim Ebnen auch aus sein.
 
 ### Material prüfen
-Knopf **„Material prüfen (Mauer mit Türmen)“** (ganz unten im Panel). Das Panel geht zu, der Bot öffnet das Funk-Terminal
+Knopf **„Material prüfen“** (unten im Panel, links neben „Mauer bauen“). Das Panel geht zu, der Bot öffnet das Funk-Terminal
 (Slot 8), blättert **alle Seiten** durch und zählt, was im Lager ist. Was du im Inventar hast, zählt mit.
 Geprüft wird **nur die Mauer mit Türmen** (Außenmauer, 4 Ecktürme, die Mauertürme und das Tor, vom Sockel bis ganz oben,
-ca. 41.000 Blöcke). Der Sockel ist fertig und wird nicht mehr geprüft, der Knopf geht über die ganze Breite.
+ca. 41.000 Blöcke). Der Sockel ist fertig und wird nicht mehr geprüft.
 Gezählt wird **nur das, was noch fehlt**: Der Bot schaut in der Welt nach, was schon steht,
 und rechnet nur den Rest (also ab da, wo das Bauen aufgehört hat). Oben im Bericht steht, wie viele Blöcke noch fehlen
 und wie viel Prozent fertig sind. Dafür muss die Burg gesetzt sein und du musst nah genug stehen, damit die ganze Burg-Fläche
@@ -202,9 +202,24 @@ Geht nicht, während der Bot ebnet.
 **Kamera:** Beim Ebnen, Herstellen und Bauen schaut die Kamera in die Richtung, in die der Bot läuft und baut, und dreht
 sich dabei weich mit (vorher blieb das Bild einfach stehen).
 
+### Mauer bauen (Mauer mit Türmen)
+Knopf **„Mauer bauen“** (unten im Panel, rechts neben „Material prüfen“). Am besten bei den Strom-Öfen neben dem Tor starten.
+Gebaut werden die Außenmauer, die 4 Ecktürme, die Mauertürme und das Tor, von Höhe 4 bis Höhe 54 (ca. 41.000 Blöcke).
+**Das Innere der Burg bleibt frei.**
+1. **Vorbereiten:** Er schaut nach, was noch fehlt, stellt es her und brennt es. Fehlt danach noch Material, hält er an und sagt, was.
+2. **Bauen:** Höhe für Höhe einmal rundherum, in 28 Feldern. Die Blöcke holt er selbst aus dem Funk-Terminal.
+   Zum Hochkommen benutzt er Erde (Slot 5). Alle 5 Minuten steht im Chat, wie viel Prozent fertig sind und wie lange es noch dauert.
+3. **Nachholen:** Was er nicht erreicht hat, versucht er oben angekommen nochmal (bis zu 3 Durchgänge).
+4. **Aufräumen:** Zum Schluss baut er seine Gerüst-Erde an der Mauer wieder ab und bessert Löcher nach.
+   Erde **außerhalb** der Burgfläche lässt er stehen, damit er keinen Hügel anschneidet. Falls dort etwas von ihm steht, bitte selbst abbauen.
+
+- **Anhalten:** Numpad 8 und **„Mauer: Stopp“**. Weiter geht es mit **„Mauer weiter“**: Was schon steht, überspringt er.
+- Verlässt du die Welt, hält er an. Danach einfach „Mauer weiter“ drücken.
+- Beim Start schaltet er die Beton-Farm aus, damit nicht beides gleichzeitig klickt.
+- Fehlen am Ende noch Blöcke, steht das im Chat und der Knopf heißt weiter „Mauer weiter“.
+
 ### Sockel bauen (Knopf entfernt – der Sockel ist fertig)
-Den Knopf **„Sockel bauen“** gibt es nicht mehr, weil der Sockel steht. So hat der Bot gebaut; „Mauer mit Türmen bauen“
-kommt später und baut genauso. Am besten bei den Strom-Öfen neben dem Tor starten.
+Den Knopf **„Sockel bauen“** gibt es nicht mehr, weil der Sockel steht. So hat der Bot den Sockel gebaut:
 Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** hergestellt und gebrannt. Der Rest der Burg kommt später.
 1. **Vorbereiten:** Der Bot schaut in der Welt nach, was am Sockel noch fehlt, und stellt alles dafür her und brennt es
    (siehe „Herstellen“ unten).

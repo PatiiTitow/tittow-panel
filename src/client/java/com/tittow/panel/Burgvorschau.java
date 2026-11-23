@@ -126,6 +126,41 @@ public final class Burgvorschau {
 		return bau.starten(mc, tor, vorne);
 	}
 
+	/** Wurde die Mauer angefangen, ist aber noch nicht fertig (dann heißt der Knopf "Mauer weiter")? */
+	public boolean mauerOffen() {
+		return einstellungen.burgBauen && einstellungen.burgBauAbschnitt >= 1;
+	}
+
+	/** Startet oder stoppt das Bauen der Mauer mit Türmen. */
+	public String mauerUmschalten(Minecraft mc) {
+		if (bautGerade()) {
+			bau.stoppen(mc, "Bauen gestoppt. „Mauer weiter“ macht da weiter.");
+			return "Bauen gestoppt.";
+		}
+		if (mc.player == null) {
+			return "";
+		}
+		if (!an || tor == null) {
+			return "Erst „Burg hier setzen“.";
+		}
+		if (!BaritoneRahmen.vorhanden()) {
+			return "Ohne Baritone geht das Bauen nicht.";
+		}
+		if (phase != 0) {
+			return "Geht nicht, während der Bot ebnet. Erst „Ebnen: Stopp“.";
+		}
+		if (pruefen || herstellen.laeuft()) {
+			return "Warte, bis „Material prüfen“ bzw. Herstellen fertig ist.";
+		}
+		if (!sockelGeladen(mc)) {
+			return "Geh näher an die Burg: Ein Teil davon ist nicht geladen, dann kann er nicht nachsehen, was schon steht.";
+		}
+		if (bau == null) {
+			bau = new BurgBau(terminal, herstellen, versorgung, einstellungen);
+		}
+		return bau.mauerStarten(mc, tor, vorne);
+	}
+
 	public boolean herstelltGerade() {
 		return herstellen.laeuft();
 	}
@@ -341,6 +376,9 @@ public final class Burgvorschau {
 	 * nach dem Neu-Joinen kommt die Vorschau wieder, und das Ebnen kann weitermachen.
 	 */
 	public void aus() {
+		if (bautGerade()) {
+			bau.stoppen(Minecraft.getInstance(), null); // Welt verlassen: anhalten, „Mauer weiter“ macht später weiter
+		}
 		if (phase != 0) {
 			BaritoneRahmen.befehl("stop");
 			terminal.abbrechen();

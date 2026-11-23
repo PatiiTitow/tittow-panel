@@ -120,7 +120,17 @@ public final class TittowScreen extends Screen {
 			if (meldung.startsWith("Prüfe")) {
 				this.onClose(); // Fenster zu, damit sich das Funk-Terminal öffnen kann
 			}
-		}).pos(mitte - 100, y).size(200, 20).build()); // (der Sockel ist fertig, „Sockel bauen“ gibt es nicht mehr)
+		}).pos(mitte - 100, y).size(98, 20).build()); // (der Sockel ist fertig, „Sockel bauen“ gibt es nicht mehr)
+		this.addRenderableWidget(Button.builder(mauerText(), b -> {
+			if (!burg.bautGerade()) {
+				beton.aus(this.minecraft, null); // nicht gleichzeitig klicken und bauen
+			}
+			meldung = burg.mauerUmschalten(this.minecraft);
+			b.setMessage(mauerText());
+			if (burg.bautGerade()) {
+				this.onClose(); // Fenster zu, damit er sofort loslegt
+			}
+		}).pos(mitte + 2, y).size(98, 20).build());
 		y += 22;
 		this.addRenderableWidget(Button.builder(betonText(), b -> {
 			beton.umschalten(this.minecraft);
@@ -136,7 +146,14 @@ public final class TittowScreen extends Screen {
 	}
 
 	private Component materialText() {
-		return Component.literal(burg.herstelltGerade() ? "Herstellen: Stopp" : "Material prüfen (Mauer mit Türmen)");
+		return Component.literal(burg.herstelltGerade() ? "Herstellen: Stopp" : "Material prüfen");
+	}
+
+	private Component mauerText() {
+		if (burg.bautGerade()) {
+			return Component.literal("Mauer: Stopp");
+		}
+		return Component.literal(burg.mauerOffen() ? "Mauer weiter" : "Mauer bauen");
 	}
 
 	private Component linienText() {
