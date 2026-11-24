@@ -210,7 +210,10 @@ Gebaut werden die Außenmauer, die 4 Ecktürme, die Mauertürme und das Tor, von
 2. **Bauen, Höhe 4 bis 19 (Mauer mit Zinnen):** Höhe für Höhe einmal rundherum, in 28 Feldern. Er läuft oben auf der Mauer
    und steigt jede Runde einen Block höher. Die Blöcke holt er selbst aus dem Funk-Terminal.
    **Ab Höhe 20 (die 23 Türme):** Er baut **einen Turm komplett bis zur Spitze**, oben auf dem Rand steigt er mit.
-   Danach geht er über eine **Erd-Treppe** zurück auf die Mauer und zum nächsten Turm. So baut er sich pro Turm nur einmal hoch.
+   Ist der Turm fertig, **springt er runter auf die Mauer** (direkt neben dem Turm) und geht zum nächsten Turm.
+   So baut er sich pro Turm nur einmal hoch. Vor dem Sprung wartet er, bis er **9 Herzen** hat, denn der tiefste Sprung
+   (von den großen Ecktürmen) kostet ohne Federfall bis zu 7,5 Herzen. Hat er nach 2 Minuten nicht genug Leben oder findet
+   er keinen Landeplatz, nimmt er als Notlösung eine Erd-Treppe (die baut er am Ende wieder ab).
    Zum Hochkommen benutzt er Erde (Slot 5). Alle 5 Minuten steht im Chat, wie viel Prozent fertig sind und wie lange es noch dauert.
 3. **Nachholen:** Was er nicht erreicht hat, versucht er oben angekommen nochmal (bis zu 3 Durchgänge).
 4. **Aufräumen:** Zum Schluss baut er seine Gerüst-Erde wieder ab und bessert Löcher nach.

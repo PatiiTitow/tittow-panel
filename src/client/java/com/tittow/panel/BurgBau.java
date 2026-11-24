@@ -116,6 +116,14 @@ final class BurgBau {
 	private int[] abstiegVon;               // der Turm, von dem er runtersteigt (nicht wieder hinein)
 	private int abstiegTicks, abstiegFehler, abstiegSetzt;
 	private boolean aufraeumenNachAbstieg;  // erst runter, dann das Gerüst abbauen
+	/** Mit so viel Leben springt er vom Turm (18 = 9 Herzen). Der tiefste Sprung kostet ohne Schutz bis zu 7,5 Herzen. */
+	private static final float SPRUNG_LEBEN = 18f;
+	/** So tief darf er beim Sprung vom Turm fallen. */
+	private static final int SPRUNG_TIEFE = 20;
+	private int sprung;                     // 0 = aus, 1 = wartet auf genug Leben, 2 = springt gerade
+	private BlockPos sprungZiel;            // wo er unten auf der Mauer landen soll
+	private int sprungTicks;
+	private Object altFallHoehe;            // Baritones Fallhöhe von vorher, kommt nach dem Sprung zurück
 	private boolean schichtAngesagt;        // "Höhe ..." schon in den Chat geschrieben
 	private int slotWarte;                  // Ticks gewartet, bis der Block in Slot 6 liegt
 	private int nachbessern;                // wie oft nach dem Aufräumen schon nachgebessert wurde
@@ -244,6 +252,7 @@ final class BurgBau {
 		abstieg = false;
 		abstiegGeht = null;
 		aufraeumenNachAbstieg = false;
+		sprung = 0;
 		Erdspur.fuerBurg(tor);
 		mauerNahMachen();
 		Map<String, Long> noch = nochZuBauen(mc);
@@ -286,6 +295,8 @@ final class BurgBau {
 		abstieg = false;
 		abstiegGeht = null;
 		aufraeumenNachAbstieg = false;
+		sprung = 0;
+		fallHoeheZurueck();
 		schutz = 0;
 		Erdspur.aktiv(false);
 		if (ausweichTicks >= 0) {
@@ -340,6 +351,11 @@ final class BurgBau {
 			laufFeld = null;
 			innenZiel = null;
 			abstiegGeht = null; // die Erd-Treppe macht er danach weiter
+			if (sprung == 2) { // mitten im Sprung: danach nochmal von oben ansetzen
+				fallHoeheZurueck();
+				sprung = 1;
+				sprungTicks = 0;
+			}
 			schutz = 1;
 			schutzTicks = 0;
 			schutzPlaetze = List.of();
@@ -486,6 +502,10 @@ final class BurgBau {
 		}
 		if (warte > 0) {
 			warte--;
+			return;
+		}
+		if (sprung > 0) {
+			springen(mc, p);
 			return;
 		}
 		if (abstieg) {
@@ -1069,7 +1089,7 @@ final class BurgBau {
 
 	/** Steht er höher als "grenze" und nicht auf dem Turm, der jetzt dran ist? Dann steigt er erst runter. */
 	private void abstiegWennNoetig(LocalPlayer p, int grenze) {
-		if (!nurMauer || abstieg || p.getBlockY() - tor.getY() <= grenze) {
+		if (!nurMauer || abstieg || sprung > 0 || p.getBlockY() - tor.getY() <= grenze) {
 			return;
 		}
 		int[] m = Burgvorschau.plan(tor, vorne, p.getBlockX(), p.getBlockZ());
@@ -1084,6 +1104,19 @@ final class BurgBau {
 				break;
 			}
 		}
+		BaritoneRahmen.befehl("stop");
+		sprungZiel = landeplatz(Minecraft.getInstance());
+		if (sprungZiel != null) { // vom Turm einfach auf die Mauer runterspringen
+			sprung = 1;
+			sprungTicks = 0;
+			chat(p, "Turm fertig: Er springt runter auf die Mauer.");
+			return;
+		}
+		treppeStarten(p);
+	}
+
+	/** Notlösung, wenn es keinen Landeplatz gibt oder zu wenig Leben da ist: über eine Erd-Treppe runter. */
+	private void treppeStarten(LocalPlayer p) {
 		abstieg = true;
 		abstiegGeht = null;
 		abstiegTicks = 0;
@@ -1091,6 +1124,99 @@ final class BurgBau {
 		abstiegSetzt = 0;
 		BaritoneRahmen.befehl("stop");
 		chat(p, "Er steigt über eine Erd-Treppe runter auf die Mauer (die Treppe baut er am Ende wieder ab).");
+	}
+
+	/**
+	 * Ein Platz oben auf der fertigen Mauer direkt neben dem Turm, auf den er springen kann. Am liebsten der, der am
+	 * nächsten am Ziel liegt (nächster Turm bzw. Burgmitte). null = keiner (dann die Erd-Treppe).
+	 */
+	private BlockPos landeplatz(Minecraft mc) {
+		if (abstiegVon == null || mc.level == null) {
+			return null;
+		}
+		int[] k = abstiegVon;
+		int[] ziel = turm >= 0 ? turmFelder.get(turm) : new int[] { plan.w / 2, plan.l / 2, plan.w / 2, plan.l / 2 };
+		double zx = (ziel[0] + ziel[2]) / 2.0, zz = (ziel[1] + ziel[3]) / 2.0;
+		BlockPos beste = null;
+		double besteWeite = Double.MAX_VALUE;
+		for (int z = k[1] - 3; z <= k[3] + 3; z++) {
+			for (int x = k[0] - 3; x <= k[2] + 3; x++) {
+				if (imKasten(k, x, z) || x < 0 || z < 0 || x >= plan.w || z >= plan.l || !Bauplan.mauerRing(x, z)) {
+					continue;
+				}
+				int oben = -1; // die oberste Mauer-Höhe an dieser Stelle (unter den Türmen)
+				for (int yy = Bauplan.TURM_AB - 1; yy >= von; yy--) {
+					if (plan.setzbar(plan.index(x, yy, z))) {
+						oben = yy;
+						break;
+					}
+				}
+				if (oben < 0) {
+					continue;
+				}
+				int[] w = Burgvorschau.welt(tor, vorne, x + Bauplan.VERSATZ, z + Bauplan.VERSATZ);
+				BlockPos fuss = new BlockPos(w[0], tor.getY() + oben + 1, w[1]);
+				if (frei(mc, fuss.below()) || !frei(mc, fuss) || !frei(mc, fuss.above())) {
+					continue; // Mauer dort noch nicht fertig, oder kein Platz zum Landen
+				}
+				double weite = Math.hypot(x - zx, z - zz);
+				if (weite < besteWeite) {
+					beste = fuss;
+					besteWeite = weite;
+				}
+			}
+		}
+		return beste;
+	}
+
+	/** Sprung vom Turm: erst genug Leben, dann darf Baritone tief fallen und springt auf den Landeplatz. */
+	private void springen(Minecraft mc, LocalPlayer p) {
+		sprungTicks++;
+		if (sprung == 1) {
+			if (p.getHealth() >= SPRUNG_LEBEN) {
+				if (altFallHoehe == null) {
+					altFallHoehe = BaritoneRahmen.einstellungLesen("maxFallHeightNoWater");
+				}
+				BaritoneRahmen.einstellung("maxFallHeightNoWater", SPRUNG_TIEFE);
+				BaritoneRahmen.befehl("goto " + sprungZiel.getX() + " " + sprungZiel.getY() + " " + sprungZiel.getZ());
+				sprung = 2;
+				sprungTicks = 0;
+			} else if (sprungTicks == 1) {
+				chat(p, "Er wartet oben, bis er wieder 9 Herzen hat, dann springt er.");
+			} else if (sprungTicks > 20 * 120) {
+				sprungEnde(mc, p, false, "Nach 2 Minuten noch zu wenig Leben zum Springen.");
+			}
+			return;
+		}
+		boolean unten = p.onGround() && p.getBlockY() - tor.getY() <= ABSTIEG_BIS + 1;
+		if (unten || p.onGround() && p.blockPosition().distManhattan(sprungZiel) <= 1) {
+			sprungEnde(mc, p, true, null);
+		} else if (sprungTicks > 20 * 40) {
+			sprungEnde(mc, p, false, "Er findet keinen Weg zum Absprung.");
+		}
+	}
+
+	private void sprungEnde(Minecraft mc, LocalPlayer p, boolean geschafft, String grund) {
+		BaritoneRahmen.befehl("stop");
+		fallHoeheZurueck();
+		sprung = 0;
+		warte = 10;
+		if (!geschafft) {
+			chat(p, "§e" + grund + "§r Er nimmt die Erd-Treppe.");
+			treppeStarten(p); // macht nach der Treppe auch mit dem Aufräumen weiter, falls das dran war
+			return;
+		}
+		if (aufraeumenNachAbstieg) {
+			aufraeumenNachAbstieg = false;
+			aufraeumenStarten(mc, p);
+		}
+	}
+
+	private void fallHoeheZurueck() {
+		if (altFallHoehe != null) {
+			BaritoneRahmen.einstellung("maxFallHeightNoWater", altFallHoehe);
+			altFallHoehe = null;
+		}
 	}
 
 	/** Eine Stufe nach der anderen: Erde schräg unter den nächsten Schritt setzen, draufgehen, wieder von vorn. */
