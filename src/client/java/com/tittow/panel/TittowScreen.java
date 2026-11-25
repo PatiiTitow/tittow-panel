@@ -20,13 +20,16 @@ public final class TittowScreen extends Screen {
 	private final Kisten kisten;
 	private final Burgvorschau burg;
 	private final BetonFarm beton;
+	private final AutoSchlagen schlagen;
 	private Button botKnopf;
 	private String meldung = "";
 	private String stelle = "";
 
-	public TittowScreen(BotLogik bot, Bereich bereich, Hell hell, Kisten kisten, Burgvorschau burg, BetonFarm beton) {
+	public TittowScreen(BotLogik bot, Bereich bereich, Hell hell, Kisten kisten, Burgvorschau burg, BetonFarm beton,
+			AutoSchlagen schlagen) {
 		super(Component.literal("Tittow Panel"));
 		this.beton = beton;
+		this.schlagen = schlagen;
 		this.bot = bot;
 		this.bereich = bereich;
 		this.hell = hell;
@@ -124,6 +127,7 @@ public final class TittowScreen extends Screen {
 		this.addRenderableWidget(Button.builder(mauerText(), b -> {
 			if (!burg.bautGerade()) {
 				beton.aus(this.minecraft, null); // nicht gleichzeitig klicken und bauen
+				schlagen.aus(this.minecraft, null);
 			}
 			meldung = burg.mauerUmschalten(this.minecraft);
 			b.setMessage(mauerText());
@@ -133,16 +137,29 @@ public final class TittowScreen extends Screen {
 		}).pos(mitte + 2, y).size(98, 20).build());
 		y += 22;
 		this.addRenderableWidget(Button.builder(betonText(), b -> {
+			schlagen.aus(this.minecraft, null); // nicht beides gleichzeitig
 			beton.umschalten(this.minecraft);
 			b.setMessage(betonText());
 			if (beton.istAn()) {
 				this.onClose(); // Fenster zu, damit er sofort klickt
 			}
-		}).pos(mitte - 100, y).size(200, 20).build());
+		}).pos(mitte - 100, y).size(98, 20).build());
+		this.addRenderableWidget(Button.builder(schlagenText(), b -> {
+			beton.aus(this.minecraft, null); // nicht beides gleichzeitig
+			schlagen.umschalten(this.minecraft);
+			b.setMessage(schlagenText());
+			if (schlagen.istAn()) {
+				this.onClose(); // Fenster zu, damit er sofort schlägt
+			}
+		}).pos(mitte + 2, y).size(98, 20).build());
 	}
 
 	private Component betonText() {
-		return Component.literal(beton.istAn() ? "Beton-Farm: AN  (Numpad 9 = aus)" : "Beton-Farm: AUS  (Numpad 9)");
+		return Component.literal(beton.istAn() ? "Beton: AN (Num 9)" : "Beton: AUS (Num 9)");
+	}
+
+	private Component schlagenText() {
+		return Component.literal(schlagen.istAn() ? "Schlagen: AN (Num 7)" : "Schlagen: AUS (Num 7)");
 	}
 
 	private Component materialText() {

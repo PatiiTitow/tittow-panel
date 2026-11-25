@@ -1,5 +1,6 @@
 {
 	"key.category.tittowpanel.main": "Tittow Panel",
 	"key.tittowpanel.oeffnen": "Open Tittow Panel",
-	"key.tittowpanel.betonfarm": "Concrete farm on/off"
+	"key.tittowpanel.betonfarm": "Concrete farm on/off",
+	"key.tittowpanel.autoschlagen": "Auto attack on/off"
 }

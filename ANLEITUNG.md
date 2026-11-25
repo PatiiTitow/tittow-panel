@@ -313,6 +313,17 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
 - Er sucht sich vor den Öfen einen **freien Stehplatz**, von dem aus er die oberen und die unteren Kisten erreicht.
   Geht das nicht, sagt er es sofort im Chat.
 
+## Auto-Schlagen (Numpad 7)
+Schlägt **alle 0,1 Sekunden** automatisch zu, solange du ein **Tier oder Monster** anschaust.
+- An und aus mit **Numpad 7** oder im Panel mit **„Schlagen: AUS/AN“** (unten rechts neben der Beton-Farm).
+- **Blöcke schlägt er nie** (sonst würde er z. B. die Burg abbauen). **Spieler, Dorfbewohner und Rüstungsständer**
+  lässt er auch in Ruhe, so wie die Abwehr beim Bauen.
+- Ist ein Menü offen (Inventar, Chat, Panel), macht er Pause.
+- Beton-Farm und Auto-Schlagen laufen nie gleichzeitig: Schaltest du eins an, geht das andere aus. Beim Start von
+  „Mauer bauen“ gehen beide aus.
+- Hinweis: Normale Minecraft-Waffen brauchen eine kurze Aufladezeit. Wer schneller schlägt, als die Waffe auflädt,
+  macht pro Schlag weniger Schaden.
+
 ## Beton-Farm (Numpad 9)
 Für die automatische Beton-Farm: Der Bot macht **die ganze Zeit Linksklick und gleich danach Rechtsklick**.
 1. Stell dich an die Farm und schau auf den Block.

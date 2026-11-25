@@ -130,7 +130,7 @@ final class Abwehr {
 	 * unsichtbaren Treffer-Kästen ("Interaction"), mit denen der Server seine eigenen Tiere baut.
 	 * Nie: Spieler, Dorfbewohner und Händler, Rüstungsständer, das Reittier, auf dem du sitzt.
 	 */
-	private static boolean istGegner(LocalPlayer p, Entity e) {
+	static boolean istGegner(LocalPlayer p, Entity e) {
 		if (e instanceof Player || e instanceof AbstractVillager || e instanceof ArmorStand) {
 			return false;
 		}
