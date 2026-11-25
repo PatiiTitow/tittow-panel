@@ -5,12 +5,14 @@ import com.tittow.panel.mixin.KeyMappingAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
 
 /**
- * "Auto-Schlagen": alle 0,1 Sekunden (2 Ticks) ein echter Linksklick, solange du ein Tier oder Monster anschaust.
- * Auf Blöcke schlägt er nicht (sonst baut er deine Burg ab), Spieler, Dorfbewohner und Rüstungsständer lässt er in Ruhe
- * (wie die Abwehr beim Bauen). Pausiert, solange ein Menü offen ist. An/Aus mit Numpad 7 oder im Panel.
+ * "Auto-Schlagen": alle 0,1 Sekunden (2 Ticks) ein echter Linksklick auf das, was im Fadenkreuz ist: einen Block
+ * oder ein Tier/Monster. Spieler, Dorfbewohner und Rüstungsständer lässt er in Ruhe (wie die Abwehr beim Bauen),
+ * in die Luft schlägt er nicht. Pausiert, solange ein Menü offen ist. An/Aus mit Numpad 7 oder im Panel.
  */
 public final class AutoSchlagen {
 	/** Alle 2 Ticks = alle 0,1 Sekunden. */
@@ -61,8 +63,10 @@ public final class AutoSchlagen {
 			return;
 		}
 		warte = 0;
-		// nur auf Tiere und Monster, die du gerade anschaust
-		if (mc.hitResult instanceof EntityHitResult t && Abwehr.istGegner(p, t.getEntity())) {
+		// auf den Block oder das Tier/Monster, das du gerade anschaust (Spieler und Dorfbewohner nie)
+		boolean ziel = mc.hitResult instanceof EntityHitResult t ? Abwehr.istGegner(p, t.getEntity())
+				: mc.hitResult instanceof BlockHitResult b && b.getType() == HitResult.Type.BLOCK;
+		if (ziel) {
 			KeyMappingAccessor a = (KeyMappingAccessor) mc.options.keyAttack; // echter Linksklick
 			a.tittow_setClickCount(a.tittow_getClickCount() + 1);
 			schlaege++;

@@ -314,10 +314,12 @@ Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** her
   Geht das nicht, sagt er es sofort im Chat.
 
 ## Auto-Schlagen (Numpad 7)
-Schlägt **alle 0,1 Sekunden** automatisch zu, solange du ein **Tier oder Monster** anschaust.
+Schlägt **alle 0,1 Sekunden** automatisch auf das, was im Fadenkreuz ist: einen **Block** oder ein **Tier/Monster**.
+Ausrichten, anschalten, er schlägt immer auf diese Stelle.
 - An und aus mit **Numpad 7** oder im Panel mit **„Schlagen: AUS/AN“** (unten rechts neben der Beton-Farm).
-- **Blöcke schlägt er nie** (sonst würde er z. B. die Burg abbauen). **Spieler, Dorfbewohner und Rüstungsständer**
-  lässt er auch in Ruhe, so wie die Abwehr beim Bauen.
+- **Spieler, Dorfbewohner und Rüstungsständer** lässt er in Ruhe, so wie die Abwehr beim Bauen. In die Luft schlägt er nicht.
+- Achtung bei Blöcken: Jeder Schlag ist ein einzelner Klick. Blöcke, die sofort kaputtgehen, baut er damit ab.
+  Härtere Blöcke (Stein, Erz …) gehen durch einzelne Klicks nicht kaputt, dafür muss die Taste gehalten werden.
 - Ist ein Menü offen (Inventar, Chat, Panel), macht er Pause.
 - Beton-Farm und Auto-Schlagen laufen nie gleichzeitig: Schaltest du eins an, geht das andere aus. Beim Start von
   „Mauer bauen“ gehen beide aus.
