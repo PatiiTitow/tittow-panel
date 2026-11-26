@@ -206,7 +206,12 @@ sich dabei weich mit (vorher blieb das Bild einfach stehen).
 Knopf **„Mauer bauen“** (unten im Panel, rechts neben „Material prüfen“). Am besten bei den Strom-Öfen neben dem Tor starten.
 Gebaut werden die Außenmauer, die 4 Ecktürme, die Mauertürme und das Tor, von Höhe 4 bis Höhe 54 (ca. 41.000 Blöcke).
 **Das Innere der Burg bleibt frei.**
-1. **Vorbereiten:** Er schaut nach, was noch fehlt, stellt es her und brennt es. Fehlt danach noch Material, hält er an und sagt, was.
+1. **Vorbereiten:** Er schaut nach, was noch fehlt, stellt es her und brennt es. Fehlt danach noch Material, sagt er, was,
+   und **baut trotzdem schon mit dem, was da ist**.
+   **Nachcraften beim Bauen:** Geht eine Blocksorte im Funk-Terminal aus, hält er kurz an und stellt aus den Rohstoffen
+   im Terminal alles her bzw. brennt es, was für den Rest noch fehlt. Danach baut er gleich weiter. Das macht er pro Sorte
+   einmal je Start. Reichen die Rohstoffe nicht, baut er mit den anderen Sorten weiter und sagt am Ende, was alle war.
+   Roten Beton kann er nicht nachmachen, weil das Pulver erst ins Wasser muss.
 2. **Bauen, Höhe 4 bis 19 (Mauer mit Zinnen):** Höhe für Höhe einmal rundherum, in 28 Feldern. Er läuft oben auf der Mauer
    und steigt jede Runde einen Block höher. Die Blöcke holt er selbst aus dem Funk-Terminal.
    **Ab Höhe 20 (die 23 Türme):** Er baut **einen Turm komplett bis zur Spitze**, oben auf dem Rand steigt er mit.

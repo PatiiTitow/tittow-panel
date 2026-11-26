@@ -33,7 +33,7 @@ import net.minecraft.world.phys.Vec3;
  * Erst mal wird nur der Sockel (Abschnitt 1) gebaut, danach ist Schluss. "Sockel weiter bauen" macht nach einem Stopp weiter.
  */
 final class BurgBau {
-	private enum Schritt { VORBEREITEN, PRUEFEN, BAUEN, AUFRAEUMEN }
+	private enum Schritt { VORBEREITEN, PRUEFEN, BAUEN, NACHSCHUB, AUFRAEUMEN }
 
 	private enum Zweck { KEINS, ZAEHLEN, HOLEN, HOLEN_ERDE, ABLEGEN }
 
@@ -131,6 +131,7 @@ final class BurgBau {
 	private int ausweichTicks = -1; // >= 0: weicht gerade aus (springen, ein Stück weggehen)
 	private Vec3 ausweichStart;     // wo er beim Ausweichen losging
 	private final java.util.Set<Integer> leer = new java.util.HashSet<>(); // Sorten, die im Terminal wirklich alle sind
+	private final java.util.Set<Integer> nachgecraftet = new java.util.HashSet<>(); // dafür schon Nachschub hergestellt
 	private Object altWegwerf;  // Baritones Liste der "Wegwerf-Blöcke", wird am Ende zurückgestellt
 	private final Map<String, Object> alteZeiten = new HashMap<>(); // Baritone-Einstellungen von vorher, kommen am Ende zurück
 
@@ -495,6 +496,14 @@ final class BurgBau {
 			terminal.zaehlen(mc);
 			return;
 		}
+		if (schritt == Schritt.NACHSCHUB) { // eine Sorte war alle: erst nachcraften, dann weiterbauen
+			if (herstellen.laeuft()) {
+				herstellen.tick(mc);
+				return;
+			}
+			nachschubEnde(mc, p);
+			return;
+		}
 		if (terminal.laeuft()) {
 			String m = terminal.tick(mc);
 			if (m != null) {
@@ -558,7 +567,11 @@ final class BurgBau {
 				platzMachen(mc);
 				return;
 			}
-			// im Terminal ist wirklich nichts mehr davon: diese Sorte auslassen und mit den anderen weiterbauen
+			// im Terminal ist wirklich nichts mehr davon: erst versuchen, Nachschub herzustellen
+			if (nachschubStarten(mc, p)) {
+				return;
+			}
+			// geht auch nicht: diese Sorte auslassen und mit den anderen weiterbauen
 			leer.add(index);
 			chat(p, "§e" + new ItemStack(item).getHoverName().getString() + " ist im Funk-Terminal alle§r – er baut mit den anderen Sorten weiter.");
 			if (baut) {
@@ -571,7 +584,50 @@ final class BurgBau {
 		}
 	}
 
-	/** Nach dem Herstellen: ist jetzt alles für den Abschnitt da? Sonst anhalten und sagen, was fehlt. */
+	/**
+	 * Eine Sorte ist im Funk-Terminal alle: Bauen kurz anhalten und aus den Rohstoffen im Terminal alles nachcraften
+	 * bzw. brennen, was noch fehlt (nicht nur diese Sorte, damit er nicht bei jeder Sorte einzeln losmuss).
+	 * Pro Sorte nur einmal je Start. Roter Beton geht nicht (das Pulver muss ins Wasser). false = kein Nachschub möglich.
+	 */
+	private boolean nachschubStarten(Minecraft mc, LocalPlayer p) {
+		String id = plan.ids[index];
+		if (nachgecraftet.contains(index) || Herstellen.WASSER.containsKey(id)) {
+			return false;
+		}
+		nachgecraftet.add(index);
+		if (baut) {
+			BaritoneRahmen.befehl("stop");
+			baut = false;
+		}
+		Map<String, Long> noch = nochZuBauen(mc);
+		if (noch.isEmpty()) {
+			return false;
+		}
+		chat(p, "§e" + new ItemStack(item).getHoverName().getString() + " ist im Funk-Terminal alle§r – er stellt Nachschub her"
+				+ " (aus den Rohstoffen im Terminal) und baut dann weiter.");
+		schritt = Schritt.NACHSCHUB;
+		herstellen.starten(mc, noch, nurMauer ? "den Nachschub für die Mauer" : "den Nachschub für den Sockel");
+		return true;
+	}
+
+	/** Nachschub fertig (oder ging nicht): Baritone wieder aufs Bauen stellen und mit derselben Sorte weitermachen. */
+	private void nachschubEnde(Minecraft mc, LocalPlayer p) {
+		schritt = Schritt.BAUEN;
+		// Herstellen stellt Baritone am Ende aufs Abbauen: das darf er beim Bauen nicht (sonst reißt er Fertiges ein)
+		BaritoneRahmen.einstellung("allowBreak", false);
+		BaritoneRahmen.einstellung("allowPlace", true);
+		BaritoneRahmen.kameraFolgen();
+		if (!herstellen.zuEndeGelaufen()) {
+			chat(p, "Nachschub herstellen ging nicht ganz – er baut mit dem weiter, was da ist.");
+		}
+		geholt = false;
+		lagerLeer = false;
+		platzFehler = 0;
+		slotWarte = 0;
+		warte = 10;
+	}
+
+	/** Nach dem Herstellen: ist jetzt alles für den Abschnitt da? Sonst sagen, was fehlt, und mit dem bauen, was da ist. */
 	private void pruefen(Minecraft mc, LocalPlayer p) {
 		Map<String, Long> da = new HashMap<>(terminal.bestand());
 		for (int i = 0; i < 36; i++) {
@@ -593,10 +649,11 @@ final class BurgBau {
 				p.sendSystemMessage(Component.literal(" §c✘ ").append(new ItemStack(Herstellen.item(e.getKey())).getHoverName())
 						.append(Component.literal("§7: fehlen " + String.format(Locale.GERMANY, "%,d", e.getValue()))));
 			}
-			stoppen(mc, "Bauen angehalten. Besorg das Material (oder die Rohstoffe dafür) und klick " + weiterKnopf() + ".");
-			return;
+			chat(p, "Er baut trotzdem schon mit dem, was da ist. Geht eine Sorte aus, craftet er nach, so weit die Rohstoffe reichen."
+					+ " Den Rest bitte besorgen und danach " + weiterKnopf() + " klicken.");
+		} else {
+			chat(p, "§aAlles da.§r Jetzt wird gebaut, Schicht für Schicht.");
 		}
-		chat(p, "§aAlles da.§r Jetzt wird gebaut, Schicht für Schicht.");
 		// Baritone: nichts abbauen (sonst reißt es Fertiges wieder ein), keine eigenen Blöcke zum Hochbauen benutzen
 		BaritoneRahmen.einstellung("allowInventory", false);
 		BaritoneRahmen.kameraFolgen(); // Kamera schaut, wohin er läuft und baut
@@ -663,6 +720,7 @@ final class BurgBau {
 		erdeGeholt = false;
 		platzFehler = 0;
 		leer.clear();
+		nachgecraftet.clear();
 		nachbessern = 0;
 		ausgewichen = false;
 		ausweichTicks = -1;
