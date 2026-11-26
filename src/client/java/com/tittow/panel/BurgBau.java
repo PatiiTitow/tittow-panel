@@ -274,7 +274,10 @@ final class BurgBau {
 		zweck = Zweck.KEINS;
 		baut = false;
 		warte = 0;
-		chat(p, "Mauer mit Türmen: Er prüft das Material, stellt her, was noch fehlt, und baut dann Höhe für Höhe rundherum.");
+		long offen = summe(noch);
+		chat(p, offen > 0
+				? "Mauer mit Türmen: §eEs fehlen noch " + zahl(offen) + " Blöcke.§r Er prüft das Material, stellt her, was noch fehlt, und schließt dann die Löcher von unten nach oben."
+				: "Mauer mit Türmen: Es fehlt kein Block mehr, er räumt nur noch das Gerüst weg.");
 		schritt = Schritt.VORBEREITEN;
 		herstellen.starten(mc, noch, "die Mauer mit Türmen");
 		return "Mauer bauen läuft.";
@@ -299,6 +302,7 @@ final class BurgBau {
 		fallHoeheZurueck();
 		schutz = 0;
 		Erdspur.aktiv(false);
+		Mauerstand.speichern();
 		if (ausweichTicks >= 0) {
 			mc.options.keyJump.setDown(false); // Springen loslassen
 			ausweichTicks = -1;
@@ -475,6 +479,7 @@ final class BurgBau {
 		if (nurMauer && ++speicherTicks >= 600) { // alle 30 Sekunden die Gerüst-Liste sichern
 			speicherTicks = 0;
 			Erdspur.speichern();
+			Mauerstand.speichern(); // was schon steht
 		}
 		if (schritt == Schritt.VORBEREITEN) {
 			if (herstellen.laeuft()) {
@@ -636,10 +641,11 @@ final class BurgBau {
 				List<int[]> f = felderFuer(yy);
 				feldOffen[yy - von] = new int[f.size()];
 				for (int nr = 0; nr < f.size(); nr++) {
-					feldOffen[yy - von][nr] = feldZaehlen(null, yy, f.get(nr)); // erst mal: alles fehlt
-					feldRest(mc, yy, nr);                                       // was geladen ist: nachsehen
+					feldOffen[yy - von][nr] = feldZaehlen(mc, yy, f.get(nr)); // geladen: nachsehen, sonst der gemerkte Stand
 				}
 			}
+			Mauerstand.speichern();
+			lochUebersicht(p);
 			mauerNahMachen();
 			vonVorn(mc, p);
 		}
@@ -878,6 +884,9 @@ final class BurgBau {
 				restAblegen(mc);
 				return;
 			}
+			if (offenGesamt > 0 && nurMauer) {
+				restStellenMelden(mc, p);
+			}
 			if (offenGesamt > 0 && !leer.isEmpty()) {
 				StringBuilder namen = new StringBuilder();
 				for (int i : leer) {
@@ -950,7 +959,7 @@ final class BurgBau {
 					continue;
 				}
 				int[] w = Burgvorschau.welt(tor, vorne, x + Bauplan.VERSATZ, z + Bauplan.VERSATZ);
-				if (!mc.level.getBlockState(new BlockPos(w[0], tor.getY() + yy, w[1])).is(plan.zustaende[i].getBlock())) {
+				if (!stehtSchon(mc, plan, tor, x, yy, z, w, i, true)) {
 					n++;
 				}
 			}
@@ -968,12 +977,9 @@ final class BurgBau {
 		return true;
 	}
 
-	/** Was im Feld noch fehlt. Ist es gerade nicht geladen, gilt der letzte bekannte Stand. */
+	/** Was im Feld noch fehlt. Was gerade nicht geladen ist, zählt mit dem zuletzt gesehenen Stand. */
 	private int feldRest(Minecraft mc, int yy, int nr) {
-		int[] f = felderFuer(yy).get(nr);
-		if (feldGeladen(mc, f)) {
-			feldOffen[yy - von][nr] = feldZaehlen(mc, yy, f);
-		}
+		feldOffen[yy - von][nr] = feldZaehlen(mc, yy, felderFuer(yy).get(nr));
 		return feldOffen[yy - von][nr];
 	}
 
@@ -1330,6 +1336,74 @@ final class BurgBau {
 	}
 
 	/** Wie viele Blöcke im ganzen Bauabschnitt noch fehlen. */
+	/** Beim Losbauen: wo an der Mauer noch Löcher sind (die Mauer bis Höhe 19 und jeder Turm einzeln). */
+	private void lochUebersicht(LocalPlayer p) {
+		long mauer = 0, alle = 0;
+		long[] tuerme = new long[turmFelder.size()];
+		for (int yy = von; yy <= bis; yy++) {
+			for (int nr = 0; nr < feldOffen[yy - von].length; nr++) {
+				int n = feldOffen[yy - von][nr];
+				alle += n;
+				if (yy < Bauplan.TURM_AB) {
+					mauer += n;
+				} else {
+					tuerme[nr] += n;
+				}
+			}
+		}
+		if (alle == 0) {
+			return;
+		}
+		StringBuilder b = new StringBuilder("§eNoch " + zahl(alle) + " Blöcke offen:§r ");
+		boolean erst = true;
+		if (mauer > 0) {
+			b.append("Mauer bis Höhe ").append(Bauplan.TURM_AB - 1).append(": ").append(zahl(mauer));
+			erst = false;
+		}
+		for (int t = 0; t < tuerme.length; t++) {
+			if (tuerme[t] > 0) {
+				b.append(erst ? "" : ", ").append("Turm ").append(t + 1).append(": ").append(zahl(tuerme[t]));
+				erst = false;
+			}
+		}
+		chat(p, b.toString());
+	}
+
+	/** Was nach allen Durchgängen noch fehlt: die ersten Stellen mit Koordinaten, damit man sie selbst setzen kann. */
+	private void restStellenMelden(Minecraft mc, LocalPlayer p) {
+		final int zeigen = 12;
+		int gefunden = 0;
+		List<String> zeilen = new ArrayList<>();
+		for (int yy = von; yy <= bis; yy++) {
+			for (int z = 0; z < plan.l; z++) {
+				for (int x = 0; x < plan.w; x++) {
+					int i = plan.index(x, yy, z);
+					if (!plan.setzbar(i) || !Bauplan.mauerRing(x, z)) {
+						continue;
+					}
+					int[] w = Burgvorschau.welt(tor, vorne, x + Bauplan.VERSATZ, z + Bauplan.VERSATZ);
+					if (stehtSchon(mc, plan, tor, x, yy, z, w, i, true)) {
+						continue;
+					}
+					if (++gefunden <= zeigen) {
+						zeilen.add(" §7• " + w[0] + " " + (tor.getY() + yy) + " " + w[1] + "§r – "
+								+ new ItemStack(plan.zustaende[i].getBlock().asItem()).getHoverName().getString());
+					}
+				}
+			}
+		}
+		if (gefunden == 0) {
+			return;
+		}
+		chat(p, "Hier fehlt noch etwas (X Y Z):");
+		for (String z : zeilen) {
+			p.sendSystemMessage(Component.literal(z));
+		}
+		if (gefunden > zeigen) {
+			p.sendSystemMessage(Component.literal(" §7… und " + (gefunden - zeigen) + " weitere"));
+		}
+	}
+
 	private long offenGesamt(Minecraft mc) {
 		if (!nurMauer || feldOffen == null) {
 			return summe(nochZuBauen(mc));
@@ -1825,6 +1899,9 @@ final class BurgBau {
 	/** Wie oben; nurMauer = nur die Mauer mit Türmen zählen (Bauplan.mauerRing). mc = null: nicht in der Welt nachsehen. */
 	static Map<String, Long> nochZuBauen(Minecraft mc, Bauplan plan, BlockPos tor, Direction vorne, int von, int bis, boolean nurMauer) {
 		long[] n = new long[plan.ids.length];
+		if (nurMauer && mc != null) {
+			Mauerstand.fuerBurg(tor, plan); // was weit weg (nicht geladen) ist: der zuletzt gesehene Stand
+		}
 		for (int yy = von; yy <= bis; yy++) {
 			for (int z = 0; z < plan.l; z++) {
 				for (int x = 0; x < plan.w; x++) {
@@ -1837,12 +1914,14 @@ final class BurgBau {
 						continue;
 					}
 					int[] w = Burgvorschau.welt(tor, vorne, x + Bauplan.VERSATZ, z + Bauplan.VERSATZ);
-					if (!mc.level.hasChunk(w[0] >> 4, w[1] >> 4)
-							|| !mc.level.getBlockState(new BlockPos(w[0], tor.getY() + yy, w[1])).is(plan.zustaende[i].getBlock())) {
+					if (!stehtSchon(mc, plan, tor, x, yy, z, w, i, nurMauer)) {
 						n[i]++;
 					}
 				}
 			}
+		}
+		if (nurMauer && mc != null) {
+			Mauerstand.speichern();
 		}
 		List<Integer> reihe = new ArrayList<>();
 		for (int i = 0; i < n.length; i++) {
@@ -1856,6 +1935,21 @@ final class BurgBau {
 			m.put(plan.ids[i], n[i]);
 		}
 		return m;
+	}
+
+	/**
+	 * Steht an der Bauplan-Stelle schon der richtige Block? Ist der Teil gerade geladen, wird nachgesehen (und bei der Mauer
+	 * gemerkt), sonst gilt bei der Mauer der zuletzt gesehene Stand und beim Sockel "fehlt noch".
+	 */
+	private static boolean stehtSchon(Minecraft mc, Bauplan plan, BlockPos tor, int x, int yy, int z, int[] w, int i, boolean nurMauer) {
+		if (mc.level.hasChunk(w[0] >> 4, w[1] >> 4)) {
+			boolean richtig = mc.level.getBlockState(new BlockPos(w[0], tor.getY() + yy, w[1])).is(plan.zustaende[i].getBlock());
+			if (nurMauer) {
+				Mauerstand.merken(x, yy, z, richtig);
+			}
+			return richtig;
+		}
+		return nurMauer && Mauerstand.steht(x, yy, z);
 	}
 
 	/**

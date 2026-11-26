@@ -238,6 +238,14 @@ Geht trotzdem nichts mehr hinein, hält er an und sagt Bescheid.
 - Beim Start schaltet er die Beton-Farm aus, damit nicht beides gleichzeitig klickt.
 - Fehlen am Ende noch Blöcke, steht das im Chat und der Knopf heißt weiter „Mauer weiter“.
 
+**Löcher schließen (Mauer fast fertig):** Einfach **„Mauer weiter“** drücken.
+- Beim Start schreibt er, wie viele Blöcke noch fehlen, und dann **wo**: an der Mauer bis Höhe 19 und an welchem Turm wie viele.
+- Er geht nur zu den Stellen, an denen wirklich etwas fehlt, von unten nach oben. Fertige Türme und Mauerstücke lässt er aus.
+- Er **merkt sich**, was schon richtig steht (in `config/tittowpanel-mauer.bin`, übersteht einen Neustart). So weiß er auch bei
+  Teilen, die gerade zu weit weg sind, ob dort noch ein Loch ist, und muss nicht jedes Mal einmal rundherum laufen.
+- Bleibt nach den 3 Nachhol-Durchgängen etwas übrig, schreibt er die ersten **12 Stellen mit Koordinaten (X Y Z)** und
+  Blocksorte in den Chat. Die kannst du dann selbst setzen.
+
 ### Sockel bauen (Knopf entfernt – der Sockel ist fertig)
 Den Knopf **„Sockel bauen“** gibt es nicht mehr, weil der Sockel steht. So hat der Bot den Sockel gebaut:
 Erst mal wird **nur der Sockel** gebaut (4 hoch), und es wird **nur dafür** hergestellt und gebrannt. Der Rest der Burg kommt später.
