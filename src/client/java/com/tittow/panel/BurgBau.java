@@ -88,7 +88,12 @@ final class BurgBau {
 	private int feldRunde;                  // wievielte Runde im aktuellen Feld
 	private boolean fortschrittImFeld;      // hat die Runde im Feld etwas gebracht?
 	private List<Integer> schichtSorten = List.of(); // alle Sorten der aktuellen Höhe
-	private boolean nurMauer;               // baut nur die Mauer mit Türmen (das Innere bleibt frei)
+	static final int SOCKEL = 0, MAUER = 1, INNEN = 2;
+	private int teil = SOCKEL;              // was gebaut wird
+	private boolean teilBau;                // Mauer oder Innengebäude: unten in Feldern rundherum, oben jeder hohe Teil einzeln
+	private int turmAb = Bauplan.TURM_AB;   // ab dieser Höhe wird jeder hohe Teil (Turm) einzeln fertig gebaut
+	/** Innengebäude: ab dieser Höhe stehen nur noch Kirche mit Mittelturm und die zwei Fassadentürme, jeder für sich. */
+	private static final int INNEN_TURM_AB = 50;
 	private String teilName = "Sockel";     // für die Meldungen im Chat
 	private int[][] feldOffen;              // [Höhe - von][Feld]: wie viele Blöcke dort zuletzt noch fehlten
 	private int[] laufFeld;                 // läuft gerade zu diesem Feld, weil es nicht geladen ist
@@ -115,6 +120,7 @@ final class BurgBau {
 	private BlockPos abstiegGeht;           // die nächste Stufe, zu der er gerade geht
 	private int[] abstiegVon;               // der Turm, von dem er runtersteigt (nicht wieder hinein)
 	private int abstiegTicks, abstiegFehler, abstiegSetzt;
+	private int abstiegZiel = ABSTIEG_BIS;   // bis auf diese Höhe (Füße) geht die Erd-Treppe
 	private boolean aufraeumenNachAbstieg;  // erst runter, dann das Gerüst abbauen
 	/** Mit so viel Leben springt er vom Turm (18 = 9 Herzen). Der tiefste Sprung kostet ohne Schutz bis zu 7,5 Herzen. */
 	private static final float SPRUNG_LEBEN = 18f;
@@ -183,7 +189,8 @@ final class BurgBau {
 		if (plan == null) {
 			return "Der Bauplan fehlt in der Mod.";
 		}
-		nurMauer = false;
+		teil = SOCKEL;
+		teilBau = false;
 		teilName = "Sockel";
 		feldOffen = null;
 		laufFeld = null;
@@ -231,6 +238,18 @@ final class BurgBau {
 
 	/** Baut die Mauer mit Türmen (Außenmauer, Ecktürme, Mauertürme, Tor) vom Sockel bis ganz oben. Das Innere bleibt frei. */
 	String mauerStarten(Minecraft mc, BlockPos tor, Direction vorne) {
+		return teilStarten(mc, tor, vorne, MAUER);
+	}
+
+	/**
+	 * Baut die Innengebäude (Kirche, Mittelturm, Fassade, Hallen, Hof – alles innerhalb der Mauer). Unten Schicht für
+	 * Schicht in Feldern, ab Höhe 50 jeden hohen Teil (Kirche mit Mittelturm, Fassadentürme) einzeln von unten bis oben.
+	 */
+	String innenStarten(Minecraft mc, BlockPos tor, Direction vorne) {
+		return teilStarten(mc, tor, vorne, INNEN);
+	}
+
+	private String teilStarten(Minecraft mc, BlockPos tor, Direction vorne, int welcher) {
 		LocalPlayer p = mc.player;
 		if (p == null || mc.level == null) {
 			return "";
@@ -239,14 +258,17 @@ final class BurgBau {
 		if (plan == null) {
 			return "Der Bauplan fehlt in der Mod.";
 		}
-		nurMauer = true;
-		teilName = "Mauer mit Türmen";
+		teil = welcher;
+		teilBau = true;
+		boolean innen = teil == INNEN;
+		teilName = innen ? "Innengebäude" : "Mauer mit Türmen";
+		turmAb = innen ? INNEN_TURM_AB : Bauplan.TURM_AB;
 		feldOffen = null;
 		laufFeld = null;
 		this.tor = tor;
 		this.vorne = vorne;
 		von = plan.sockel;
-		bis = plan.mauerOben();
+		bis = innen ? plan.innenOben() : plan.mauerOben();
 		schutz = 0;
 		innenZiel = null;
 		turm = -1;
@@ -258,14 +280,12 @@ final class BurgBau {
 		mauerNahMachen();
 		Map<String, Long> noch = nochZuBauen(mc);
 		if (noch.isEmpty() && geruestBloecke(mc) == 0) { // steht noch Gerüst, läuft er durch und räumt es weg
-			einstellungen.burgBauen = false;
-			einstellungen.speichern();
-			return "Die Mauer mit Türmen steht schon komplett.";
+			offenMerken(false);
+			return innen ? "Die Innengebäude stehen schon komplett." : "Die Mauer mit Türmen steht schon komplett.";
 		}
 		an = true;
 		Erdspur.aktiv(true);
-		einstellungen.burgBauen = true;
-		einstellungen.speichern();
+		offenMerken(true);
 		start = new HashMap<>(FunkTerminal.inventar(p));
 		for (BlockState s : plan.zustaende) {
 			start.remove(FunkTerminal.schluessel(new ItemStack(s.getBlock().asItem())));
@@ -277,16 +297,28 @@ final class BurgBau {
 		warte = 0;
 		long offen = summe(noch);
 		chat(p, offen > 0
-				? "Mauer mit Türmen: §eEs fehlen noch " + zahl(offen) + " Blöcke.§r Er prüft das Material, stellt her, was noch fehlt, und schließt dann die Löcher von unten nach oben."
-				: "Mauer mit Türmen: Es fehlt kein Block mehr, er räumt nur noch das Gerüst weg.");
+				? teilName + ": §eEs fehlen noch " + zahl(offen) + " Blöcke.§r Er prüft das Material, stellt her, was noch fehlt, und baut dann "
+						+ (innen ? "von unten nach oben. Ab Höhe " + turmAb + " baut er Kirche mit Mittelturm und die Fassadentürme einzeln fertig."
+								: "die Löcher von unten nach oben zu.")
+				: teilName + ": Es fehlt kein Block mehr, er räumt nur noch das Gerüst weg.");
 		schritt = Schritt.VORBEREITEN;
-		herstellen.starten(mc, noch, "die Mauer mit Türmen");
-		return "Mauer bauen läuft.";
+		herstellen.starten(mc, noch, innen ? "die Innengebäude" : "die Mauer mit Türmen");
+		return innen ? "Innengebäude bauen läuft." : "Mauer bauen läuft.";
+	}
+
+	/** Merkt sich, ob dieser Teil angefangen und noch nicht fertig ist (dann heißt der Knopf „… weiter“). */
+	private void offenMerken(boolean offen) {
+		if (teil == INNEN) {
+			einstellungen.burgInnen = offen;
+		} else {
+			einstellungen.burgBauen = offen;
+		}
+		einstellungen.speichern();
 	}
 
 	/** Der Knopf, mit dem es nach einem Stopp weitergeht (für die Chat-Meldungen). */
-	private String weiterKnopf() {
-		return nurMauer ? "„Mauer weiter“" : "„Sockel weiter bauen“";
+	String weiterKnopf() {
+		return teil == INNEN ? "„Innen weiter“" : teilBau ? "„Mauer weiter“" : "„Sockel weiter bauen“";
 	}
 
 	void stoppen(Minecraft mc, String grund) {
@@ -477,7 +509,7 @@ final class BurgBau {
 		if (!an || p == null || mc.level == null) {
 			return;
 		}
-		if (nurMauer && ++speicherTicks >= 600) { // alle 30 Sekunden die Gerüst-Liste sichern
+		if (teilBau && ++speicherTicks >= 600) { // alle 30 Sekunden die Gerüst-Liste sichern
 			speicherTicks = 0;
 			Erdspur.speichern();
 			Mauerstand.speichern(); // was schon steht
@@ -606,7 +638,7 @@ final class BurgBau {
 		chat(p, "§e" + new ItemStack(item).getHoverName().getString() + " ist im Funk-Terminal alle§r – er stellt Nachschub her"
 				+ " (aus den Rohstoffen im Terminal) und baut dann weiter.");
 		schritt = Schritt.NACHSCHUB;
-		herstellen.starten(mc, noch, nurMauer ? "den Nachschub für die Mauer" : "den Nachschub für den Sockel");
+		herstellen.starten(mc, noch, "den Nachschub für " + teilWen());
 		return true;
 	}
 
@@ -644,7 +676,7 @@ final class BurgBau {
 			}
 		}
 		if (!fehlt.isEmpty()) {
-			chat(p, "§cFür " + (nurMauer ? "die Mauer mit Türmen" : "den Sockel") + " fehlt noch Material:§r");
+			chat(p, "§cFür " + teilWen() + " fehlt noch Material:§r");
 			for (Map.Entry<String, Long> e : fehlt.entrySet()) {
 				p.sendSystemMessage(Component.literal(" §c✘ ").append(new ItemStack(Herstellen.item(e.getKey())).getHoverName())
 						.append(Component.literal("§7: fehlen " + String.format(Locale.GERMANY, "%,d", e.getValue()))));
@@ -689,10 +721,10 @@ final class BurgBau {
 		}
 		sorteNr = 0;
 		sorten = List.of();
-		felder = nurMauer ? List.of() : felderMachen();
-		if (nurMauer) {
-			ringFelder = mauerFelder();
-			turmFelder = plan.mauerTuerme();
+		felder = teilBau ? List.of() : felderMachen();
+		if (teilBau) {
+			ringFelder = ringFelderMachen();
+			turmFelder = plan.hoheTeile(turmAb, teil == MAUER);
 			feldOffen = new int[bis - von + 1][];
 			for (int yy = von; yy <= bis; yy++) {
 				List<int[]> f = felderFuer(yy);
@@ -730,7 +762,7 @@ final class BurgBau {
 		for (int yy = von; yy <= bis; yy++) {
 			for (int z = 0; z < plan.l; z++) {
 				for (int x = 0; x < plan.w; x++) {
-					if ((!nurMauer || Bauplan.mauerRing(x, z)) && plan.ids[plan.index(x, yy, z)].equals("minecraft:lava")) {
+					if (gehoert(x, z) && plan.ids[plan.index(x, yy, z)].equals("minecraft:lava")) {
 						return true;
 					}
 				}
@@ -821,7 +853,7 @@ final class BurgBau {
 					naechsteSchicht(mc, p);
 					return;
 				}
-				if (nurMauer && !feldGeladen(mc, felder.get(feldNr))) {
+				if (teilBau && !feldGeladen(mc, felder.get(feldNr))) {
 					if (feldOffen[y - von][feldNr] == 0) { // weit weg, aber dort steht schon alles
 						feldNr++;
 						continue;
@@ -836,7 +868,7 @@ final class BurgBau {
 				fortschrittImFeld = false;
 				if (sorten.isEmpty()) { // in diesem Feld steht schon alles
 					feldVerlassen(mc);
-				} else if (nurMauer && nachInnen(mc, p, feld)) {
+				} else if (teilBau && nachInnen(mc, p, feld)) {
 					return;
 				}
 				continue;
@@ -903,7 +935,7 @@ final class BurgBau {
 		if (!schichtAngesagt) {
 			schichtAngesagt = true;
 			chat(p, turm >= 0
-					? "Turm " + (turm + 1) + " von " + turmFelder.size() + ", Höhe " + y + " (Y " + (tor.getY() + y) + ")."
+					? turmName(turm) + " von " + turmFelder.size() + ", Höhe " + y + " (Y " + (tor.getY() + y) + ")."
 					: "Höhe " + y + " (Y " + (tor.getY() + y) + "): " + schichtSorten.size() + " Blocksorte(n), in "
 							+ felder.size() + " Feldern.");
 		}
@@ -916,7 +948,7 @@ final class BurgBau {
 		feld = null;
 		feldNr = 0;
 		schichtAngesagt = false;
-		if (nurMauer) { // nächste Höhe, die noch nicht steht: erst die Mauer, dann Turm für Turm
+		if (teilBau) { // nächste Höhe, die noch nicht steht: erst die Mauer, dann Turm für Turm
 			if (!naechsteOffeneStelle(mc, p)) {
 				y = bis + 1;
 			}
@@ -932,7 +964,7 @@ final class BurgBau {
 			if (offenGesamt > 0 && nachholRunde < 3) {
 				nachholRunde++;
 				chat(p, "Jetzt macht er fertig, was er übersprungen hat (" + offenGesamt + " Blöcke, Durchgang " + nachholRunde + " von 3).");
-				if (nurMauer) {
+				if (teilBau) {
 					vonVorn(mc, p);
 				} else {
 					y = von;
@@ -942,7 +974,7 @@ final class BurgBau {
 				restAblegen(mc);
 				return;
 			}
-			if (offenGesamt > 0 && nurMauer) {
+			if (offenGesamt > 0 && teilBau) {
 				restStellenMelden(mc, p);
 			}
 			if (offenGesamt > 0 && !leer.isEmpty()) {
@@ -955,9 +987,9 @@ final class BurgBau {
 			} else if (offenGesamt > 0) {
 				chat(p, "§c" + offenGesamt + " Blöcke gehen auch nach 3 Nachhol-Durchgängen nicht§r – die bitte selbst setzen.");
 			}
-			if (nurMauer) { // steht er noch oben auf einem Turm: erst runter
+			if (teilBau) { // steht er noch oben auf einem Turm: erst runter
 				turm = -1;
-				abstiegWennNoetig(p, ABSTIEG_BIS);
+				abstiegWennNoetig(p, abstiegBis());
 				if (abstieg) {
 					aufraeumenNachAbstieg = true;
 					return;
@@ -970,16 +1002,19 @@ final class BurgBau {
 		restAblegen(mc);
 	}
 
-	// ---- Nur die Mauer mit Türmen -------------------------------------------------------------
+	// ---- Mauer mit Türmen bzw. Innengebäude: unten in Feldern rundherum, oben jeder hohe Teil einzeln ------------------
 
-	/** Die Felder, in denen Mauer steht, einmal im Kreis herum. Die letzte Reihe liegt am Rand, so passt jeder Turm hinein. */
-	private List<int[]> mauerFelder() {
+	/**
+	 * Die Felder, in denen unten (bis unter turmAb) etwas hingehört. Die letzte Reihe liegt am Rand, so passt jeder Turm
+	 * hinein. Mauer: einmal im Kreis herum. Innen: von außen nach innen (erst die Hallen, dann die Kirche).
+	 */
+	private List<int[]> ringFelderMachen() {
 		List<Integer> xs = feldGrenzen(plan.w), zs = feldGrenzen(plan.l);
 		List<int[]> f = new ArrayList<>();
 		for (int zi = 0; zi < zs.size() - 1; zi++) {
 			for (int xi = 0; xi < xs.size() - 1; xi++) {
 				int[] k = { xs.get(xi), zs.get(zi), xs.get(xi + 1) - 1, zs.get(zi + 1) - 1 };
-				for (int yy = von; yy <= Math.min(bis, Bauplan.TURM_AB - 1); yy++) {
+				for (int yy = von; yy <= Math.min(bis, turmAb - 1); yy++) {
 					if (feldZaehlen(null, yy, k) > 0) {
 						f.add(k);
 						break;
@@ -987,10 +1022,39 @@ final class BurgBau {
 				}
 			}
 		}
+		if (teil == INNEN) {
+			vonAussenNachInnen(f);
+			return f;
+		}
 		double cx = (plan.w - 1) / 2.0, cz = (plan.l - 1) / 2.0;
 		f.sort((a, b) -> Double.compare(Math.atan2((a[1] + a[3]) / 2.0 - cz, (a[0] + a[2]) / 2.0 - cx),
 				Math.atan2((b[1] + b[3]) / 2.0 - cz, (b[0] + b[2]) / 2.0 - cx)));
 		return f;
+	}
+
+	/** Wie die hohen Teile im Chat heißen: bei der Mauer "Turm 3", innen z. B. "Teil 2 (Kirche mit Mittelturm)". */
+	private String turmName(int t) {
+		if (teil != INNEN) {
+			return "Turm " + (t + 1);
+		}
+		int[] k = turmFelder.get(t);
+		boolean groesster = true;
+		for (int[] o : turmFelder) {
+			if ((o[2] - o[0] + 1) * (o[3] - o[1] + 1) > (k[2] - k[0] + 1) * (k[3] - k[1] + 1)) {
+				groesster = false;
+			}
+		}
+		return "Teil " + (t + 1) + " (" + (groesster ? "Kirche mit Mittelturm" : "Fassadenturm") + ")";
+	}
+
+	/** Bis auf diese Höhe (Füße) steigt er nach einem hohen Teil wieder runter: Mauer oben, innen auf Höhe turmAb. */
+	private int abstiegBis() {
+		return teil == MAUER ? ABSTIEG_BIS : turmAb;
+	}
+
+	/** Für den Chat: "den Sockel", "die Mauer mit Türmen" oder "die Innengebäude". */
+	private String teilWen() {
+		return teil == INNEN ? "die Innengebäude" : teilBau ? "die Mauer mit Türmen" : "den Sockel";
 	}
 
 	private static List<Integer> feldGrenzen(int n) {
@@ -1009,7 +1073,7 @@ final class BurgBau {
 		for (int z = f[1]; z <= f[3]; z++) {
 			for (int x = f[0]; x <= f[2]; x++) {
 				int i = plan.index(x, yy, z);
-				if (!plan.setzbar(i) || !Bauplan.mauerRing(x, z)) {
+				if (!plan.setzbar(i) || !gehoert(x, z)) {
 					continue;
 				}
 				if (mc == null) {
@@ -1017,7 +1081,7 @@ final class BurgBau {
 					continue;
 				}
 				int[] w = Burgvorschau.welt(tor, vorne, x + Bauplan.VERSATZ, z + Bauplan.VERSATZ);
-				if (!stehtSchon(mc, plan, tor, x, yy, z, w, i, true)) {
+				if (!stehtSchon(mc, plan, tor, x, yy, z, w, i, teil == MAUER)) {
 					n++;
 				}
 			}
@@ -1043,7 +1107,7 @@ final class BurgBau {
 
 	/** Bis Höhe 19 wird in Feldern rundherum gebaut, darüber gilt jeder Turm als ein Feld. */
 	private List<int[]> felderFuer(int yy) {
-		return yy >= Bauplan.TURM_AB ? turmFelder : ringFelder;
+		return yy >= turmAb ? turmFelder : ringFelder;
 	}
 
 	private int feldAnfang() {
@@ -1060,13 +1124,13 @@ final class BurgBau {
 		y = von - 1;
 		if (naechsteOffeneStelle(mc, p)) {
 			if (turm < 0) {
-				abstiegWennNoetig(p, Math.max(ABSTIEG_BIS, y + 2));
+				abstiegWennNoetig(p, teil == MAUER ? Math.max(ABSTIEG_BIS, y + 2) : y + 2); // innen: ganz runter zur offenen Stelle
 			}
 			return;
 		}
 		// alles steht: über die oberste Mauer-Höhe läuft er direkt ins Nachsehen und Aufräumen
 		turm = -1;
-		y = Math.min(bis, Bauplan.TURM_AB - 1);
+		y = Math.min(bis, turmAb - 1);
 		felder = ringFelder;
 	}
 
@@ -1076,7 +1140,7 @@ final class BurgBau {
 	 */
 	private boolean naechsteOffeneStelle(Minecraft mc, LocalPlayer p) {
 		if (turm < 0) {
-			for (int yy = Math.max(von, y + 1); yy < Bauplan.TURM_AB && yy <= bis; yy++) {
+			for (int yy = Math.max(von, y + 1); yy < turmAb && yy <= bis; yy++) {
 				for (int nr = 0; nr < ringFelder.size(); nr++) {
 					if (feldRest(mc, yy, nr) > 0) {
 						y = yy;
@@ -1086,7 +1150,7 @@ final class BurgBau {
 				}
 			}
 		} else {
-			for (int yy = Math.max(Bauplan.TURM_AB, y + 1); yy <= bis; yy++) {
+			for (int yy = Math.max(turmAb, y + 1); yy <= bis; yy++) {
 				if (feldRest(mc, yy, turm) > 0) {
 					y = yy;
 					return true;
@@ -1099,14 +1163,14 @@ final class BurgBau {
 		}
 		turm = t;
 		felder = turmFelder;
-		for (int yy = Bauplan.TURM_AB; yy <= bis; yy++) {
+		for (int yy = turmAb; yy <= bis; yy++) {
 			if (feldRest(mc, yy, t) > 0) {
 				y = yy;
 				break;
 			}
 		}
-		chat(p, "§eJetzt Turm " + (t + 1) + " von " + turmFelder.size() + ":§r Er baut ihn ganz fertig und steigt dabei mit hoch.");
-		abstiegWennNoetig(p, ABSTIEG_BIS);
+		chat(p, "§eJetzt " + turmName(t) + " von " + turmFelder.size() + ":§r Er baut ihn ganz fertig und steigt dabei mit hoch.");
+		abstiegWennNoetig(p, abstiegBis());
 		return true;
 	}
 
@@ -1137,7 +1201,7 @@ final class BurgBau {
 	}
 
 	private boolean turmOffen(Minecraft mc, int t) {
-		for (int yy = Bauplan.TURM_AB; yy <= bis; yy++) {
+		for (int yy = turmAb; yy <= bis; yy++) {
 			if (feldRest(mc, yy, t) > 0) {
 				return true;
 			}
@@ -1153,7 +1217,7 @@ final class BurgBau {
 
 	/** Steht er höher als "grenze" und nicht auf dem Turm, der jetzt dran ist? Dann steigt er erst runter. */
 	private void abstiegWennNoetig(LocalPlayer p, int grenze) {
-		if (!nurMauer || abstieg || sprung > 0 || p.getBlockY() - tor.getY() <= grenze) {
+		if (!teilBau || abstieg || sprung > 0 || p.getBlockY() - tor.getY() <= grenze) {
 			return;
 		}
 		int[] m = Burgvorschau.plan(tor, vorne, p.getBlockX(), p.getBlockZ());
@@ -1168,6 +1232,7 @@ final class BurgBau {
 				break;
 			}
 		}
+		abstiegZiel = teil == MAUER ? ABSTIEG_BIS : grenze; // bis hierhin geht die Erd-Treppe runter
 		BaritoneRahmen.befehl("stop");
 		sprungZiel = landeplatz(Minecraft.getInstance());
 		if (sprungZiel != null) { // vom Turm einfach auf die Mauer runterspringen
@@ -1187,7 +1252,7 @@ final class BurgBau {
 		abstiegFehler = 0;
 		abstiegSetzt = 0;
 		BaritoneRahmen.befehl("stop");
-		chat(p, "Er steigt über eine Erd-Treppe runter auf die Mauer (die Treppe baut er am Ende wieder ab).");
+		chat(p, "Er steigt über eine Erd-Treppe runter" + (teil == MAUER ? " auf die Mauer" : "") + " (die Treppe baut er am Ende wieder ab).");
 	}
 
 	/**
@@ -1195,7 +1260,7 @@ final class BurgBau {
 	 * nächsten am Ziel liegt (nächster Turm bzw. Burgmitte). null = keiner (dann die Erd-Treppe).
 	 */
 	private BlockPos landeplatz(Minecraft mc) {
-		if (abstiegVon == null || mc.level == null) {
+		if (teil != MAUER || abstiegVon == null || mc.level == null) { // innen gibt es keine Mauer zum Draufspringen
 			return null;
 		}
 		int[] k = abstiegVon;
@@ -1209,7 +1274,7 @@ final class BurgBau {
 					continue;
 				}
 				int oben = -1; // die oberste Mauer-Höhe an dieser Stelle (unter den Türmen)
-				for (int yy = Bauplan.TURM_AB - 1; yy >= von; yy--) {
+				for (int yy = turmAb - 1; yy >= von; yy--) {
 					if (plan.setzbar(plan.index(x, yy, z))) {
 						oben = yy;
 						break;
@@ -1311,7 +1376,7 @@ final class BurgBau {
 			return;
 		}
 		BlockPos f = p.blockPosition();
-		if (f.getY() - tor.getY() <= ABSTIEG_BIS) {
+		if (f.getY() - tor.getY() <= abstiegZiel) {
 			abstiegEnde(mc, p, true);
 			return;
 		}
@@ -1382,7 +1447,7 @@ final class BurgBau {
 	private boolean kommtNochHin(Minecraft mc, BlockPos pos) {
 		int[] m = Burgvorschau.plan(tor, vorne, pos.getX(), pos.getZ());
 		int px = m[0] - Bauplan.VERSATZ, pz = m[1] - Bauplan.VERSATZ;
-		return px >= 0 && pz >= 0 && px < plan.w && pz < plan.l && Bauplan.mauerRing(px, pz)
+		return px >= 0 && pz >= 0 && px < plan.w && pz < plan.l && gehoert(px, pz)
 				&& plan.setzbar(plan.index(px, pos.getY() - tor.getY(), pz)) && frei(mc, pos);
 	}
 
@@ -1402,7 +1467,7 @@ final class BurgBau {
 			for (int nr = 0; nr < feldOffen[yy - von].length; nr++) {
 				int n = feldOffen[yy - von][nr];
 				alle += n;
-				if (yy < Bauplan.TURM_AB) {
+				if (yy < turmAb) {
 					mauer += n;
 				} else {
 					tuerme[nr] += n;
@@ -1415,12 +1480,12 @@ final class BurgBau {
 		StringBuilder b = new StringBuilder("§eNoch " + zahl(alle) + " Blöcke offen:§r ");
 		boolean erst = true;
 		if (mauer > 0) {
-			b.append("Mauer bis Höhe ").append(Bauplan.TURM_AB - 1).append(": ").append(zahl(mauer));
+			b.append(teil == INNEN ? "Unten bis Höhe " : "Mauer bis Höhe ").append(turmAb - 1).append(": ").append(zahl(mauer));
 			erst = false;
 		}
 		for (int t = 0; t < tuerme.length; t++) {
 			if (tuerme[t] > 0) {
-				b.append(erst ? "" : ", ").append("Turm ").append(t + 1).append(": ").append(zahl(tuerme[t]));
+				b.append(erst ? "" : ", ").append(turmName(t)).append(": ").append(zahl(tuerme[t]));
 				erst = false;
 			}
 		}
@@ -1436,11 +1501,11 @@ final class BurgBau {
 			for (int z = 0; z < plan.l; z++) {
 				for (int x = 0; x < plan.w; x++) {
 					int i = plan.index(x, yy, z);
-					if (!plan.setzbar(i) || !Bauplan.mauerRing(x, z)) {
+					if (!plan.setzbar(i) || !gehoert(x, z)) {
 						continue;
 					}
 					int[] w = Burgvorschau.welt(tor, vorne, x + Bauplan.VERSATZ, z + Bauplan.VERSATZ);
-					if (stehtSchon(mc, plan, tor, x, yy, z, w, i, true)) {
+					if (stehtSchon(mc, plan, tor, x, yy, z, w, i, teil == MAUER)) {
 						continue;
 					}
 					if (++gefunden <= zeigen) {
@@ -1463,7 +1528,7 @@ final class BurgBau {
 	}
 
 	private long offenGesamt(Minecraft mc) {
-		if (!nurMauer || feldOffen == null) {
+		if (!teilBau || feldOffen == null) {
 			return summe(nochZuBauen(mc));
 		}
 		long n = 0;
@@ -1477,7 +1542,7 @@ final class BurgBau {
 	}
 
 	private void feldVerlassen(Minecraft mc) {
-		if (nurMauer) {
+		if (teilBau) {
 			feldRest(mc, y, feldNr);
 		}
 		feld = null;
@@ -1547,13 +1612,13 @@ final class BurgBau {
 	/** Die Sorten der Höhe yy, bei der Mauer nur die, die in der Mauer vorkommen. */
 	private List<Integer> sortenDerSchicht(int yy) {
 		List<Integer> alle = plan.sortenInSchicht(yy);
-		if (!nurMauer) {
+		if (!teilBau) {
 			return alle;
 		}
 		boolean[] drin = new boolean[plan.ids.length];
 		for (int z = 0; z < plan.l; z++) {
 			for (int x = 0; x < plan.w; x++) {
-				if (Bauplan.mauerRing(x, z)) {
+				if (gehoert(x, z)) {
 					drin[plan.index(x, yy, z)] = true;
 				}
 			}
@@ -1576,7 +1641,7 @@ final class BurgBau {
 				for (int dz = -5; dz <= 5 && !nah; dz += 5) {
 					for (int dx = -5; dx <= 5 && !nah; dx += 5) {
 						int xx = x + dx, zz = z + dz;
-						nah = xx >= 0 && zz >= 0 && xx < plan.w && zz < plan.l && Bauplan.mauerRing(xx, zz);
+						nah = xx >= 0 && zz >= 0 && xx < plan.w && zz < plan.l && gehoert(xx, zz);
 					}
 				}
 				mauerNah[z * plan.w + x] = nah;
@@ -1601,6 +1666,12 @@ final class BurgBau {
 				f.add(new int[] { x0, z0, Math.min(x0 + FELD, plan.w) - 1, Math.min(z0 + FELD, plan.l) - 1 });
 			}
 		}
+		vonAussenNachInnen(f);
+		return f;
+	}
+
+	/** Sortiert Felder von außen nach innen: Ring für Ring, jeder Ring einmal herum. */
+	private void vonAussenNachInnen(List<int[]> f) {
 		double cx = (plan.w - 1) / 2.0, cz = (plan.l - 1) / 2.0;
 		f.sort((a, b) -> {
 			double ax = (a[0] + a[2]) / 2.0 - cx, az = (a[1] + a[3]) / 2.0 - cz;
@@ -1608,7 +1679,6 @@ final class BurgBau {
 			int ring = Double.compare(Math.max(Math.abs(bx), Math.abs(bz)), Math.max(Math.abs(ax), Math.abs(az)));
 			return ring != 0 ? ring : Double.compare(Math.atan2(az, ax), Math.atan2(bz, bx));
 		});
-		return f;
 	}
 
 	/** Welche Sorten im aktuellen Feld (in dieser Höhe) noch nicht stimmen, in der Reihenfolge der Schicht. */
@@ -1617,7 +1687,7 @@ final class BurgBau {
 		for (int z = feld[1]; z <= feld[3]; z++) {
 			for (int x = feld[0]; x <= feld[2]; x++) {
 				int i = plan.index(x, y, z);
-				if (!fehlt[i] && plan.setzbar(i) && (!nurMauer || Bauplan.mauerRing(x, z)) && !stimmt(mc, x, z, i)) {
+				if (!fehlt[i] && plan.setzbar(i) && gehoert(x, z) && !stimmt(mc, x, z, i)) {
 					fehlt[i] = true;
 				}
 			}
@@ -1705,7 +1775,7 @@ final class BurgBau {
 
 	/** Nach der letzten Schicht: Erd-Blöcke, die nicht zum Bauplan gehören (Gerüst), wieder abbauen. */
 	private void aufraeumenStarten(Minecraft mc, LocalPlayer p) {
-		if (nurMauer) {
+		if (teilBau) {
 			Erdspur.aufraeumen(mc.level); // Stellen vergessen, an denen inzwischen keine Erde mehr steht
 		}
 		int n = geruestBloecke(mc);
@@ -1762,7 +1832,7 @@ final class BurgBau {
 			chat(p, "Es fehlen noch " + zahl(fehlt) + " Blöcke – er bessert nach.");
 			schritt = Schritt.BAUEN;
 			nachholRunde = 0;
-			if (nurMauer) {
+			if (teilBau) {
 				vonVorn(mc, p);
 			} else {
 				y = von;
@@ -1786,7 +1856,7 @@ final class BurgBau {
 		int[] b = Burgvorschau.welt(tor, vorne, Bauplan.VERSATZ + plan.w - 1, Bauplan.VERSATZ + plan.l - 1);
 		int oben = bis + GERUEST_HOEHE, unten = von;
 		int x0 = Math.min(a[0], b[0]), x1 = Math.max(a[0], b[0]), z0 = Math.min(a[1], b[1]), z1 = Math.max(a[1], b[1]);
-		if (nurMauer) { // auch die Erde, die er außerhalb der Burg gesetzt hat
+		if (teilBau) { // auch die Erde, die er außerhalb der Burg gesetzt hat
 			for (BlockPos e : Erdspur.alle()) {
 				x0 = Math.min(x0, e.getX());
 				x1 = Math.max(x1, e.getX());
@@ -1812,17 +1882,17 @@ final class BurgBau {
 	 * Boden) bleibt liegen: die sieht man nicht, und um da hinzukommen, müsste er den fertigen Boden aufgraben.
 	 */
 	private boolean istGeruest(Minecraft mc, int px, int yy, int pz, BlockPos pos) {
-		if (nurMauer && Erdspur.enthaelt(pos)) { // die hat er nachweislich selbst gesetzt, auch außerhalb der Burg
-			boolean mauerHier = Bauplan.mauerRing(px, pz) && plan.index(px, yy, pz) != 0;
+		if (teilBau && Erdspur.enthaelt(pos)) { // die hat er nachweislich selbst gesetzt, auch außerhalb der Burg
+			boolean mauerHier = (teil == INNEN || Bauplan.mauerRing(px, pz)) && plan.index(px, yy, pz) != 0;
 			return !mauerHier && mc.level.getBlockState(pos).is(Blocks.DIRT);
 		}
 		if (px < 0 || pz < 0 || px >= plan.w || pz >= plan.l) {
 			return false;
 		}
-		if (nurMauer) {
+		if (teilBau) {
 			// über dem Sockel, an der Mauer: Erde ist dort immer sein Gerüst (außer wo die Mauer selbst hingehört)
 			if (yy < von || mauerNah == null || !mauerNah[pz * plan.w + px]
-					|| Bauplan.mauerRing(px, pz) && plan.index(px, yy, pz) != 0) {
+					|| (teil == INNEN || Bauplan.mauerRing(px, pz)) && plan.index(px, yy, pz) != 0) {
 				return false;
 			}
 			return mc.level.getBlockState(pos).is(Blocks.DIRT);
@@ -1841,7 +1911,7 @@ final class BurgBau {
 		for (int yy = von; yy <= bis + GERUEST_HOEHE; yy++) {
 			for (int z = 0; z < plan.l; z++) {
 				for (int x = 0; x < plan.w; x++) {
-					if (nurMauer && !mauerNah[z * plan.w + x]) {
+					if (teilBau && !mauerNah[z * plan.w + x]) {
 						continue; // weit weg von der Mauer: da hat er nichts gebaut
 					}
 					int[] w = Burgvorschau.welt(tor, vorne, x + Bauplan.VERSATZ, z + Bauplan.VERSATZ);
@@ -1851,7 +1921,7 @@ final class BurgBau {
 				}
 			}
 		}
-		if (nurMauer) { // dazu die eigene Erde, die oben nicht mitgezählt wurde (außerhalb der Burg oder tiefer)
+		if (teilBau) { // dazu die eigene Erde, die oben nicht mitgezählt wurde (außerhalb der Burg oder tiefer)
 			for (BlockPos e : Erdspur.alle()) {
 				int[] m = Burgvorschau.plan(tor, vorne, e.getX(), e.getZ());
 				int px = m[0] - Bauplan.VERSATZ, pz = m[1] - Bauplan.VERSATZ, yy = e.getY() - tor.getY();
@@ -1889,7 +1959,7 @@ final class BurgBau {
 	/** Was beim Ablegen im Inventar bleibt: die eigenen Sachen vom Start, die Gerüst-Erde und (falls angegeben) das Baumaterial. */
 	private Map<String, Integer> behalten(Item auch) {
 		Map<String, Integer> m = new HashMap<>(start);
-		m.put(FunkTerminal.schluessel(new ItemStack(Items.DIRT)), nurMauer ? 320 : 100000); // bei der Mauer: 5 Stapel, der Rest ins Lager
+		m.put(FunkTerminal.schluessel(new ItemStack(Items.DIRT)), teilBau ? 320 : 100000); // bei der Mauer: 5 Stapel, der Rest ins Lager
 		if (auch != null) {
 			m.put(FunkTerminal.schluessel(new ItemStack(auch)), 100000);
 		}
@@ -1915,7 +1985,7 @@ final class BurgBau {
 			if (px < f[0] || px > f[2] || pz < f[1] || pz > f[3]) {
 				return null;
 			}
-			if (nurMauer && !Bauplan.mauerRing(px, pz)) {
+			if (!gehoert(px, pz)) {
 				return null; // das Innere der Burg bleibt frei
 			}
 			return plan.index(px, schicht, pz) == sorte ? soll : null;
@@ -1935,7 +2005,7 @@ final class BurgBau {
 		for (int z = z0; z <= z1; z++) {
 			for (int x = x0; x <= x1; x++) {
 				int i = plan.index(x, y, z);
-				if ((sorte >= 0 ? i != sorte : !plan.setzbar(i)) || nurMauer && !Bauplan.mauerRing(x, z) || stimmt(mc, x, z, i)) {
+				if ((sorte >= 0 ? i != sorte : !plan.setzbar(i)) || !gehoert(x, z) || stimmt(mc, x, z, i)) {
 					continue;
 				}
 				n++;
@@ -1946,7 +2016,7 @@ final class BurgBau {
 
 	/** Was im aktuellen Abschnitt noch gebaut werden muss (Block-Id -> Anzahl), schaut in der Welt nach. */
 	private Map<String, Long> nochZuBauen(Minecraft mc) {
-		return nochZuBauen(mc, plan, tor, vorne, von, bis, nurMauer);
+		return zaehlen(mc, plan, tor, vorne, von, bis, teil);
 	}
 
 	/** Was in den Höhen von..bis noch gebaut werden muss (Block-Id -> Anzahl), schaut in der Welt nach. */
@@ -1956,26 +2026,35 @@ final class BurgBau {
 
 	/** Wie oben; nurMauer = nur die Mauer mit Türmen zählen (Bauplan.mauerRing). mc = null: nicht in der Welt nachsehen. */
 	static Map<String, Long> nochZuBauen(Minecraft mc, Bauplan plan, BlockPos tor, Direction vorne, int von, int bis, boolean nurMauer) {
-		return zaehlen(mc, plan, tor, vorne, von, bis, nurMauer ? 1 : 0);
+		return zaehlen(mc, plan, tor, vorne, von, bis, nurMauer ? MAUER : SOCKEL);
 	}
 
 	/** Was an den Innengebäuden (alles innerhalb der Mauer, vom Sockel bis ganz oben) noch gebaut werden muss. mc = null: alles. */
 	static Map<String, Long> nochInnen(Minecraft mc, Bauplan plan, BlockPos tor, Direction vorne) {
-		return zaehlen(mc, plan, tor, vorne, plan.sockel, plan.h - 1, 2);
+		return zaehlen(mc, plan, tor, vorne, plan.sockel, plan.h - 1, INNEN);
 	}
 
-	/** teil: 0 = alles, 1 = nur die Mauer mit Türmen, 2 = nur die Innengebäude (alles ohne die Mauer). */
+	/** Gehört die Plan-Stelle x, z zu diesem Teil? Sockel: alles, Mauer: der Mauer-Ring, Innen: alles innerhalb der Mauer. */
+	static boolean gehoert(int teil, int x, int z) {
+		return teil == SOCKEL || Bauplan.mauerRing(x, z) == (teil == MAUER);
+	}
+
+	private boolean gehoert(int x, int z) {
+		return gehoert(teil, x, z);
+	}
+
+	/** teil: SOCKEL = alles, MAUER = nur die Mauer mit Türmen, INNEN = nur die Innengebäude (alles ohne die Mauer). */
 	private static Map<String, Long> zaehlen(Minecraft mc, Bauplan plan, BlockPos tor, Direction vorne, int von, int bis, int teil) {
-		boolean nurMauer = teil == 1;
+		boolean merken = teil == MAUER; // nur bei der Mauer merkt er sich, was steht (auch wenn es weit weg ist)
 		long[] n = new long[plan.ids.length];
-		if (nurMauer && mc != null) {
+		if (merken && mc != null) {
 			Mauerstand.fuerBurg(tor, plan); // was weit weg (nicht geladen) ist: der zuletzt gesehene Stand
 		}
 		for (int yy = von; yy <= bis; yy++) {
 			for (int z = 0; z < plan.l; z++) {
 				for (int x = 0; x < plan.w; x++) {
 					int i = plan.index(x, yy, z);
-					if (!plan.setzbar(i) || teil == 1 && !Bauplan.mauerRing(x, z) || teil == 2 && Bauplan.mauerRing(x, z)) {
+					if (!plan.setzbar(i) || !gehoert(teil, x, z)) {
 						continue;
 					}
 					if (mc == null) {
@@ -1983,13 +2062,13 @@ final class BurgBau {
 						continue;
 					}
 					int[] w = Burgvorschau.welt(tor, vorne, x + Bauplan.VERSATZ, z + Bauplan.VERSATZ);
-					if (!stehtSchon(mc, plan, tor, x, yy, z, w, i, nurMauer)) {
+					if (!stehtSchon(mc, plan, tor, x, yy, z, w, i, merken)) {
 						n[i]++;
 					}
 				}
 			}
 		}
-		if (nurMauer && mc != null) {
+		if (merken && mc != null) {
 			Mauerstand.speichern();
 		}
 		List<Integer> reihe = new ArrayList<>();
@@ -2008,17 +2087,17 @@ final class BurgBau {
 
 	/**
 	 * Steht an der Bauplan-Stelle schon der richtige Block? Ist der Teil gerade geladen, wird nachgesehen (und bei der Mauer
-	 * gemerkt), sonst gilt bei der Mauer der zuletzt gesehene Stand und beim Sockel "fehlt noch".
+	 * gemerkt), sonst gilt bei der Mauer der zuletzt gesehene Stand und sonst "fehlt noch".
 	 */
-	private static boolean stehtSchon(Minecraft mc, Bauplan plan, BlockPos tor, int x, int yy, int z, int[] w, int i, boolean nurMauer) {
+	private static boolean stehtSchon(Minecraft mc, Bauplan plan, BlockPos tor, int x, int yy, int z, int[] w, int i, boolean merken) {
 		if (mc.level.hasChunk(w[0] >> 4, w[1] >> 4)) {
 			boolean richtig = mc.level.getBlockState(new BlockPos(w[0], tor.getY() + yy, w[1])).is(plan.zustaende[i].getBlock());
-			if (nurMauer) {
+			if (merken) {
 				Mauerstand.merken(x, yy, z, richtig);
 			}
 			return richtig;
 		}
-		return nurMauer && Mauerstand.steht(x, yy, z);
+		return merken && Mauerstand.steht(x, yy, z);
 	}
 
 	/**
@@ -2129,8 +2208,8 @@ final class BurgBau {
 
 	/** Beim Losbauen: merken, wie viel schon steht, und gleich einmal den Stand melden. */
 	private void fortschrittStarten(Minecraft mc, LocalPlayer p) {
-		gesamt = nurMauer ? summe(nochZuBauen(null, plan, tor, vorne, von, bis, true)) : 0;
-		if (!nurMauer) {
+		gesamt = teilBau ? summe(zaehlen(null, plan, tor, vorne, von, bis, teil)) : 0;
+		if (!teilBau) {
 			for (long n : plan.material(von, bis).values()) {
 				gesamt += n;
 			}
@@ -2184,10 +2263,10 @@ final class BurgBau {
 
 	/** Wie viele Blöcke in der aktuellen Schicht (alle Sorten) noch fehlen. */
 	private int schichtRest(Minecraft mc) {
-		if (nurMauer && turm >= 0) {
+		if (teilBau && turm >= 0) {
 			return feldRest(mc, y, turm); // am Turm zählt nur dieser eine Turm
 		}
-		if (nurMauer) {
+		if (teilBau) {
 			int n = 0;
 			for (int nr = 0; nr < felder.size(); nr++) {
 				n += feldRest(mc, y, nr);
@@ -2198,15 +2277,20 @@ final class BurgBau {
 	}
 
 	private void abschnittFertig(Minecraft mc) {
-		if (nurMauer) {
+		if (teilBau) {
 			long offen = feldOffen != null ? offenGesamt(mc) : summe(nochZuBauen(mc));
 			Erdspur.aufraeumen(mc.level);
-			einstellungen.burgBauen = offen > 0; // fehlt noch etwas, heißt der Knopf weiter „Mauer weiter“
+			if (teil == INNEN) {
+				einstellungen.burgInnen = offen > 0; // fehlt noch etwas, heißt der Knopf weiter „Innen weiter“
+			} else {
+				einstellungen.burgBauen = offen > 0; // fehlt noch etwas, heißt der Knopf weiter „Mauer weiter“
+			}
 			einstellungen.burgBauSchicht = 0;
 			einstellungen.speichern();
 			stoppen(mc, offen > 0
-					? "§eDie Mauer steht bis auf " + zahl(offen) + " Blöcke.§r „Mauer weiter“ versucht den Rest nochmal."
-					: "§aDie Mauer mit Türmen ist fertig gebaut!§r");
+					? "§e" + (teil == INNEN ? "Die Innengebäude stehen" : "Die Mauer steht") + " bis auf " + zahl(offen) + " Blöcke.§r "
+							+ weiterKnopf() + " versucht den Rest nochmal."
+					: teil == INNEN ? "§aDie Innengebäude sind fertig gebaut!§r" : "§aDie Mauer mit Türmen ist fertig gebaut!§r");
 			return;
 		}
 		int nr = einstellungen.burgBauAbschnitt;

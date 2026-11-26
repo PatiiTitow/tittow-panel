@@ -50,7 +50,8 @@ public final class Bereich {
 	public int burgStreifen;       // beim Ebnen: an welchem Streifen er gerade ist (für "Ebnen weiter")
 	public int burgBauAbschnitt;   // Burg bauen: welcher Abschnitt dran ist (0 = Sockel)
 	public boolean burgBauen;      // Bauen wurde gestartet und die Burg ist noch nicht fertig
-	public int burgBauSchicht;     // Burg bauen: an welcher Höhe (ab Fußhöhe) er zuletzt gebaut hat
+	public boolean burgInnen;      // Innengebäude: Bauen wurde gestartet und ist noch nicht fertig
+	public int burgBauSchicht;    // Burg bauen: an welcher Höhe (ab Fußhöhe) er zuletzt gebaut hat
 	public Map<String, Integer> burgStartInventar; // was beim Start des Ebnens im Inventar war (bleibt drin)
 
 	public static Bereich laden() {

@@ -123,11 +123,19 @@ final class Bauplan {
 
 	/** Die einzelnen Türme ab Höhe TURM_AB als Kästen {x0, z0, x1, z1}, einmal im Kreis um die Burg sortiert. */
 	List<int[]> mauerTuerme() {
+		return hoheTeile(TURM_AB, true);
+	}
+
+	/**
+	 * Was ab Höhe "ab" noch hochragt, als einzelne Kästen {x0, z0, x1, z1} (zusammenhängende Stellen), einmal im Kreis
+	 * sortiert. mauer = true: nur die Mauer mit Türmen, sonst nur das Innere (Kirche mit Mittelturm, Fassadentürme).
+	 */
+	List<int[]> hoheTeile(int ab, boolean mauer) {
 		boolean[] voll = new boolean[w * l];
-		for (int y = TURM_AB; y < h; y++) {
+		for (int y = ab; y < h; y++) {
 			for (int z = 0; z < l; z++) {
 				for (int x = 0; x < w; x++) {
-					if (mauerRing(x, z) && setzbar(index(x, y, z))) {
+					if (mauerRing(x, z) == mauer && setzbar(index(x, y, z))) {
 						voll[z * w + x] = true;
 					}
 				}
@@ -167,6 +175,20 @@ final class Bauplan {
 		tuerme.sort((a, b) -> Double.compare(Math.atan2((a[1] + a[3]) / 2.0 - cz, (a[0] + a[2]) / 2.0 - cx),
 				Math.atan2((b[1] + b[3]) / 2.0 - cz, (b[0] + b[2]) / 2.0 - cx)));
 		return tuerme;
+	}
+
+	/** Die oberste Höhe, in der die Innengebäude (alles innerhalb der Mauer) noch Blöcke haben. */
+	int innenOben() {
+		for (int y = h - 1; y >= sockel; y--) {
+			for (int z = 0; z < l; z++) {
+				for (int x = 0; x < w; x++) {
+					if (setzbar(index(x, y, z)) && !mauerRing(x, z)) {
+						return y;
+					}
+				}
+			}
+		}
+		return sockel;
 	}
 
 	/** Die oberste Höhe, in der die Mauer mit Türmen noch Blöcke hat. */

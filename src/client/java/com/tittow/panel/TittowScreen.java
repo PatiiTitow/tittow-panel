@@ -168,9 +168,13 @@ public final class TittowScreen extends Screen {
 
 	private Component mauerText() {
 		if (burg.bautGerade()) {
-			return Component.literal("Mauer: Stopp");
+			return Component.literal("Bauen: Stopp");
 		}
-		return Component.literal(burg.mauerOffen() ? "Mauer weiter" : "Mauer bauen");
+		// erst die Mauer fertig machen, danach kommen die Innengebäude dran
+		if (burg.mauerOffen()) {
+			return Component.literal("Mauer weiter");
+		}
+		return Component.literal(burg.innenOffen() ? "Innen weiter" : "Innen bauen");
 	}
 
 	private Component linienText() {

@@ -131,10 +131,17 @@ public final class Burgvorschau {
 		return einstellungen.burgBauen && einstellungen.burgBauAbschnitt >= 1;
 	}
 
-	/** Startet oder stoppt das Bauen der Mauer mit Türmen. */
+	/** Wurden die Innengebäude angefangen, sind aber noch nicht fertig (dann heißt der Knopf "Innen weiter")? */
+	public boolean innenOffen() {
+		return einstellungen.burgInnen;
+	}
+
+	/**
+	 * Startet oder stoppt das Bauen: solange die Mauer mit Türmen nicht fertig ist, die Mauer, danach die Innengebäude.
+	 */
 	public String mauerUmschalten(Minecraft mc) {
 		if (bautGerade()) {
-			bau.stoppen(mc, "Bauen gestoppt. „Mauer weiter“ macht da weiter.");
+			bau.stoppen(mc, "Bauen gestoppt. " + bau.weiterKnopf() + " macht da weiter.");
 			return "Bauen gestoppt.";
 		}
 		if (mc.player == null) {
@@ -158,7 +165,7 @@ public final class Burgvorschau {
 		if (bau == null) {
 			bau = new BurgBau(terminal, herstellen, versorgung, einstellungen);
 		}
-		return bau.mauerStarten(mc, tor, vorne);
+		return mauerOffen() ? bau.mauerStarten(mc, tor, vorne) : bau.innenStarten(mc, tor, vorne);
 	}
 
 	public boolean herstelltGerade() {
@@ -759,7 +766,8 @@ public final class Burgvorschau {
 					if (!pruefNoch.isEmpty()) { // gleich alles herstellen und brennen, was dafür fehlt
 						chat(mc.player, "Jetzt stellt der Bot alles für " + pruefTitel + " her und brennt es (Plan folgt) …");
 						herstellen.starten(mc, pruefNoch, pruefTitel,
-								pruefName.equals("Sockel") ? " Jetzt kannst du „Sockel bauen“ drücken." : "");
+								pruefName.equals("Sockel") ? " Jetzt kannst du „Sockel bauen“ drücken."
+									: " Jetzt kannst du „" + (innenOffen() ? "Innen weiter" : "Innen bauen") + "“ drücken.");
 					}
 				} else {
 					chat(mc.player, meldung);

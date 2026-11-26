@@ -174,7 +174,7 @@ Baritone selbst darf beim Ebnen nichts im Inventar umräumen (Einstellung `allow
 - Am Ende steht „fertig geebnet“ im Chat. Nochmal klicken (**„Ebnen: Stopp“**) hält alles an. Die Linien dürfen beim Ebnen auch aus sein.
 
 ### Material prüfen
-Knopf **„Material prüfen“** (unten im Panel, links neben „Mauer bauen“). Das Panel geht zu, der Bot öffnet das Funk-Terminal
+Knopf **„Material prüfen“** (unten im Panel, links neben „Innen bauen“). Das Panel geht zu, der Bot öffnet das Funk-Terminal
 (Slot 8), blättert **alle Seiten** durch und zählt, was im Lager ist. Was du im Inventar hast, zählt mit.
 Geprüft wird das **nächste Projekt: die Innengebäude** (alles innerhalb der Mauer, vom Sockel bis ganz oben, ca. 59.750 Blöcke):
 Fassade, Kirchenschiff, großer Mittelturm, runder Chor, Querschiffe, die drei langen Hallen, die zwei Fassadentürme und der Hof.
@@ -200,7 +200,7 @@ ist das Material komplett.
 Roten Beton macht er als **Trockenbeton (Pulver)**, das musst du selbst im Wasser hart machen (z. B. mit der Beton-Farm).
 Am besten bei den Strom-Öfen neben dem Tor starten.
 Gezählt wird nur, was an den Innengebäuden **noch fehlt** (steht schon etwas, zählt es nicht mehr).
-Einen Bau-Knopf für die Innengebäude gibt es noch nicht, „Mauer bauen“ baut weiter nur die Mauer mit Türmen.
+Danach baut **„Innen bauen“** die Innengebäude (siehe unten).
 
 Die Mengen kommen aus dem Bauplan der Blutfeste (Tiefenschiefer, Hauptturm aus Schwarzstein, Netherziegel statt Rot, Leuchtstein als Licht).
 Zeigt das Lager nur einen Stapel und schreibt die echte Menge in die Beschreibung (z. B. „Menge: 1.600“), wird diese Zahl genommen.
@@ -209,8 +209,29 @@ Geht nicht, während der Bot ebnet.
 **Kamera:** Beim Ebnen, Herstellen und Bauen schaut die Kamera in die Richtung, in die der Bot läuft und baut, und dreht
 sich dabei weich mit (vorher blieb das Bild einfach stehen).
 
+### Innengebäude bauen
+Der rechte Knopf neben „Material prüfen“ heißt jetzt **„Innen bauen“**. Solange an der Mauer noch etwas offen ist, heißt er
+**„Mauer weiter“** und macht erst die Mauer fertig. Dabei räumt er auch die übrige Gerüst-Erde weg. Danach heißt er „Innen bauen“.
+Am besten bei den Strom-Öfen neben dem Tor starten.
+Gebaut wird **alles innerhalb der Mauer**: Fassade, Kirchenschiff, großer Mittelturm, runder Chor, Querschiffe, die drei langen
+Hallen, die zwei Fassadentürme und der Hof, von Höhe 4 bis Höhe 121 (ca. 59.750 Blöcke). Die Mauer fasst er nicht an.
+1. **Vorbereiten:** Wie bei der Mauer. Er schaut nach, was noch fehlt, stellt es her und brennt es und baut dann mit dem, was da ist.
+   Geht eine Sorte aus, craftet er nach. Roten Beton musst du selbst als Pulver ins Wasser bringen (Beton-Farm).
+2. **Bauen, Höhe 4 bis 49:** Höhe für Höhe, in Feldern von 16 x 16 Blöcken, **von außen nach innen**. Erst kommen die Hallen
+   an der Mauer dran, dann die Kirche in der Mitte. Was schon steht, lässt er aus.
+3. **Ab Höhe 50 (die hohen Teile):** Dann stehen nur noch die **Kirche mit dem Mittelturm** (bis Höhe 121) und die **zwei
+   Fassadentürme** (bis Höhe 76). Er baut **einen Teil komplett bis oben** und steigt dabei mit.
+   Danach geht er über eine **Erd-Treppe** bis auf Höhe 50 runter und baut den nächsten Teil.
+   Springen gibt es innen nicht, weil es keine Mauer zum Landen gibt.
+4. **Nachholen und Aufräumen:** Wie bei der Mauer: übersprungene Stellen bis zu 3 Mal nachholen, dann die Gerüst-Erde abbauen.
+   Fehlt danach noch etwas, stehen die ersten 12 Stellen mit X Y Z im Chat.
+
+- **Anhalten:** Numpad 8 und **„Bauen: Stopp“**. Weiter geht es mit **„Innen weiter“**: Was schon steht, überspringt er.
+- Schutz bei wenig Leben, Funk-Terminal, Gerüst-Erde und Fortschritt alle 5 Minuten funktionieren genauso wie bei der Mauer.
+- Achtung: Die Spitzen sind sehr hoch. Wer dort runterfällt, ist tot. Stirbt er, hält er an und sagt, wo die Sachen liegen.
+
 ### Mauer bauen (Mauer mit Türmen)
-Knopf **„Mauer bauen“** (unten im Panel, rechts neben „Material prüfen“). Am besten bei den Strom-Öfen neben dem Tor starten.
+Die Mauer ist fertig. Der Knopf (rechts neben „Material prüfen“) heißt nur noch **„Mauer weiter“**, solange dort etwas offen ist. Am besten bei den Strom-Öfen neben dem Tor starten.
 Gebaut werden die Außenmauer, die 4 Ecktürme, die Mauertürme und das Tor, von Höhe 4 bis Höhe 54 (ca. 41.000 Blöcke).
 **Das Innere der Burg bleibt frei.**
 1. **Vorbereiten:** Er schaut nach, was noch fehlt, stellt es her und brennt es. Fehlt danach noch Material, sagt er, was,
@@ -245,7 +266,7 @@ Ist das Inventar voll, legt er alles hinein, was nicht gebraucht wird (auch beim
 Er behält die aktuelle Blocksorte, 5 Stapel Gerüst-Erde und deine eigenen Sachen vom Start. Nach jeder Höhe räumt er auch auf.
 Geht trotzdem nichts mehr hinein, hält er an und sagt Bescheid.
 
-- **Anhalten:** Numpad 8 und **„Mauer: Stopp“**. Weiter geht es mit **„Mauer weiter“**: Was schon steht, überspringt er.
+- **Anhalten:** Numpad 8 und **„Bauen: Stopp“**. Weiter geht es mit **„Mauer weiter“**: Was schon steht, überspringt er.
 - Verlässt du die Welt, hält er an. Danach einfach „Mauer weiter“ drücken.
 - Beim Start schaltet er die Beton-Farm aus, damit nicht beides gleichzeitig klickt.
 - Fehlen am Ende noch Blöcke, steht das im Chat und der Knopf heißt weiter „Mauer weiter“.
@@ -342,7 +363,7 @@ Ausrichten, anschalten, er schlägt immer auf diese Stelle.
   Härtere Blöcke (Stein, Erz …) gehen durch einzelne Klicks nicht kaputt, dafür muss die Taste gehalten werden.
 - Ist ein Menü offen (Inventar, Chat, Panel), macht er Pause.
 - Beton-Farm und Auto-Schlagen laufen nie gleichzeitig: Schaltest du eins an, geht das andere aus. Beim Start von
-  „Mauer bauen“ gehen beide aus.
+  „Mauer weiter“ oder „Innen bauen“ gehen beide aus.
 - Hinweis: Normale Minecraft-Waffen brauchen eine kurze Aufladezeit. Wer schneller schlägt, als die Waffe auflädt,
   macht pro Schlag weniger Schaden.
 
