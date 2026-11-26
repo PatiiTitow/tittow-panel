@@ -191,8 +191,9 @@ public final class Burgvorschau {
 	}
 
 	/**
-	 * "Material prüfen" und Herstellen rechnen nur für die Mauer mit Türmen (Außenmauer, Ecktürme, Mauertürme und Tor,
-	 * vom Sockel bis ganz oben). Der Sockel ist fertig und wird nicht mehr geprüft. Setzt pruefNoch und die Texte.
+	 * "Material prüfen" und Herstellen rechnen für das nächste Projekt: die Innengebäude (Kirche, Mittelturm, Fassade,
+	 * Hallen, Hof – alles innerhalb der Mauer, vom Sockel bis ganz oben). Sockel und Mauer mit Türmen sind fertig.
+	 * Setzt pruefNoch und die Texte.
 	 */
 	private void teilWaehlen(Minecraft mc) {
 		Bauplan plan = Bauplan.laden();
@@ -200,15 +201,15 @@ public final class Burgvorschau {
 			pruefNoch = Map.of();
 			return;
 		}
-		pruefNoch = BurgBau.nochZuBauen(mc, plan, tor, vorne, plan.sockel, plan.h - 1, true);
+		pruefNoch = BurgBau.nochInnen(mc, plan, tor, vorne);
 		long gesamt = 0;
-		for (long n : BurgBau.nochZuBauen(null, plan, tor, vorne, plan.sockel, plan.h - 1, true).values()) {
+		for (long n : BurgBau.nochInnen(null, plan, tor, vorne).values()) {
 			gesamt += n;
 		}
-		pruefName = "Mauer mit Türmen";
-		pruefWo = "An der Mauer mit Türmen";
-		pruefTitel = "die Mauer mit Türmen";
-		pruefLos = "Das Material für die Mauer mit Türmen ist komplett.";
+		pruefName = "Innengebäude";
+		pruefWo = "An den Innengebäuden";
+		pruefTitel = "die Innengebäude";
+		pruefLos = "Das Material für die Innengebäude ist komplett.";
 		pruefGesamt = gesamt;
 	}
 

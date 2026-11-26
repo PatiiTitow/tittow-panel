@@ -1956,6 +1956,17 @@ final class BurgBau {
 
 	/** Wie oben; nurMauer = nur die Mauer mit Türmen zählen (Bauplan.mauerRing). mc = null: nicht in der Welt nachsehen. */
 	static Map<String, Long> nochZuBauen(Minecraft mc, Bauplan plan, BlockPos tor, Direction vorne, int von, int bis, boolean nurMauer) {
+		return zaehlen(mc, plan, tor, vorne, von, bis, nurMauer ? 1 : 0);
+	}
+
+	/** Was an den Innengebäuden (alles innerhalb der Mauer, vom Sockel bis ganz oben) noch gebaut werden muss. mc = null: alles. */
+	static Map<String, Long> nochInnen(Minecraft mc, Bauplan plan, BlockPos tor, Direction vorne) {
+		return zaehlen(mc, plan, tor, vorne, plan.sockel, plan.h - 1, 2);
+	}
+
+	/** teil: 0 = alles, 1 = nur die Mauer mit Türmen, 2 = nur die Innengebäude (alles ohne die Mauer). */
+	private static Map<String, Long> zaehlen(Minecraft mc, Bauplan plan, BlockPos tor, Direction vorne, int von, int bis, int teil) {
+		boolean nurMauer = teil == 1;
 		long[] n = new long[plan.ids.length];
 		if (nurMauer && mc != null) {
 			Mauerstand.fuerBurg(tor, plan); // was weit weg (nicht geladen) ist: der zuletzt gesehene Stand
@@ -1964,7 +1975,7 @@ final class BurgBau {
 			for (int z = 0; z < plan.l; z++) {
 				for (int x = 0; x < plan.w; x++) {
 					int i = plan.index(x, yy, z);
-					if (!plan.setzbar(i) || nurMauer && !Bauplan.mauerRing(x, z)) {
+					if (!plan.setzbar(i) || teil == 1 && !Bauplan.mauerRing(x, z) || teil == 2 && Bauplan.mauerRing(x, z)) {
 						continue;
 					}
 					if (mc == null) {

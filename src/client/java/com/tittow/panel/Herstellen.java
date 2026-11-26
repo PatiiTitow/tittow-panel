@@ -79,6 +79,9 @@ final class Herstellen {
 		werkbank("deepslate_bricks", 4, "polished_deepslate", "polished_deepslate", "polished_deepslate", "polished_deepslate");
 		werkbank("deepslate_tiles", 4, "deepslate_bricks", "deepslate_bricks", "deepslate_bricks", "deepslate_bricks");
 		werkbank("polished_andesite", 4, "andesite", "andesite", "andesite", "andesite");
+		// für die Innengebäude
+		werkbank("polished_blackstone", 4, "blackstone", "blackstone", "blackstone", "blackstone");
+		werkbank("polished_blackstone_bricks", 4, "polished_blackstone", "polished_blackstone", "polished_blackstone", "polished_blackstone");
 		werkbank("magma_block", 1, "magma_cream", "magma_cream", "magma_cream", "magma_cream");
 		werkbank("nether_bricks", 1, "nether_brick", "nether_brick", "nether_brick", "nether_brick"); // Netherziegel-Block
 		werkbank("glowstone", 1, "glowstone_dust", "glowstone_dust", "glowstone_dust", "glowstone_dust"); // Leuchtstein

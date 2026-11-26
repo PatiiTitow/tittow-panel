@@ -176,8 +176,13 @@ Baritone selbst darf beim Ebnen nichts im Inventar umräumen (Einstellung `allow
 ### Material prüfen
 Knopf **„Material prüfen“** (unten im Panel, links neben „Mauer bauen“). Das Panel geht zu, der Bot öffnet das Funk-Terminal
 (Slot 8), blättert **alle Seiten** durch und zählt, was im Lager ist. Was du im Inventar hast, zählt mit.
-Geprüft wird **nur die Mauer mit Türmen** (Außenmauer, 4 Ecktürme, die Mauertürme und das Tor, vom Sockel bis ganz oben,
-ca. 41.000 Blöcke). Der Sockel ist fertig und wird nicht mehr geprüft.
+Geprüft wird das **nächste Projekt: die Innengebäude** (alles innerhalb der Mauer, vom Sockel bis ganz oben, ca. 59.750 Blöcke):
+Fassade, Kirchenschiff, großer Mittelturm, runder Chor, Querschiffe, die drei langen Hallen, die zwei Fassadentürme und der Hof.
+Sockel und Mauer mit Türmen sind fertig und werden nicht mehr geprüft.
+Am meisten braucht es Tiefenschiefer-Ziegel und -Fliesen, Netherziegel-Blöcke, roten Beton, polierte Schwarzstein-Ziegel und
+Leuchtstein. An Rohstoffen sind das ungefähr 33.600 Bruchtiefenschiefer, 45.100 Netherrack, 4.450 Schwarzstein,
+11.000 Leuchtsteinstaub sowie Sand, Kies und roter Farbstoff für den Beton.
+Polierten Schwarzstein und polierte Schwarzstein-Ziegel stellt er jetzt auch selbst her (aus Schwarzstein).
 Gezählt wird **nur das, was noch fehlt**: Der Bot schaut in der Welt nach, was schon steht,
 und rechnet nur den Rest (also ab da, wo das Bauen aufgehört hat). Oben im Bericht steht, wie viele Blöcke noch fehlen
 und wie viel Prozent fertig sind. Dafür muss die Burg gesetzt sein und du musst nah genug stehen, damit die ganze Burg-Fläche
@@ -191,9 +196,11 @@ Darunter steht, was **auch nach dem Herstellen und Brennen** noch fehlt, also we
 ist das Material komplett.
 
 **Danach stellt der Bot gleich alles für diesen Bauteil her und brennt es** (siehe „Herstellen“ unten). Der Knopf heißt solange
-**„Herstellen: Stopp“**. Am Ende steht „Fertig mit Herstellen für die Mauer mit Türmen.“ Alles liegt dann im Funk-Terminal.
+**„Herstellen: Stopp“**. Am Ende steht „Fertig mit Herstellen für die Innengebäude.“ Alles liegt dann im Funk-Terminal.
+Roten Beton macht er als **Trockenbeton (Pulver)**, das musst du selbst im Wasser hart machen (z. B. mit der Beton-Farm).
 Am besten bei den Strom-Öfen neben dem Tor starten.
-Gezählt wird nur, was an der Mauer **noch fehlt** (steht schon etwas, zählt es nicht mehr).
+Gezählt wird nur, was an den Innengebäuden **noch fehlt** (steht schon etwas, zählt es nicht mehr).
+Einen Bau-Knopf für die Innengebäude gibt es noch nicht, „Mauer bauen“ baut weiter nur die Mauer mit Türmen.
 
 Die Mengen kommen aus dem Bauplan der Blutfeste (Tiefenschiefer, Hauptturm aus Schwarzstein, Netherziegel statt Rot, Leuchtstein als Licht).
 Zeigt das Lager nur einen Stapel und schreibt die echte Menge in die Beschreibung (z. B. „Menge: 1.600“), wird diese Zahl genommen.
