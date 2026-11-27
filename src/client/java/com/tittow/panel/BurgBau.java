@@ -112,6 +112,8 @@ final class BurgBau {
 	private List<BlockPos> schutzPlaetze = List.of();
 	private int schutzNr, schutzRunde;
 	private List<int[]> ringFelder = List.of();  // die Felder der Mauer (bis Höhe 19), im Kreis
+	private int[] gruppenStart;                  // innen: wo in ringFelder die Hallen und die Kirche anfangen (null = eine Gruppe)
+	private int gruppe;                          // innen: 0 = Hallen an der Mauer, 1 = Kirche
 	private List<int[]> turmFelder = List.of();  // die einzelnen Türme (ab Höhe 20), im Kreis
 	private int turm = -1;                  // an welchem Turm er gerade baut (-1 = an der Mauer)
 	/** Bis auf diese Höhe (Füße) steigt er nach einem Turm wieder runter: oben auf die Mauer. */
@@ -242,8 +244,9 @@ final class BurgBau {
 	}
 
 	/**
-	 * Baut die Innengebäude (Kirche, Mittelturm, Fassade, Hallen, Hof – alles innerhalb der Mauer). Unten Schicht für
-	 * Schicht in Feldern, ab Höhe 50 jeden hohen Teil (Kirche mit Mittelturm, Fassadentürme) einzeln von unten bis oben.
+	 * Baut die Innengebäude (Kirche, Mittelturm, Fassade, Hallen, Hof – alles innerhalb der Mauer). Bis Höhe 49 erst die
+	 * Hallen an der Mauer ganz, dann die Kirche, jeweils Schicht für Schicht in Feldern im Kreis herum (so läuft er oben
+	 * auf dem Gebauten weiter und muss nicht über den leeren Hof). Ab Höhe 50 jeden hohen Teil einzeln von unten bis oben.
 	 */
 	String innenStarten(Minecraft mc, BlockPos tor, Direction vorne) {
 		return teilStarten(mc, tor, vorne, INNEN);
@@ -298,7 +301,8 @@ final class BurgBau {
 		long offen = summe(noch);
 		chat(p, offen > 0
 				? teilName + ": §eEs fehlen noch " + zahl(offen) + " Blöcke.§r Er prüft das Material, stellt her, was noch fehlt, und baut dann "
-						+ (innen ? "von unten nach oben. Ab Höhe " + turmAb + " baut er Kirche mit Mittelturm und die Fassadentürme einzeln fertig."
+						+ (innen ? "erst die Hallen an der Mauer, dann die Kirche, jeweils Höhe für Höhe im Kreis herum. Ab Höhe " + turmAb
+								+ " baut er Kirche mit Mittelturm und die Fassadentürme einzeln fertig."
 								: "die Löcher von unten nach oben zu.")
 				: teilName + ": Es fehlt kein Block mehr, er räumt nur noch das Gerüst weg.");
 		schritt = Schritt.VORBEREITEN;
@@ -1010,26 +1014,56 @@ final class BurgBau {
 	 */
 	private List<int[]> ringFelderMachen() {
 		List<Integer> xs = feldGrenzen(plan.w), zs = feldGrenzen(plan.l);
-		List<int[]> f = new ArrayList<>();
-		for (int zi = 0; zi < zs.size() - 1; zi++) {
-			for (int xi = 0; xi < xs.size() - 1; xi++) {
-				int[] k = { xs.get(xi), zs.get(zi), xs.get(xi + 1) - 1, zs.get(zi + 1) - 1 };
-				for (int yy = von; yy <= Math.min(bis, turmAb - 1); yy++) {
-					if (feldZaehlen(null, yy, k) > 0) {
-						f.add(k);
-						break;
+		// innen zwei Gruppen nacheinander: erst die Hallen an der Mauer, dann die Kirche (jedes Feld trägt die Gruppe an Stelle 4)
+		int gruppenZahl = teil == INNEN ? 2 : 1;
+		int[] start = new int[gruppenZahl + 1];
+		List<int[]> alle = new ArrayList<>();
+		double cx = (plan.w - 1) / 2.0, cz = (plan.l - 1) / 2.0;
+		for (int g = 0; g < gruppenZahl; g++) {
+			start[g] = alle.size();
+			List<int[]> f = new ArrayList<>();
+			for (int zi = 0; zi < zs.size() - 1; zi++) {
+				for (int xi = 0; xi < xs.size() - 1; xi++) {
+					int[] k = teil == INNEN ? new int[] { xs.get(xi), zs.get(zi), xs.get(xi + 1) - 1, zs.get(zi + 1) - 1, g }
+							: new int[] { xs.get(xi), zs.get(zi), xs.get(xi + 1) - 1, zs.get(zi + 1) - 1 };
+					for (int yy = von; yy <= Math.min(bis, turmAb - 1); yy++) {
+						if (feldZaehlen(null, yy, k) > 0) {
+							f.add(k);
+							break;
+						}
 					}
 				}
 			}
+			// einmal im Kreis herum: das nächste Feld liegt immer neben dem letzten, er läuft oben auf dem Gebauten weiter
+			f.sort((a, b) -> Double.compare(Math.atan2((a[1] + a[3]) / 2.0 - cz, (a[0] + a[2]) / 2.0 - cx),
+					Math.atan2((b[1] + b[3]) / 2.0 - cz, (b[0] + b[2]) / 2.0 - cx)));
+			alle.addAll(f);
 		}
-		if (teil == INNEN) {
-			vonAussenNachInnen(f);
-			return f;
-		}
-		double cx = (plan.w - 1) / 2.0, cz = (plan.l - 1) / 2.0;
-		f.sort((a, b) -> Double.compare(Math.atan2((a[1] + a[3]) / 2.0 - cz, (a[0] + a[2]) / 2.0 - cx),
-				Math.atan2((b[1] + b[3]) / 2.0 - cz, (b[0] + b[2]) / 2.0 - cx)));
-		return f;
+		start[gruppenZahl] = alle.size();
+		gruppenStart = teil == INNEN ? start : null;
+		return alle;
+	}
+
+	/** Innen: Gehört die Stelle x, z zur Gruppe des Felds f (Hallen oder Kirche)? Felder ohne Gruppe: immer. */
+	private static boolean imFeld(int[] f, int x, int z) {
+		return f == null || f.length < 5 || (Bauplan.innenHalle(x, z) ? 0 : 1) == f[4];
+	}
+
+	private int gruppen() {
+		return gruppenStart == null ? 1 : gruppenStart.length - 1;
+	}
+
+	private int gruppeAnfang(int g) {
+		return gruppenStart == null ? 0 : gruppenStart[g];
+	}
+
+	private int gruppeEnde(int g) {
+		return gruppenStart == null ? ringFelder.size() : gruppenStart[g + 1];
+	}
+
+	/** Für den Chat: welche Gruppe innen gerade dran ist. */
+	private static String gruppeName(int g) {
+		return g == 0 ? "die Hallen an der Mauer" : "die Kirche mit Fassadentürmen und Brunnen (bis Höhe " + (INNEN_TURM_AB - 1) + ")";
 	}
 
 	/** Wie die hohen Teile im Chat heißen: bei der Mauer "Turm 3", innen z. B. "Teil 2 (Kirche mit Mittelturm)". */
@@ -1073,7 +1107,7 @@ final class BurgBau {
 		for (int z = f[1]; z <= f[3]; z++) {
 			for (int x = f[0]; x <= f[2]; x++) {
 				int i = plan.index(x, yy, z);
-				if (!plan.setzbar(i) || !gehoert(x, z)) {
+				if (!plan.setzbar(i) || !gehoert(x, z) || !imFeld(f, x, z)) {
 					continue;
 				}
 				if (mc == null) {
@@ -1111,16 +1145,17 @@ final class BurgBau {
 	}
 
 	private int feldAnfang() {
-		return turm >= 0 ? turm : 0;
+		return turm >= 0 ? turm : teilBau ? gruppeAnfang(gruppe) : 0;
 	}
 
 	private int feldEnde() {
-		return turm >= 0 ? turm + 1 : felder.size();
+		return turm >= 0 ? turm + 1 : teilBau ? gruppeEnde(gruppe) : felder.size();
 	}
 
 	/** Fängt unten an: sucht die erste Stelle, an der noch etwas fehlt. */
 	private void vonVorn(Minecraft mc, LocalPlayer p) {
 		turm = -1;
+		gruppe = 0;
 		y = von - 1;
 		if (naechsteOffeneStelle(mc, p)) {
 			if (turm < 0) {
@@ -1139,13 +1174,20 @@ final class BurgBau {
 	 * Höhe desselben Turms. Ist er fertig, kommt der nächste Turm dran. false = alles steht.
 	 */
 	private boolean naechsteOffeneStelle(Minecraft mc, LocalPlayer p) {
-		if (turm < 0) {
-			for (int yy = Math.max(von, y + 1); yy < turmAb && yy <= bis; yy++) {
-				for (int nr = 0; nr < ringFelder.size(); nr++) {
-					if (feldRest(mc, yy, nr) > 0) {
-						y = yy;
-						felder = ringFelder;
-						return true;
+		if (turm < 0) { // innen: erst die Hallen ganz (bis unter turmAb), dann die Kirche, jede Höhe einmal im Kreis
+			for (int g = gruppe; g < gruppen(); g++) {
+				for (int yy = g == gruppe ? Math.max(von, y + 1) : von; yy < turmAb && yy <= bis; yy++) {
+					for (int nr = gruppeAnfang(g); nr < gruppeEnde(g); nr++) {
+						if (feldRest(mc, yy, nr) > 0) {
+							felder = ringFelder;
+							y = yy;
+							if (g != gruppe) {
+								gruppe = g;
+								chat(p, "§eJetzt " + gruppeName(g) + ":§r Höhe für Höhe einmal im Kreis herum.");
+								abstiegWennNoetig(p, yy + 2); // steht er noch oben auf den Hallen: erst runter
+							}
+							return true;
+						}
 					}
 				}
 			}
@@ -1687,7 +1729,7 @@ final class BurgBau {
 		for (int z = feld[1]; z <= feld[3]; z++) {
 			for (int x = feld[0]; x <= feld[2]; x++) {
 				int i = plan.index(x, y, z);
-				if (!fehlt[i] && plan.setzbar(i) && gehoert(x, z) && !stimmt(mc, x, z, i)) {
+				if (!fehlt[i] && plan.setzbar(i) && gehoert(x, z) && imFeld(feld, x, z) && !stimmt(mc, x, z, i)) {
 					fehlt[i] = true;
 				}
 			}
@@ -1985,8 +2027,8 @@ final class BurgBau {
 			if (px < f[0] || px > f[2] || pz < f[1] || pz > f[3]) {
 				return null;
 			}
-			if (!gehoert(px, pz)) {
-				return null; // das Innere der Burg bleibt frei
+			if (!gehoert(px, pz) || !imFeld(f, px, pz)) {
+				return null; // das Innere der Burg bleibt frei (innen: nur die Gruppe, die gerade dran ist)
 			}
 			return plan.index(px, schicht, pz) == sorte ? soll : null;
 		});
@@ -2005,7 +2047,7 @@ final class BurgBau {
 		for (int z = z0; z <= z1; z++) {
 			for (int x = x0; x <= x1; x++) {
 				int i = plan.index(x, y, z);
-				if ((sorte >= 0 ? i != sorte : !plan.setzbar(i)) || !gehoert(x, z) || stimmt(mc, x, z, i)) {
+				if ((sorte >= 0 ? i != sorte : !plan.setzbar(i)) || !gehoert(x, z) || !imFeld(f, x, z) || stimmt(mc, x, z, i)) {
 					continue;
 				}
 				n++;
@@ -2266,9 +2308,9 @@ final class BurgBau {
 		if (teilBau && turm >= 0) {
 			return feldRest(mc, y, turm); // am Turm zählt nur dieser eine Turm
 		}
-		if (teilBau) {
+		if (teilBau) { // innen nur die Gruppe, die gerade dran ist
 			int n = 0;
-			for (int nr = 0; nr < felder.size(); nr++) {
+			for (int nr = feldAnfang(); nr < feldEnde(); nr++) {
 				n += feldRest(mc, y, nr);
 			}
 			return n;

@@ -217,8 +217,13 @@ Gebaut wird **alles innerhalb der Mauer**: Fassade, Kirchenschiff, großer Mitte
 Hallen, die zwei Fassadentürme und der Hof, von Höhe 4 bis Höhe 121 (ca. 59.750 Blöcke). Die Mauer fasst er nicht an.
 1. **Vorbereiten:** Wie bei der Mauer. Er schaut nach, was noch fehlt, stellt es her und brennt es und baut dann mit dem, was da ist.
    Geht eine Sorte aus, craftet er nach. Roten Beton musst du selbst als Pulver ins Wasser bringen (Beton-Farm).
-2. **Bauen, Höhe 4 bis 49:** Höhe für Höhe, in Feldern von 16 x 16 Blöcken, **von außen nach innen**. Erst kommen die Hallen
-   an der Mauer dran, dann die Kirche in der Mitte. Was schon steht, lässt er aus.
+2. **Bauen, Höhe 4 bis 49:** In zwei Teilen nacheinander, jeweils **Höhe für Höhe einmal im Kreis herum** (Felder von 16 x 16
+   Blöcken, das nächste Feld liegt immer neben dem letzten). So läuft er oben auf dem, was er gerade gebaut hat, weiter und
+   braucht kaum Gerüst-Erde.
+   - Zuerst die **Hallen an der Mauer** (West-, Nord- und Ostflügel, dazu die kleinen Bauten am Tor), bis ganz oben.
+   - Dann geht er über eine Erd-Treppe runter und baut die **Kirche mit den Fassadentürmen und dem Brunnen** bis Höhe 49.
+   Vorher baute er jede Höhe über die ganze Fläche und musste dabei jedes Mal über den leeren Hof zwischen Hallen und Kirche.
+   Was schon steht, lässt er aus.
 3. **Ab Höhe 50 (die hohen Teile):** Dann stehen nur noch die **Kirche mit dem Mittelturm** (bis Höhe 121) und die **zwei
    Fassadentürme** (bis Höhe 76). Er baut **einen Teil komplett bis oben** und steigt dabei mit.
    Danach geht er über eine **Erd-Treppe** bis auf Höhe 50 runter und baut den nächsten Teil.

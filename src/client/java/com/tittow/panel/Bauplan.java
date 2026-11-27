@@ -118,6 +118,15 @@ final class Bauplan {
 		return false;
 	}
 
+	/**
+	 * Innen: Gehört die Plan-Stelle (x, z) zu den Hallen an der Mauer (West-, Nord-, Ostflügel und die kleinen Bauten
+	 * am Tor)? Alles andere ist die Kirche mit Fassadentürmen und Brunnen. Dazwischen liegt der leere Hof, nur die
+	 * Kirche stößt hinten (z 21/22) an die Nordhalle.
+	 */
+	static boolean innenHalle(int x, int z) {
+		return x <= 23 || x >= 98 || z <= 21 || z >= 108;
+	}
+
 	/** Bis Höhe 19 geht die Mauer mit Zinnen rundherum, ab hier stehen nur noch die einzelnen Türme. */
 	static final int TURM_AB = 20;
 
